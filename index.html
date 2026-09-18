@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    >
+
+    <meta name="theme-color" content="#172033">
+
+    <title>تحفيظ القرآن الكريم</title>
+
+    <link rel="stylesheet" href="css/main.css">
+</head>
+
+<body>
+
+    <main class="app">
+
+        <!-- =========================
+             Header
+        ========================== -->
+        <header class="app-header">
+
+            <div class="header-icon">
+                📖
+            </div>
+
+            <div class="header-text">
+                <h1>تحفيظ القرآن الكريم</h1>
+                <p>رحلة حفظك تبدأ من هنا</p>
+            </div>
+
+        </header>
+
+
+        <!-- =========================
+             Settings Card
+        ========================== -->
+        <section class="settings-card">
+
+            <div class="card-title">
+                <span class="title-icon">⚙️</span>
+                <h2>إعدادات التلاوة</h2>
+            </div>
+
+
+            <!-- Reciter -->
+            <div class="setting-group">
+
+                <label for="reciter">
+                    🎙️ القارئ / الشيخ
+                </label>
+
+                <select id="reciter">
+                    <option value="minshawi">محمد صديق المنشاوي</option>
+                    <option value="husary">محمود خليل الحصري</option>
+                </select>
+
+            </div>
+
+
+            <!-- Surah -->
+            <div class="setting-group">
+
+                <label for="surah">
+                    📚 السورة
+                </label>
+
+                <select id="surah">
+                    <option value="17">سورة الإسراء</option>
+                    <option value="1">سورة الفاتحة</option>
+                    <option value="2">سورة البقرة</option>
+                    <option value="18">سورة الكهف</option>
+                    <option value="36">سورة يس</option>
+                    <option value="67">سورة الملك</option>
+                </select>
+
+            </div>
+
+
+            <!-- Ayah range -->
+            <div class="range-row">
+
+                <div class="setting-group">
+
+                    <label for="fromAyah">
+                        🔵 من الآية
+                    </label>
+
+                    <input
+                        id="fromAyah"
+                        type="number"
+                        min="1"
+                        value="1"
+                        inputmode="numeric"
+                    >
+
+                </div>
+
+
+                <div class="setting-group">
+
+                    <label for="toAyah">
+                        🟢 إلى الآية
+                    </label>
+
+                    <input
+                        id="toAyah"
+                        type="number"
+                        min="1"
+                        value="7"
+                        inputmode="numeric"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- Speed -->
+            <div class="setting-group">
+
+                <label for="speed">
+                    ⚡ سرعة القراءة
+                </label>
+
+                <div class="range-control">
+
+                    <input
+                        id="speed"
+                        type="range"
+                        min="0.5"
+                        max="1.5"
+                        step="0.05"
+                        value="1"
+                    >
+
+                    <div class="range-value" id="speedValue">
+                        1.00×
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Ayah Repeat -->
+            <div class="setting-group">
+
+                <label for="ayahRepeat">
+                    🔁 تكرار الآية
+                </label>
+
+                <div class="number-control">
+
+                    <button
+                        type="button"
+                        class="number-btn"
+                        id="ayahRepeatMinus"
+                        aria-label="تقليل تكرار الآية"
+                    >
+                        −
+                    </button>
+
+                    <div
+                        class="number-value"
+                        id="ayahRepeatValue"
+                    >
+                        3
+                    </div>
+
+                    <button
+                        type="button"
+                        class="number-btn"
+                        id="ayahRepeatPlus"
+                        aria-label="زيادة تكرار الآية"
+                    >
+                        +
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- Paragraph Repeat -->
+            <div class="setting-group">
+
+                <label for="paragraphRepeat">
+                    🏆 تكرار الفقرة
+                </label>
+
+                <div class="number-control">
+
+                    <button
+                        type="button"
+                        class="number-btn"
+                        id="paragraphRepeatMinus"
+                        aria-label="تقليل تكرار الفقرة"
+                    >
+                        −
+                    </button>
+
+                    <div
+                        class="number-value"
+                        id="paragraphRepeatValue"
+                    >
+                        1
+                    </div>
+
+                    <button
+                        type="button"
+                        class="number-btn"
+                        id="paragraphRepeatPlus"
+                        aria-label="زيادة تكرار الفقرة"
+                    >
+                        +
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- Teacher Mode -->
+            <div class="teacher-mode">
+
+                <div class="teacher-info">
+
+                    <div class="teacher-icon">
+                        👨‍🏫
+                    </div>
+
+                    <div>
+                        <strong>الشيخ المعلم</strong>
+                        <span>
+                            تشغيل الشيخ والطفل بالتتابع عند مواضع الوقف
+                        </span>
+                    </div>
+
+                </div>
+
+                <label class="switch">
+
+                    <input
+                        type="checkbox"
+                        id="teacherMode"
+                    >
+
+                    <span class="switch-slider"></span>
+
+                </label>
+
+            </div>
+
+
+            <!-- Start -->
+            <button
+                type="button"
+                id="startButton"
+                class="start-button"
+            >
+                <span>▶</span>
+                <span>ابدأ التحفيظ</span>
+            </button>
+
+        </section>
+
+
+        <!-- =========================
+             Footer
+        ========================== -->
+        <footer class="app-footer">
+            <span>🌱</span>
+            <span>بسم الله نبدأ رحلة القرآن</span>
+            <span>📖</span>
+        </footer>
+
+    </main>
+
+
+    <script type="module" src="js/app.js"></script>
+
+</body>
+</html>
