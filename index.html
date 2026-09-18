@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <meta name="theme-color" content="#6d2434">
+  <title>الشيخ المعلم — التحفيظ</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">📖 التحفيظ</div>
+        <h1>الشيخ المعلم</h1>
+        <p>اضبط الإعدادات ثم ابدأ الحفظ</p>
+      </div>
+    </header>
+
+    <section class="card settings-card">
+      <div class="section-title">🎛️ إعداد جلسة التحفيظ</div>
+
+      <label class="field">
+        <span>🎙️ القارئ</span>
+        <select id="reciterSelect"></select>
+      </label>
+
+      <label class="field">
+        <span>📖 السورة</span>
+        <select id="surahSelect"></select>
+      </label>
+
+      <div class="two-cols">
+        <label class="field">
+          <span>من الآية</span>
+          <select id="fromAyah"></select>
+        </label>
+        <label class="field">
+          <span>إلى الآية</span>
+          <select id="toAyah"></select>
+        </label>
+      </div>
+
+      <label class="field">
+        <span>⚡ سرعة القراءة</span>
+        <select id="speedSelect">
+          <option value="0.75">0.75× — بطيء</option>
+          <option value="1" selected>1× — عادي</option>
+          <option value="1.25">1.25× — سريع</option>
+        </select>
+      </label>
+
+      <div class="number-grid">
+        <label class="field">
+          <span>🔁 تكرار الآية</span>
+          <input id="ayahRepeats" type="number" min="1" max="100" value="1">
+        </label>
+        <label class="field">
+          <span>🏆 تكرار الفقرة</span>
+          <input id="paragraphRepeats" type="number" min="1" max="100" value="1">
+        </label>
+      </div>
+
+      <label class="field">
+        <span>⏳ الانتظار بعد الآية</span>
+        <select id="waitAfter">
+          <option value="0">بدون انتظار</option>
+          <option value="0.5">نصف ثانية</option>
+          <option value="1" selected>ثانية</option>
+          <option value="2">ثانيتان</option>
+          <option value="3">3 ثوانٍ</option>
+        </select>
+      </label>
+
+      <div class="feature-row">
+        <div>
+          <strong>👨‍🏫 وضع الشيخ المعلم</strong>
+          <small>يتناوب تسجيل الشيخ وتسجيل الطفل عند نقاط الوقف.</small>
+        </div>
+        <label class="switch">
+          <input id="teacherMode" type="checkbox">
+          <span></span>
+        </label>
+      </div>
+
+      <div class="feature-row">
+        <div>
+          <strong>📥 استخدام الملفات المحلية</strong>
+          <small>مخصص لاحقًا لتنزيل التسجيلات للعمل دون اتصال.</small>
+        </div>
+        <label class="switch">
+          <input id="offlineMode" type="checkbox">
+          <span></span>
+        </label>
+      </div>
+
+      <button id="startBtn" class="primary-btn">▶️ ابدأ التحفيظ</button>
+    </section>
+
+    <footer>بسم الله الرحمن الرحيم 🌿</footer>
+  </main>
+
+  <script src="data/surahs.js"></script>
+  <script src="data/reciters.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
