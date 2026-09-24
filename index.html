@@ -1,231 +1,418 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
     >
 
-    <meta name="theme-color" content="#172033">
+    <meta
+        name="theme-color"
+        content="#101827"
+    >
 
-    <title>تحفيظ القرآن الكريم</title>
+    <title>تحفيظ القرآن</title>
 
-    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="index.css">
 </head>
+
 
 <body>
 
-    <main class="app">
+    <!-- =====================================================
+         التطبيق
+    ====================================================== -->
 
-        <!-- =========================
-             Header
-        ========================== -->
-        <header class="app-header">
-
-            <div class="header-icon">
-                📖
-            </div>
-
-            <div class="header-text">
-                <h1>تحفيظ القرآن الكريم</h1>
-                <p>رحلة حفظك تبدأ من هنا</p>
-            </div>
-
-        </header>
+    <main id="app">
 
 
-        <!-- =========================
-             Settings Card
-        ========================== -->
-        <section class="settings-card">
+        <!-- =================================================
+             الشاشة الرئيسية
+        ================================================== -->
 
-            <div class="card-title">
-                <span class="title-icon">⚙️</span>
-                <h2>إعدادات التلاوة</h2>
-            </div>
+        <section
+            id="mainScreen"
+            class="screen active"
+        >
 
+            <!-- رأس اللعبة -->
 
-            <!-- Reciter -->
-            <div class="setting-group">
+            <header class="game-header">
 
-                <label for="reciter">
-                    🎙️ القارئ / الشيخ
-                </label>
+                <div class="header-logo">
+                    📖
+                </div>
 
-                <select id="reciter">
-                    <option value="minshawi">محمد صديق المنشاوي</option>
-                    <option value="husary">محمود خليل الحصري</option>
-                </select>
+                <div class="header-title">
 
-            </div>
+                    <h1>
+                        تحفيظ القرآن
+                    </h1>
 
+                    <p>
+                        استعد للحفظ 🚀
+                    </p>
 
-            <!-- Surah -->
-            <div class="setting-group">
+                </div>
 
-                <label for="surah">
-                    📚 السورة
-                </label>
-
-                <select id="surah">
-                    <option value="17">سورة الإسراء</option>
-                    <option value="1">سورة الفاتحة</option>
-                    <option value="2">سورة البقرة</option>
-                    <option value="18">سورة الكهف</option>
-                    <option value="36">سورة يس</option>
-                    <option value="67">سورة الملك</option>
-                </select>
-
-            </div>
+            </header>
 
 
-            <!-- Ayah range -->
-            <div class="range-row">
 
-                <div class="setting-group">
+            <!-- =================================================
+                 بطاقة السورة
+            ================================================== -->
 
-                    <label for="fromAyah">
-                        🔵 من الآية
-                    </label>
+            <section class="game-card surah-card">
 
-                    <input
-                        id="fromAyah"
-                        type="number"
-                        min="1"
-                        value="1"
-                        inputmode="numeric"
-                    >
+                <div class="card-top-line">
+
+                    <span class="card-icon">
+                        📚
+                    </span>
+
+                    <span class="card-label">
+                        السورة
+                    </span>
 
                 </div>
 
 
-                <div class="setting-group">
+                <button
+                    id="surahButton"
+                    class="big-choice-button"
+                    type="button"
+                >
 
-                    <label for="toAyah">
-                        🟢 إلى الآية
-                    </label>
+                    <span id="surahName">
+                        الضحى
+                    </span>
 
-                    <input
-                        id="toAyah"
-                        type="number"
-                        min="1"
-                        value="7"
-                        inputmode="numeric"
-                    >
+                    <span class="choice-arrow">
+                        ›
+                    </span>
 
-                </div>
+                </button>
 
-            </div>
+            </section>
 
 
-            <!-- Speed -->
-            <div class="setting-group">
 
-                <label for="speed">
-                    ⚡ سرعة القراءة
-                </label>
+            <!-- =================================================
+                 اختيار الآيات
+            ================================================== -->
 
-                <div class="range-control">
+            <section class="game-card">
 
-                    <input
-                        id="speed"
-                        type="range"
-                        min="0.5"
-                        max="1.5"
-                        step="0.05"
-                        value="1"
-                    >
+                <div class="card-top-line">
 
-                    <div class="range-value" id="speedValue">
-                        1.00×
-                    </div>
+                    <span class="card-icon">
+                        🎯
+                    </span>
+
+                    <span class="card-label">
+                        نطاق الحفظ
+                    </span>
 
                 </div>
 
-            </div>
 
-
-            <!-- Ayah Repeat -->
-            <div class="setting-group">
-
-                <label for="ayahRepeat">
-                    🔁 تكرار الآية
-                </label>
-
-                <div class="number-control">
+                <div class="ayah-range-picker">
 
                     <button
+                        id="fromAyahButton"
+                        class="number-choice"
                         type="button"
-                        class="number-btn"
+                    >
+
+                        <small>
+                            من الآية
+                        </small>
+
+                        <strong id="fromAyahValue">
+                            1
+                        </strong>
+
+                    </button>
+
+
+                    <div class="range-arrow">
+                        ←
+                    </div>
+
+
+                    <button
+                        id="toAyahButton"
+                        class="number-choice"
+                        type="button"
+                    >
+
+                        <small>
+                            إلى الآية
+                        </small>
+
+                        <strong id="toAyahValue">
+                            11
+                        </strong>
+
+                    </button>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 السرعة
+            ================================================== -->
+
+            <section class="game-card">
+
+                <div class="card-top-line">
+
+                    <span class="card-icon">
+                        ⚡
+                    </span>
+
+                    <span class="card-label">
+                        سرعة القراءة
+                    </span>
+
+                </div>
+
+
+                <div
+                    id="speedOptions"
+                    class="option-grid option-grid-3"
+                >
+
+                    <button
+                        class="option-button"
+                        data-speed="0.75"
+                        type="button"
+                    >
+                        0.75×
+                    </button>
+
+
+                    <button
+                        class="option-button selected"
+                        data-speed="1"
+                        type="button"
+                    >
+                        1×
+                    </button>
+
+
+                    <button
+                        class="option-button"
+                        data-speed="1.25"
+                        type="button"
+                    >
+                        1.25×
+                    </button>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 الانتظار
+            ================================================== -->
+
+            <section class="game-card">
+
+                <div class="card-top-line">
+
+                    <span class="card-icon">
+                        ⏱️
+                    </span>
+
+                    <span class="card-label">
+                        وقت الانتظار بين الآيات
+                    </span>
+
+                </div>
+
+
+                <div
+                    id="waitOptions"
+                    class="option-grid option-grid-3"
+                >
+
+                    <button
+                        class="option-button"
+                        data-wait="short"
+                        type="button"
+                    >
+
+                        <span>
+                            ⚡
+                        </span>
+
+                        <small>
+                            قصير
+                        </small>
+
+                    </button>
+
+
+                    <button
+                        class="option-button selected"
+                        data-wait="medium"
+                        type="button"
+                    >
+
+                        <span>
+                            ⏱️
+                        </span>
+
+                        <small>
+                            متوسط
+                        </small>
+
+                    </button>
+
+
+                    <button
+                        class="option-button"
+                        data-wait="long"
+                        type="button"
+                    >
+
+                        <span>
+                            🐢
+                        </span>
+
+                        <small>
+                            طويل
+                        </small>
+
+                    </button>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 تكرار الآية
+            ================================================== -->
+
+            <section class="game-card repeat-card">
+
+                <div class="card-top-line">
+
+                    <span class="card-icon">
+                        🔁
+                    </span>
+
+                    <span class="card-label">
+                        تكرار الآية
+                    </span>
+
+                </div>
+
+
+                <div class="stepper">
+
+                    <button
                         id="ayahRepeatMinus"
+                        class="stepper-button minus"
+                        type="button"
                         aria-label="تقليل تكرار الآية"
                     >
                         −
                     </button>
 
-                    <div
-                        class="number-value"
-                        id="ayahRepeatValue"
-                    >
-                        3
+
+                    <div class="stepper-value">
+
+                        <strong id="ayahRepeatValue">
+                            لا تكرار
+                        </strong>
+
+                        <small id="ayahRepeatSubtext">
+                            تشغيل واحد
+                        </small>
+
                     </div>
 
+
                     <button
-                        type="button"
-                        class="number-btn"
                         id="ayahRepeatPlus"
+                        class="stepper-button plus"
+                        type="button"
                         aria-label="زيادة تكرار الآية"
                     >
-                        +
+                        ＋
                     </button>
 
                 </div>
 
-            </div>
+            </section>
 
 
-            <!-- Paragraph Repeat -->
-            <div class="setting-group">
 
-                <label for="paragraphRepeat">
-                    🏆 تكرار الفقرة
-                </label>
+            <!-- =================================================
+                 تكرار الفقرة
+            ================================================== -->
 
-                <div class="number-control">
+            <section class="game-card paragraph-repeat-card">
 
-                    <button
-                        type="button"
-                        class="number-btn"
-                        id="paragraphRepeatMinus"
-                        aria-label="تقليل تكرار الفقرة"
-                    >
-                        −
-                    </button>
+                <div class="card-top-line">
 
-                    <div
-                        class="number-value"
-                        id="paragraphRepeatValue"
-                    >
-                        1
+                    <span class="card-icon">
+                        📚
+                    </span>
+
+                    <span class="card-label">
+                        تكرار الفقرة
+                    </span>
+
+                </div>
+
+
+                <button
+                    id="paragraphRepeatButton"
+                    class="big-choice-button"
+                    type="button"
+                >
+
+                    <div class="paragraph-choice-content">
+
+                        <strong id="paragraphRepeatValue">
+                            لا تكرار
+                        </strong>
+
+                        <small>
+                            اضغط لاختيار عدد التكرارات
+                        </small>
+
                     </div>
 
-                    <button
-                        type="button"
-                        class="number-btn"
-                        id="paragraphRepeatPlus"
-                        aria-label="زيادة تكرار الفقرة"
-                    >
-                        +
-                    </button>
+                    <span class="choice-arrow">
+                        ›
+                    </span>
 
-                </div>
+                </button>
 
-            </div>
+            </section>
 
 
-            <!-- Teacher Mode -->
-            <div class="teacher-mode">
+
+            <!-- =================================================
+                 الشيخ المعلم
+            ================================================== -->
+
+            <section class="game-card teacher-card">
 
                 <div class="teacher-info">
 
@@ -234,54 +421,740 @@
                     </div>
 
                     <div>
-                        <strong>الشيخ المعلم</strong>
-                        <span>
-                            تشغيل الشيخ والطفل بالتتابع عند مواضع الوقف
-                        </span>
+
+                        <strong>
+                            الشيخ المعلم
+                        </strong>
+
+                        <small>
+                            التناوب بين الشيخ والمعلم
+                        </small>
+
                     </div>
 
                 </div>
 
-                <label class="switch">
 
-                    <input
-                        type="checkbox"
-                        id="teacherMode"
-                    >
+                <button
+                    id="teacherToggle"
+                    class="game-toggle"
+                    type="button"
+                    aria-pressed="false"
+                >
 
-                    <span class="switch-slider"></span>
+                    <span class="toggle-knob"></span>
 
-                </label>
+                </button>
 
-            </div>
+            </section>
 
 
-            <!-- Start -->
+
+            <!-- =================================================
+                 زر البداية
+            ================================================== -->
+
             <button
-                type="button"
                 id="startButton"
-                class="start-button"
+                class="start-game-button"
+                type="button"
             >
-                <span>▶</span>
-                <span>ابدأ التحفيظ</span>
+
+                <span class="start-icon">
+                    ▶
+                </span>
+
+                <span>
+                    ابدأ الحفظ
+                </span>
+
+                <span class="start-arrow">
+                    🚀
+                </span>
+
             </button>
+
+
+            <div class="bottom-space"></div>
 
         </section>
 
 
-        <!-- =========================
-             Footer
-        ========================== -->
-        <footer class="app-footer">
-            <span>🌱</span>
-            <span>بسم الله نبدأ رحلة القرآن</span>
-            <span>📖</span>
-        </footer>
+
+        <!-- =====================================================
+             شاشة اختيار السورة
+        ====================================================== -->
+
+        <section
+            id="surahScreen"
+            class="screen"
+        >
+
+            <header class="subscreen-header">
+
+                <button
+                    id="surahBackButton"
+                    class="back-button"
+                    type="button"
+                >
+                    ←
+                </button>
+
+                <div>
+
+                    <h2>
+                        اختر السورة
+                    </h2>
+
+                    <small>
+                        اختر السورة التي تريد حفظها
+                    </small>
+
+                </div>
+
+            </header>
+
+
+            <div
+                id="surahList"
+                class="game-list"
+            >
+
+                <!--
+                    سيتم إنشاء السور هنا بواسطة JavaScript.
+                -->
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             شاشة اختيار الآية الأولى
+        ====================================================== -->
+
+        <section
+            id="fromAyahScreen"
+            class="screen"
+        >
+
+            <header class="subscreen-header">
+
+                <button
+                    id="fromAyahBackButton"
+                    class="back-button"
+                    type="button"
+                >
+                    ←
+                </button>
+
+                <div>
+
+                    <h2>
+                        من أي آية؟
+                    </h2>
+
+                    <small id="fromAyahSurahLabel">
+                        سورة الضحى
+                    </small>
+
+                </div>
+
+            </header>
+
+
+            <div
+                id="fromAyahGrid"
+                class="ayah-grid"
+            >
+
+                <!-- الآيات تنشأ من JavaScript -->
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             شاشة اختيار الآية الأخيرة
+        ====================================================== -->
+
+        <section
+            id="toAyahScreen"
+            class="screen"
+        >
+
+            <header class="subscreen-header">
+
+                <button
+                    id="toAyahBackButton"
+                    class="back-button"
+                    type="button"
+                >
+                    ←
+                </button>
+
+                <div>
+
+                    <h2>
+                        إلى أي آية؟
+                    </h2>
+
+                    <small id="toAyahSurahLabel">
+                        سورة الضحى
+                    </small>
+
+                </div>
+
+            </header>
+
+
+            <div
+                id="toAyahGrid"
+                class="ayah-grid"
+            >
+
+                <!-- الآيات تنشأ من JavaScript -->
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             شاشة تكرار الفقرة
+        ====================================================== -->
+
+        <section
+            id="paragraphRepeatScreen"
+            class="screen"
+        >
+
+            <header class="subscreen-header">
+
+                <button
+                    id="paragraphBackButton"
+                    class="back-button"
+                    type="button"
+                >
+                    ←
+                </button>
+
+                <div>
+
+                    <h2>
+                        📚 تكرار الفقرة
+                    </h2>
+
+                    <small>
+                        اختر عدد مرات إعادة الفقرة
+                    </small>
+
+                </div>
+
+            </header>
+
+
+            <div
+                id="paragraphRepeatGrid"
+                class="repeat-choice-grid"
+            >
+
+                <!-- =================================================
+                     بدون تكرار
+                ================================================== -->
+
+                <button
+                    class="repeat-choice-button selected"
+                    data-paragraph-repeat="1"
+                    type="button"
+                >
+
+                    <span class="repeat-choice-icon">
+                        ▶️
+                    </span>
+
+                    <strong>
+                        بدون تكرار
+                    </strong>
+
+                    <small>
+                        مرة واحدة
+                    </small>
+
+                </button>
+
+
+
+                <!-- =================================================
+                     2 - 10
+                ================================================== -->
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="2"
+                    type="button"
+                >
+                    <strong>2</strong>
+                    <small>مرتان</small>
+                </button>
+
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="3"
+                    type="button"
+                >
+                    <strong>3</strong>
+                    <small>مرات</small>
+                </button>
+
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="4"
+                    type="button"
+                >
+                    <strong>4</strong>
+                    <small>مرات</small>
+                </button>
+
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="5"
+                    type="button"
+                >
+                    <strong>5</strong>
+                    <small>مرات</small>
+                </button>
+
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="6"
+                    type="button"
+                >
+                    <strong>6</strong>
+                    <small>مرات</small>
+                </button>
+
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="7"
+                    type="button"
+                >
+                    <strong>7</strong>
+                    <small>مرات</small>
+                </button>
+
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="8"
+                    type="button"
+                >
+                    <strong>8</strong>
+                    <small>مرات</small>
+                </button>
+
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="9"
+                    type="button"
+                >
+                    <strong>9</strong>
+                    <small>مرات</small>
+                </button>
+
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="10"
+                    type="button"
+                >
+                    <strong>10</strong>
+                    <small>مرات</small>
+                </button>
+
+
+
+                <!-- =================================================
+                     القفزات الكبيرة
+                ================================================== -->
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="15"
+                    type="button"
+                >
+                    <strong>15</strong>
+                    <small>مرة</small>
+                </button>
+
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="20"
+                    type="button"
+                >
+                    <strong>20</strong>
+                    <small>مرة</small>
+                </button>
+
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="25"
+                    type="button"
+                >
+                    <strong>25</strong>
+                    <small>مرة</small>
+                </button>
+
+
+                <button
+                    class="repeat-choice-button"
+                    data-paragraph-repeat="30"
+                    type="button"
+                >
+                    <strong>30</strong>
+                    <small>مرة</small>
+                </button>
+
+
+
+                <!-- =================================================
+                     لا نهائي
+                ================================================== -->
+
+                <button
+                    class="repeat-choice-button infinite"
+                    data-paragraph-repeat="infinite"
+                    type="button"
+                >
+
+                    <span class="repeat-choice-icon">
+                        ♾️
+                    </span>
+
+                    <strong>
+                        بدون توقف
+                    </strong>
+
+                    <small>
+                        حتى تضغط إيقاف
+                    </small>
+
+                </button>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             شاشة الاستماع / اللعب
+        ====================================================== -->
+
+        <section
+            id="playerScreen"
+            class="screen"
+        >
+
+            <!-- رأس اللعب -->
+
+            <header class="player-header">
+
+                <button
+                    id="playerBackButton"
+                    class="back-button"
+                    type="button"
+                    aria-label="العودة"
+                >
+                    ←
+                </button>
+
+
+                <div class="player-heading">
+
+                    <strong id="playerSurahName">
+                        سورة الضحى
+                    </strong>
+
+                    <small id="playerAyahPosition">
+                        الآية 1 من 11
+                    </small>
+
+                </div>
+
+
+                <div class="player-level">
+
+                    <span>
+                        LEVEL
+                    </span>
+
+                    <strong id="playerLevel">
+                        1
+                    </strong>
+
+                </div>
+
+            </header>
+
+
+
+            <!-- =================================================
+                 شريط تقدم الآيات
+            ================================================== -->
+
+            <div class="ayah-progress-card">
+
+                <div class="progress-info">
+
+                    <span>
+                        التقدم
+                    </span>
+
+                    <strong id="overallProgressText">
+                        1 / 11
+                    </strong>
+
+                </div>
+
+
+                <div class="game-progress">
+
+                    <div
+                        id="overallProgress"
+                        class="game-progress-fill"
+                    ></div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- =================================================
+                 بطاقة الآية
+            ================================================== -->
+
+            <section class="ayah-game-card">
+
+                <div class="ayah-badge">
+
+                    <span>
+                        آية
+                    </span>
+
+                    <strong id="currentAyahNumber">
+                        1
+                    </strong>
+
+                </div>
+
+
+                <div
+                    id="ayahText"
+                    class="ayah-text"
+                >
+                    ...
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 تكرار الآية
+            ================================================== -->
+
+            <section class="game-counter-card">
+
+                <div class="counter-heading">
+
+                    <div class="counter-title">
+
+                        <span>
+                            🔁
+                        </span>
+
+                        <strong>
+                            تكرار الآية
+                        </strong>
+
+                    </div>
+
+
+                    <strong id="playerAyahRepeat">
+                        0 / 0
+                    </strong>
+
+                </div>
+
+
+                <div class="game-progress repeat-progress">
+
+                    <div
+                        id="playerAyahRepeatProgress"
+                        class="game-progress-fill"
+                    ></div>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- =================================================
+                 تكرار الفقرة
+            ================================================== -->
+
+            <section class="game-counter-card paragraph-counter">
+
+                <div class="counter-heading">
+
+                    <div class="counter-title">
+
+                        <span>
+                            📚
+                        </span>
+
+                        <strong>
+                            تكرار الفقرة
+                        </strong>
+
+                    </div>
+
+
+                    <strong id="playerParagraphRepeat">
+                        0 / 1
+                    </strong>
+
+                </div>
+
+
+                <div class="game-progress repeat-progress">
+
+                    <div
+                        id="playerParagraphRepeatProgress"
+                        class="game-progress-fill"
+                    ></div>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- حالة اللاعب -->
+
+            <div
+                id="playerStatus"
+                class="player-status"
+            >
+                جاهز للبدء
+            </div>
+
+
+
+            <!-- =================================================
+                 التحكم الرئيسي
+            ================================================== -->
+
+            <div class="main-player-controls">
+
+                <button
+                    id="previousAyahButton"
+                    class="player-control small"
+                    type="button"
+                    aria-label="الآية السابقة"
+                >
+                    ⏮
+                </button>
+
+
+                <button
+                    id="playPauseButton"
+                    class="player-control play"
+                    type="button"
+                    aria-label="تشغيل"
+                >
+                    ▶
+                </button>
+
+
+                <button
+                    id="nextAyahButton"
+                    class="player-control small"
+                    type="button"
+                    aria-label="الآية التالية"
+                >
+                    ⏭
+                </button>
+
+            </div>
+
+
+
+            <!-- =================================================
+                 زر الإيقاف الوحيد
+            ================================================== -->
+
+            <button
+                id="stopButton"
+                class="stop-game-button"
+                type="button"
+            >
+
+                <span>
+                    ⏹
+                </span>
+
+                <strong>
+                    إيقاف
+                </strong>
+
+                <small>
+                    العودة إلى أول الفقرة
+                </small>
+
+            </button>
+
+
+            <div class="bottom-space"></div>
+
+        </section>
 
     </main>
 
 
-    <script type="module" src="js/app.js"></script>
+
+    <!-- =====================================================
+         مشغل الصوت
+    ====================================================== -->
+
+    <audio
+        id="audioPlayer"
+        preload="auto"
+    ></audio>
+
+
+
+    <!-- =====================================================
+         JavaScript
+    ====================================================== -->
+
+    <script src="index.js"></script>
 
 </body>
+
 </html>
