@@ -373,27 +373,27 @@ function getAudioUrl(mode = "sheikh") {
   /*
     الوضع الطبيعي
   */
-
-  if (mode === "sheikh") {
-
-    return (
-      reciter.audio ??
-      reciter.sheikhAudio ??
-      reciter.normalAudio ??
-      null
-    );
+if (mode === "sheikh") {
+  if (reciter.audio && typeof reciter.audio === "object") {
+    return reciter.audio.sheikh ?? reciter.audio.normal ?? null;
   }
 
-  /*
-    الشيخ المعلم
-  */
+  return reciter.audio
+    ?? reciter.sheikhAudio
+    ?? reciter.normalAudio
+    ?? null;
+}
 
-  return (
-    reciter.mo3allemAudio ??
-    reciter.teacherAudio ??
-    reciter.moallemAudio ??
-    null
-  );
+if (reciter.audio && typeof reciter.audio === "object") {
+  return reciter.audio.mo3allem
+    ?? reciter.audio.teacher
+    ?? null;
+}
+
+return reciter.mo3allemAudio
+  ?? reciter.teacherAudio
+  ?? reciter.moallemAudio
+  ?? null;
 }
 
 
