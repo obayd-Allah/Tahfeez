@@ -2420,25 +2420,24 @@ function showScreen(name) {
    42) Loading
    ========================================================= */
 
-function showLoading(
-  screen,
-  message
-) {
+function showLoading(screen, message) {
 
   if (!screen) {
     return;
   }
 
-  screen.innerHTML = `
-    <div class="loading">
+  let loading = screen.querySelector(".loading");
 
-      <div class="loading-spinner"></div>
+  if (!loading) {
+    loading = document.createElement("div");
+    loading.className = "loading";
 
-      <div>
-        ${escapeHtml(message)}
-      </div>
+    screen.prepend(loading);
+  }
 
-    </div>
+  loading.innerHTML = `
+    <div class="loading-spinner"></div>
+    <div>${escapeHtml(message)}</div>
   `;
 }
 
