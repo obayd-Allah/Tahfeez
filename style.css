@@ -741,3 +741,19 @@ input:not(:disabled):focus {
     }
 
 }
+/* =========================================
+   رقم الآية داخل النص القرآني
+========================================= */
+
+.ayah-number {
+    color: var(--primary);
+
+    font-family:
+        "Noto Naskh Arabic",
+        "Amiri",
+        serif;
+
+    font-size: 0.72em;
+
+    white-space: nowrap;
+}
