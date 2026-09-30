@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Tahfeez | التحفيظ</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <main class="app">
+
+        <!-- =========================
+             شاشة الإعدادات
+        ========================== -->
+
+        <section id="setupScreen" class="screen setup-screen">
+
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">بسم الله الرحمن الرحيم</p>
+                    <h1>التحفيظ</h1>
+                    <p class="subtitle">
+                        اختر إعدادات الحفظ ثم ابدأ
+                    </p>
+                </div>
+            </header>
+
+
+            <div class="setup-form">
+
+                <!-- الشيخ -->
+                <div class="field">
+                    <label for="reciterSelect">الشيخ</label>
+
+                    <select id="reciterSelect">
+                        <option value="">اختر الشيخ</option>
+
+                        <option value="mohamed-alsouri">
+                            محمد السوري
+                        </option>
+
+                        <option value="ibrahim">
+                            الشيخ إبراهيم
+                        </option>
+
+                        <option value="ziad">
+                            الشيخ زياد
+                        </option>
+
+                        <option value="marwan">
+                            الشيخ مروان
+                        </option>
+
+                        <option value="youssef">
+                            الشيخ يوسف
+                        </option>
+
+                        <option value="mohamed-hamdy">
+                            الشيخ محمد حمدي
+                        </option>
+
+                        <option value="osama">
+                            الشيخ أسامة
+                        </option>
+                    </select>
+                </div>
+
+
+                <!-- السورة -->
+                <div class="field">
+                    <label for="surahSelect">السورة</label>
+
+                    <select id="surahSelect" disabled>
+                        <option value="">اختر السورة</option>
+                    </select>
+                </div>
+
+
+                <!-- نطاق الآيات -->
+                <div class="ayah-range">
+
+                    <div class="field">
+                        <label for="fromAyah">من آية</label>
+
+                        <input
+                            id="fromAyah"
+                            type="number"
+                            min="1"
+                            value="1"
+                            disabled
+                        >
+                    </div>
+
+                    <div class="field">
+                        <label for="toAyah">إلى آية</label>
+
+                        <input
+                            id="toAyah"
+                            type="number"
+                            min="1"
+                            value="1"
+                            disabled
+                        >
+                    </div>
+
+                </div>
+
+
+                <!-- السرعة -->
+                <div class="field">
+
+                    <div class="label-row">
+                        <label for="speedRange">
+                            سرعة التلاوة
+                        </label>
+
+                        <output id="speedValue">
+                            1.00×
+                        </output>
+                    </div>
+
+                    <input
+                        id="speedRange"
+                        class="range"
+                        type="range"
+                        min="0.75"
+                        max="1.25"
+                        step="0.05"
+                        value="1"
+                    >
+
+                    <div class="range-labels">
+                        <span>0.75×</span>
+                        <span>1.25×</span>
+                    </div>
+
+                </div>
+
+
+                <!-- تكرار الآية -->
+                <div class="field">
+
+                    <label for="ayahRepeat">
+                        تكرار الآية
+                    </label>
+
+                    <select id="ayahRepeat">
+                        <option value="1">مرة واحدة</option>
+                        <option value="2">مرتان</option>
+                        <option value="3">3 مرات</option>
+                        <option value="4">4 مرات</option>
+                        <option value="5">5 مرات</option>
+                        <option value="6">6 مرات</option>
+                        <option value="7">7 مرات</option>
+                        <option value="8">8 مرات</option>
+                        <option value="9">9 مرات</option>
+                        <option value="10">10 مرات</option>
+                    </select>
+
+                </div>
+
+
+                <!-- تكرار المقطع -->
+                <div class="field">
+
+                    <label for="blockRepeat">
+                        تكرار المقطع كاملًا
+                    </label>
+
+                    <select id="blockRepeat">
+                        <option value="1">مرة واحدة</option>
+                        <option value="2">مرتان</option>
+                        <option value="3">3 مرات</option>
+                        <option value="4">4 مرات</option>
+                        <option value="5">5 مرات</option>
+                        <option value="6">6 مرات</option>
+                        <option value="7">7 مرات</option>
+                        <option value="8">8 مرات</option>
+                        <option value="9">9 مرات</option>
+                        <option value="10">10 مرات</option>
+                    </select>
+
+                </div>
+
+
+                <!-- الانتظار -->
+                <div class="field">
+
+                    <label for="waitSelect">
+                        الانتظار بعد الآية
+                    </label>
+
+                    <select id="waitSelect">
+                        <option value="0">بدون انتظار</option>
+                        <option value="0.5">قصير جدًا</option>
+                        <option value="0.75">0.75×</option>
+                        <option value="1" selected>مناسب</option>
+                        <option value="1.25">1.25×</option>
+                        <option value="1.5">1.5×</option>
+                        <option value="2">طويل</option>
+                    </select>
+
+                </div>
+
+
+                <!-- وضع المعلم -->
+                <div
+                    id="teacherModeField"
+                    class="teacher-option is-disabled"
+                >
+
+                    <div>
+                        <strong>وضع المعلم</strong>
+
+                        <span id="teacherModeDescription">
+                            غير متوفر لهذا الشيخ
+                        </span>
+                    </div>
+
+                    <label class="switch">
+                        <input
+                            id="teacherMode"
+                            type="checkbox"
+                            disabled
+                        >
+
+                        <span class="switch-slider"></span>
+                    </label>
+
+                </div>
+
+
+                <!-- رسالة عدم توفر السورة -->
+                <div
+                    id="availabilityMessage"
+                    class="availability-message hidden"
+                    role="status"
+                ></div>
+
+
+                <!-- زر بدء التحفيظ -->
+                <button
+                    id="startButton"
+                    class="primary-button"
+                    type="button"
+                    disabled
+                >
+                    ابدأ التحفيظ
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================
+             عالم التحفيظ
+        ========================== -->
+
+        <section
+            id="memorizationScreen"
+            class="screen memorization-screen hidden"
+        >
+
+            <header class="memorization-header">
+
+                <div>
+                    <p class="eyebrow">التحفيظ</p>
+
+                    <h2 id="currentSurahName">
+                        سورة —
+                    </h2>
+                </div>
+
+                <button
+                    id="settingsButton"
+                    class="icon-button"
+                    type="button"
+                    aria-label="الإعدادات"
+                    title="الإعدادات"
+                >
+                    ⚙️
+                </button>
+
+            </header>
+
+
+            <!-- معلومات التكرار -->
+            <div class="session-info">
+
+                <span id="blockRepeatInfo">
+                    المقطع 1 / 1
+                </span>
+
+                <span id="ayahRepeatInfo">
+                    الآية 1 / 1
+                </span>
+
+            </div>
+
+
+            <!-- الآية -->
+            <article class="ayah-container">
+
+                <p
+                    id="currentAyahText"
+                    class="ayah-text"
+                >
+                    —
+                </p>
+
+            </article>
+
+
+            <!--
+                أزرار التحكم + الإعدادات
+                كلها بجوار بعضها
+            -->
+            <div class="player-controls">
+
+                <button
+                    id="previousAyahButton"
+                    class="control-button"
+                    type="button"
+                    aria-label="الآية السابقة"
+                    title="الآية السابقة"
+                >
+                    ⏪
+                </button>
+
+                <button
+                    id="restartBlockButton"
+                    class="control-button"
+                    type="button"
+                    aria-label="إعادة المقطع"
+                    title="إعادة المقطع"
+                >
+                    ⏹️
+                </button>
+
+                <button
+                    id="playPauseButton"
+                    class="control-button play-button"
+                    type="button"
+                    aria-label="تشغيل"
+                    title="تشغيل"
+                >
+                    ▶️
+                </button>
+
+                <button
+                    id="nextAyahButton"
+                    class="control-button"
+                    type="button"
+                    aria-label="الآية التالية"
+                    title="الآية التالية"
+                >
+                    ⏩
+                </button>
+
+                <button
+                    id="playerSettingsButton"
+                    class="control-button settings-control"
+                    type="button"
+                    aria-label="الإعدادات"
+                    title="الإعدادات"
+                >
+                    ⚙️
+                </button>
+
+            </div>
+
+
+            <!-- رسالة النهاية -->
+            <div
+                id="completionMessage"
+                class="completion-message hidden"
+            >
+                أحسنت...! 🌟
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <script type="module" src="app.js"></script>
+
+</body>
+</html>
