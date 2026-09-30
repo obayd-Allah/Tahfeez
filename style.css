@@ -1,0 +1,743 @@
+/* =========================================
+   Tahfeez
+   Base Styles
+========================================= */
+
+:root {
+    --bg: #0d1512;
+    --surface: #14201b;
+    --surface-2: #1a2922;
+    --surface-3: #20332a;
+
+    --text: #f4f1e8;
+    --muted: #aeb9b2;
+
+    --primary: #d9b96e;
+    --primary-dark: #b9974f;
+
+    --border: rgba(255, 255, 255, 0.09);
+    --danger: #d97979;
+
+    --radius-small: 12px;
+    --radius-medium: 18px;
+    --radius-large: 26px;
+
+    --shadow:
+        0 18px 50px rgba(0, 0, 0, 0.25);
+}
+
+
+/* =========================================
+   Reset
+========================================= */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    min-height: 100%;
+    background: var(--bg);
+}
+
+body {
+    min-height: 100vh;
+
+    background:
+        radial-gradient(
+            circle at top,
+            rgba(217, 185, 110, 0.07),
+            transparent 34%
+        ),
+        var(--bg);
+
+    color: var(--text);
+
+    font-family:
+        "Noto Sans Arabic",
+        "Noto Sans",
+        Arial,
+        sans-serif;
+
+    -webkit-font-smoothing: antialiased;
+}
+
+
+/* =========================================
+   General
+========================================= */
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+button {
+    border: 0;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+
+/* =========================================
+   App
+========================================= */
+
+.app {
+    width: 100%;
+    min-height: 100vh;
+}
+
+.screen {
+    width: 100%;
+    min-height: 100vh;
+}
+
+
+/* =========================================
+   Setup Screen
+========================================= */
+
+.setup-screen {
+    width: min(100% - 32px, 620px);
+
+    margin-inline: auto;
+
+    padding:
+        42px
+        0
+        60px;
+}
+
+.page-header {
+    margin-bottom: 32px;
+}
+
+.eyebrow {
+    margin-bottom: 8px;
+
+    color: var(--primary);
+
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.page-header h1 {
+    font-size: clamp(2rem, 8vw, 3rem);
+    line-height: 1.15;
+}
+
+.subtitle {
+    margin-top: 10px;
+
+    color: var(--muted);
+
+    font-size: 0.95rem;
+}
+
+
+/* =========================================
+   Setup Form
+========================================= */
+
+.setup-form {
+    display: flex;
+    flex-direction: column;
+
+    gap: 18px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+
+    gap: 9px;
+}
+
+.field label {
+    color: var(--text);
+
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+
+/* =========================================
+   Inputs
+========================================= */
+
+select,
+input[type="number"] {
+    width: 100%;
+    min-height: 52px;
+
+    padding:
+        0
+        15px;
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-small);
+
+    background: var(--surface);
+    color: var(--text);
+
+    transition:
+        border-color 160ms ease,
+        background 160ms ease;
+}
+
+select {
+    appearance: auto;
+}
+
+select:disabled,
+input:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+select:not(:disabled):focus,
+input:not(:disabled):focus {
+    border-color: var(--primary);
+}
+
+
+/* =========================================
+   Ayah Range
+========================================= */
+
+.ayah-range {
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 12px;
+}
+
+
+/* =========================================
+   Labels + Output
+========================================= */
+
+.label-row {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+}
+
+.label-row output {
+    color: var(--primary);
+
+    font-weight: 700;
+}
+
+
+/* =========================================
+   Range
+========================================= */
+
+.range {
+    width: 100%;
+
+    accent-color: var(--primary);
+
+    cursor: pointer;
+}
+
+.range-labels {
+    display: flex;
+
+    justify-content: space-between;
+
+    color: var(--muted);
+
+    font-size: 0.76rem;
+}
+
+
+/* =========================================
+   Teacher Mode
+========================================= */
+
+.teacher-option {
+    min-height: 70px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 15px;
+
+    padding: 15px 17px;
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-medium);
+
+    background: var(--surface);
+}
+
+.teacher-option strong {
+    display: block;
+
+    margin-bottom: 4px;
+}
+
+.teacher-option span:not(.switch-slider) {
+    display: block;
+
+    color: var(--muted);
+
+    font-size: 0.78rem;
+}
+
+.teacher-option.is-disabled {
+    opacity: 0.65;
+}
+
+
+/* =========================================
+   Switch
+========================================= */
+
+.switch {
+    position: relative;
+
+    flex: 0 0 auto;
+
+    width: 50px;
+    height: 29px;
+
+    cursor: pointer;
+}
+
+.switch input {
+    width: 0;
+    height: 0;
+
+    opacity: 0;
+}
+
+.switch-slider {
+    position: absolute;
+    inset: 0;
+
+    border-radius: 999px;
+
+    background: var(--surface-3);
+
+    transition:
+        background 180ms ease;
+}
+
+.switch-slider::before {
+    content: "";
+
+    position: absolute;
+
+    width: 21px;
+    height: 21px;
+
+    top: 4px;
+    right: 4px;
+
+    border-radius: 50%;
+
+    background: var(--muted);
+
+    transition:
+        transform 180ms ease,
+        background 180ms ease;
+}
+
+.switch input:checked + .switch-slider {
+    background: var(--primary-dark);
+}
+
+.switch input:checked + .switch-slider::before {
+    transform: translateX(-21px);
+
+    background: var(--text);
+}
+
+
+/* =========================================
+   Availability Message
+========================================= */
+
+.availability-message {
+    padding: 14px 16px;
+
+    border: 1px solid rgba(217, 121, 121, 0.25);
+    border-radius: var(--radius-small);
+
+    background: rgba(217, 121, 121, 0.08);
+
+    color: #f0c5c5;
+
+    font-size: 0.88rem;
+
+    line-height: 1.7;
+}
+
+
+/* =========================================
+   Primary Button
+========================================= */
+
+.primary-button {
+    width: 100%;
+    min-height: 56px;
+
+    margin-top: 5px;
+
+    border-radius: var(--radius-medium);
+
+    background: var(--primary);
+    color: #17130a;
+
+    font-weight: 800;
+
+    cursor: pointer;
+
+    transition:
+        transform 150ms ease,
+        background 150ms ease,
+        opacity 150ms ease;
+}
+
+.primary-button:not(:disabled):hover {
+    background: #e3c47b;
+}
+
+.primary-button:not(:disabled):active {
+    transform: scale(0.98);
+}
+
+.primary-button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+
+/* =========================================
+   Memorization Screen
+========================================= */
+
+.memorization-screen {
+    width: min(100% - 24px, 900px);
+
+    margin-inline: auto;
+
+    display: flex;
+    flex-direction: column;
+
+    padding:
+        28px
+        0
+        40px;
+}
+
+
+/* =========================================
+   Memorization Header
+========================================= */
+
+.memorization-header {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 16px;
+}
+
+.memorization-header h2 {
+    font-size: clamp(1.35rem, 5vw, 2rem);
+}
+
+
+/* =========================================
+   Icon Button
+========================================= */
+
+.icon-button {
+    width: 48px;
+    height: 48px;
+
+    display: grid;
+    place-items: center;
+
+    border: 1px solid var(--border);
+    border-radius: 50%;
+
+    background: var(--surface);
+    color: var(--text);
+
+    font-size: 1.2rem;
+
+    cursor: pointer;
+
+    transition:
+        transform 150ms ease,
+        background 150ms ease;
+}
+
+.icon-button:active {
+    transform: scale(0.94);
+}
+
+.icon-button:hover {
+    background: var(--surface-2);
+}
+
+
+/* =========================================
+   Session Info
+========================================= */
+
+.session-info {
+    display: flex;
+
+    justify-content: center;
+
+    gap: 10px;
+
+    margin-top: 30px;
+}
+
+.session-info span {
+    padding: 7px 12px;
+
+    border-radius: 999px;
+
+    background: var(--surface);
+
+    color: var(--muted);
+
+    font-size: 0.76rem;
+}
+
+
+/* =========================================
+   Ayah
+========================================= */
+
+.ayah-container {
+    min-height: 300px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    margin-top: 24px;
+    padding: 30px 18px;
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-large);
+
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(217, 185, 110, 0.05),
+            transparent 65%
+        ),
+        var(--surface);
+
+    box-shadow: var(--shadow);
+}
+
+.ayah-text {
+    max-width: 760px;
+
+    color: var(--text);
+
+    font-family:
+        "Noto Naskh Arabic",
+        "Amiri",
+        "Noto Sans Arabic",
+        serif;
+
+    font-size: clamp(1.65rem, 7vw, 3rem);
+
+    line-height: 2.25;
+
+    text-align: center;
+
+    direction: rtl;
+}
+
+
+/* =========================================
+   Player Controls
+========================================= */
+
+/*
+    مهم:
+    أزرار التحكم والإعدادات في صف واحد.
+*/
+
+.player-controls {
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 10px;
+
+    margin-top: 22px;
+}
+
+.control-button {
+    width: 52px;
+    height: 52px;
+
+    display: grid;
+    place-items: center;
+
+    border: 1px solid var(--border);
+    border-radius: 16px;
+
+    background: var(--surface);
+    color: var(--text);
+
+    font-size: 1.2rem;
+
+    cursor: pointer;
+
+    transition:
+        transform 150ms ease,
+        background 150ms ease,
+        border-color 150ms ease;
+}
+
+.control-button:hover {
+    background: var(--surface-2);
+
+    border-color:
+        rgba(217, 185, 110, 0.35);
+}
+
+.control-button:active {
+    transform: scale(0.93);
+}
+
+.play-button {
+    width: 60px;
+    height: 60px;
+
+    border-radius: 18px;
+
+    background: var(--primary);
+    color: #17130a;
+
+    font-size: 1.3rem;
+}
+
+.play-button:hover {
+    background: #e3c47b;
+}
+
+.settings-control {
+    margin-inline-start: 5px;
+}
+
+
+/* =========================================
+   Completion
+========================================= */
+
+.completion-message {
+    margin-top: 28px;
+
+    color: var(--primary);
+
+    font-size: 1.25rem;
+    font-weight: 800;
+
+    text-align: center;
+
+    animation: completion-in 350ms ease both;
+}
+
+@keyframes completion-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* =========================================
+   Small Phones
+========================================= */
+
+@media (max-width: 420px) {
+
+    .setup-screen {
+        width: min(100% - 22px, 620px);
+
+        padding-top: 28px;
+    }
+
+    .ayah-range {
+        gap: 8px;
+    }
+
+    .player-controls {
+        gap: 6px;
+    }
+
+    .control-button {
+        width: 48px;
+        height: 48px;
+
+        border-radius: 14px;
+    }
+
+    .play-button {
+        width: 56px;
+        height: 56px;
+    }
+
+    .settings-control {
+        margin-inline-start: 2px;
+    }
+
+}
+
+
+/* =========================================
+   Reduced Motion
+========================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+
+}
