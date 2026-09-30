@@ -1,0 +1,51 @@
+[
+  {
+    "id": "mohamed-alsouri",
+    "name": "محمد السوري",
+    "audioBaseUrl": "",
+    "teacherMode": false,
+    "surahs": {}
+  },
+  {
+    "id": "ibrahim",
+    "name": "الشيخ إبراهيم",
+    "audioBaseUrl": "",
+    "teacherMode": false,
+    "surahs": {}
+  },
+  {
+    "id": "ziad",
+    "name": "الشيخ زياد",
+    "audioBaseUrl": "",
+    "teacherMode": false,
+    "surahs": {}
+  },
+  {
+    "id": "marwan",
+    "name": "الشيخ مروان",
+    "audioBaseUrl": "",
+    "teacherMode": false,
+    "surahs": {}
+  },
+  {
+    "id": "youssef",
+    "name": "الشيخ يوسف",
+    "audioBaseUrl": "",
+    "teacherMode": false,
+    "surahs": {}
+  },
+  {
+    "id": "mohamed-hamdy",
+    "name": "الشيخ محمد حمدي",
+    "audioBaseUrl": "",
+    "teacherMode": false,
+    "surahs": {}
+  },
+  {
+    "id": "osama",
+    "name": "الشيخ أسامة",
+    "audioBaseUrl": "",
+    "teacherMode": false,
+    "surahs": {}
+  }
+]
