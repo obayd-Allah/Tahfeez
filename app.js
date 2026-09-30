@@ -1,68 +1,13 @@
-const reciters = {
-    "mohamed-alsouri": {
-        id: "mohamed-alsouri",
-        name: "محمد السوري",
-        teacherMode: false,
-        surahs: {}
-    },
+const state = {
+    quran: [],
+    surahs: [],
+    reciters: [],
 
-    "ibrahim": {
-        id: "ibrahim",
-        name: "الشيخ إبراهيم",
-        teacherMode: false,
-        surahs: {}
-    },
+    selectedReciter: null,
+    selectedSurah: null,
 
-    "ziad": {
-        id: "ziad",
-        name: "الشيخ زياد",
-        teacherMode: false,
-        surahs: {}
-    },
-
-    "marwan": {
-        id: "marwan",
-        name: "الشيخ مروان",
-        teacherMode: false,
-        surahs: {}
-    },
-
-    "youssef": {
-        id: "youssef",
-        name: "الشيخ يوسف",
-        teacherMode: false,
-        surahs: {}
-    },
-
-    "mohamed-hamdy": {
-        id: "mohamed-hamdy",
-        name: "الشيخ محمد حمدي",
-        teacherMode: false,
-        surahs: {}
-    },
-
-    "osama": {
-        id: "osama",
-        name: "الشيخ أسامة",
-        teacherMode: false,
-        surahs: {}
-    }
+    session: null
 };
-
-
-/*
-    سنضع بيانات القرآن الرسمية هنا لاحقًا
-    بعد إضافة ملف quran.json.
-
-    لا نكتب نص القرآن يدويًا داخل JavaScript.
-*/
-
-let quranData = [];
-
-let selectedReciter = null;
-let selectedSurah = null;
-
-let session = null;
 
 
 /* =========================================
@@ -121,11 +66,6 @@ const availabilityMessage =
 const startButton =
     document.getElementById("startButton");
 
-const settingsButton =
-    document.getElementById(
-        "settingsButton"
-    );
-
 const playerSettingsButton =
     document.getElementById(
         "playerSettingsButton"
@@ -178,34 +118,85 @@ const nextAyahButton =
 
 
 /* =========================================
-   تحميل بيانات القرآن
+   تحميل البيانات
 ========================================= */
 
-async function loadQuran() {
+async function loadData() {
 
     try {
 
-        const response =
-            await fetch("./data/quran.json");
+        const [
+            surahsResponse,
+            recitersResponse
+        ] = await Promise.all([
 
-        if (!response.ok) {
+            fetch("./data/surahs.json"),
+
+            fetch("./data/reciters.json")
+        ]);
+
+
+        if (!surahsResponse.ok) {
             throw new Error(
-                "تعذر تحميل بيانات القرآن"
+                "تعذر تحميل surahs.json"
             );
         }
 
-        quranData =
-            await response.json();
 
-        populateSurahs();
+        if (!recitersResponse.ok) {
+            throw new Error(
+                "تعذر تحميل reciters.json"
+            );
+        }
+
+
+        state.surahs =
+            await surahsResponse.json();
+
+        state.reciters =
+            await recitersResponse.json();
+
+
+        populateReciters();
+
+        restoreSettings();
 
     } catch (error) {
 
         console.error(error);
 
-        showMessage(
-            "تعذر تحميل بيانات القرآن حاليًا."
+        showAvailability(
+            "تعذر تحميل بيانات التحفيظ حاليًا."
         );
+    }
+}
+
+
+/* =========================================
+   الشيوخ
+========================================= */
+
+function populateReciters() {
+
+    reciterSelect.innerHTML = `
+        <option value="">
+            اختر الشيخ
+        </option>
+    `;
+
+
+    for (const reciter of state.reciters) {
+
+        const option =
+            document.createElement("option");
+
+        option.value =
+            reciter.id;
+
+        option.textContent =
+            reciter.name;
+
+        reciterSelect.appendChild(option);
     }
 }
 
@@ -222,7 +213,8 @@ function populateSurahs() {
         </option>
     `;
 
-    for (const surah of quranData) {
+
+    for (const surah of state.surahs) {
 
         const option =
             document.createElement("option");
@@ -231,7 +223,7 @@ function populateSurahs() {
             surah.number;
 
         option.textContent =
-            surah.name;
+            `${surah.number}. ${surah.name}`;
 
         surahSelect.appendChild(option);
     }
@@ -244,26 +236,40 @@ function populateSurahs() {
 
 reciterSelect.addEventListener(
     "change",
-    handleReciterChange
+    () => {
+
+        const id =
+            reciterSelect.value;
+
+        state.selectedReciter =
+            state.reciters.find(
+                reciter =>
+                    reciter.id === id
+            ) || null;
+
+
+        /*
+            بمجرد اختيار الشيخ،
+            نعرض السور.
+
+            لكن availability الخاصة بالشيخ
+            هي التي ستحدد لاحقًا إن كانت
+            السورة متوفرة أم لا.
+        */
+
+        populateSurahs();
+
+        resetAyahInputs();
+
+        hideAvailability();
+
+        updateTeacherMode();
+
+        validateSetup();
+
+        saveSettings();
+    }
 );
-
-
-function handleReciterChange() {
-
-    const id =
-        reciterSelect.value;
-
-    selectedReciter =
-        reciters[id] || null;
-
-    selectedSurah = null;
-
-    resetSurahSelection();
-
-    updateTeacherMode();
-
-    validateSetup();
-}
 
 
 /* =========================================
@@ -272,81 +278,96 @@ function handleReciterChange() {
 
 surahSelect.addEventListener(
     "change",
-    handleSurahChange
+    () => {
+
+        const number =
+            Number(surahSelect.value);
+
+        state.selectedSurah =
+            state.surahs.find(
+                surah =>
+                    surah.number === number
+            ) || null;
+
+
+        if (!state.selectedSurah) {
+
+            resetAyahInputs();
+
+            hideAvailability();
+
+            validateSetup();
+
+            return;
+        }
+
+
+        const available =
+            getAvailableSurah(
+                state.selectedSurah.number
+            );
+
+
+        if (!available) {
+
+            showAvailability(
+                `سورة ${state.selectedSurah.name} غير متوفرة بصوت ${state.selectedReciter.name} حاليًا.`
+            );
+
+            disableAyahInputs();
+
+            startButton.disabled = true;
+
+            return;
+        }
+
+
+        hideAvailability();
+
+        enableAyahInputs();
+
+
+        fromAyah.min =
+            available.from;
+
+        fromAyah.max =
+            available.to;
+
+        toAyah.min =
+            available.from;
+
+        toAyah.max =
+            available.to;
+
+
+        fromAyah.value =
+            available.from;
+
+        toAyah.value =
+            available.to;
+
+
+        validateSetup();
+
+        saveSettings();
+    }
 );
 
 
-function handleSurahChange() {
+/* =========================================
+   معرفة السورة المتوفرة
+========================================= */
 
-    const number =
-        Number(surahSelect.value);
+function getAvailableSurah(number) {
 
-    if (!selectedReciter || !number) {
-
-        selectedSurah = null;
-
-        resetAyahInputs();
-
-        validateSetup();
-
-        return;
+    if (!state.selectedReciter) {
+        return null;
     }
 
-    selectedSurah =
-        quranData.find(
-            surah =>
-                surah.number === number
-        );
 
-    if (!selectedSurah) {
-
-        resetAyahInputs();
-
-        validateSetup();
-
-        return;
-    }
-
-    const availability =
-        selectedReciter.surahs[
-            String(number)
-        ];
-
-    if (!availability) {
-
-        showAvailability(
-            `سورة ${selectedSurah.name} غير متوفرة بصوت ${selectedReciter.name} حاليًا.`
-        );
-
-        disableAyahInputs();
-
-        startButton.disabled = true;
-
-        return;
-    }
-
-    hideAvailability();
-
-    enableAyahInputs();
-
-    fromAyah.max =
-        availability.from;
-
-    /*
-        القيمة الحقيقية يجب أن تكون آخر آية
-        متاحة لهذا الشيخ، وليس رقمًا عشوائيًا.
-    */
-
-    toAyah.max =
-        availability.to;
-
-    fromAyah.value =
-        availability.from;
-
-    toAyah.value =
-        availability.to;
-
-    validateSetup();
+    return state.selectedReciter.surahs?.[
+        String(number)
+    ] || null;
 }
 
 
@@ -356,23 +377,32 @@ function handleSurahChange() {
 
 fromAyah.addEventListener(
     "input",
-    handleAyahRangeChange
+    validateAyahRange
 );
 
 toAyah.addEventListener(
     "input",
-    handleAyahRangeChange
+    validateAyahRange
 );
 
 
-function handleAyahRangeChange() {
+function validateAyahRange() {
 
-    if (!selectedSurah) {
+    if (!state.selectedSurah) {
         return;
     }
 
-    const lastAyah =
-        selectedSurah.ayahCount;
+
+    const available =
+        getAvailableSurah(
+            state.selectedSurah.number
+        );
+
+
+    if (!available) {
+        return;
+    }
+
 
     let from =
         Number(fromAyah.value);
@@ -380,30 +410,48 @@ function handleAyahRangeChange() {
     let to =
         Number(toAyah.value);
 
-    if (from < 1) {
-        from = 1;
+
+    if (
+        !Number.isFinite(from) ||
+        from < available.from
+    ) {
+        from = available.from;
     }
 
-    if (to < 1) {
-        to = 1;
+
+    if (
+        !Number.isFinite(to) ||
+        to < available.from
+    ) {
+        to = available.from;
     }
 
-    if (from > lastAyah) {
-        from = lastAyah;
+
+    if (from > available.to) {
+        from = available.to;
     }
 
-    if (to > lastAyah) {
-        to = lastAyah;
+
+    if (to > available.to) {
+        to = available.to;
     }
+
 
     if (to < from) {
         to = from;
     }
 
-    fromAyah.value = from;
-    toAyah.value = to;
+
+    fromAyah.value =
+        from;
+
+    toAyah.value =
+        to;
+
 
     validateSetup();
+
+    saveSettings();
 }
 
 
@@ -420,7 +468,34 @@ speedRange.addEventListener(
 
         speedValue.textContent =
             `${speed.toFixed(2)}×`;
+
+        saveSettings();
     }
+);
+
+
+/* =========================================
+   الإعدادات الأخرى
+========================================= */
+
+ayahRepeat.addEventListener(
+    "change",
+    saveSettings
+);
+
+blockRepeat.addEventListener(
+    "change",
+    saveSettings
+);
+
+waitSelect.addEventListener(
+    "change",
+    saveSettings
+);
+
+teacherMode.addEventListener(
+    "change",
+    saveSettings
 );
 
 
@@ -430,13 +505,19 @@ speedRange.addEventListener(
 
 function updateTeacherMode() {
 
-    if (
-        !selectedReciter ||
-        !selectedReciter.teacherMode
-    ) {
+    const available =
+        Boolean(
+            state.selectedReciter?.teacherMode
+        );
 
-        teacherMode.checked = false;
-        teacherMode.disabled = true;
+
+    teacherMode.checked = false;
+
+    teacherMode.disabled =
+        !available;
+
+
+    if (!available) {
 
         teacherModeField.classList.add(
             "is-disabled"
@@ -448,7 +529,6 @@ function updateTeacherMode() {
         return;
     }
 
-    teacherMode.disabled = false;
 
     teacherModeField.classList.remove(
         "is-disabled"
@@ -456,7 +536,6 @@ function updateTeacherMode() {
 
     teacherModeDescription.textContent =
         "سيكرر الطفل ما يقرأه الشيخ";
-
 }
 
 
@@ -467,8 +546,8 @@ function updateTeacherMode() {
 function validateSetup() {
 
     if (
-        !selectedReciter ||
-        !selectedSurah
+        !state.selectedReciter ||
+        !state.selectedSurah
     ) {
 
         startButton.disabled = true;
@@ -476,17 +555,20 @@ function validateSetup() {
         return;
     }
 
-    const availability =
-        selectedReciter.surahs[
-            String(selectedSurah.number)
-        ];
 
-    if (!availability) {
+    const available =
+        getAvailableSurah(
+            state.selectedSurah.number
+        );
+
+
+    if (!available) {
 
         startButton.disabled = true;
 
         return;
     }
+
 
     const from =
         Number(fromAyah.value);
@@ -494,13 +576,12 @@ function validateSetup() {
     const to =
         Number(toAyah.value);
 
-    const validRange =
-        from >= availability.from &&
-        to <= availability.to &&
-        from <= to;
 
-    startButton.disabled =
-        !validRange;
+    startButton.disabled = !(
+        from >= available.from &&
+        to <= available.to &&
+        from <= to
+    );
 }
 
 
@@ -517,11 +598,12 @@ startButton.addEventListener(
 function startMemorization() {
 
     if (
-        !selectedReciter ||
-        !selectedSurah
+        !state.selectedReciter ||
+        !state.selectedSurah
     ) {
         return;
     }
+
 
     const from =
         Number(fromAyah.value);
@@ -529,13 +611,14 @@ function startMemorization() {
     const to =
         Number(toAyah.value);
 
-    session = {
+
+    state.session = {
 
         reciter:
-            selectedReciter,
+            state.selectedReciter,
 
         surah:
-            selectedSurah,
+            state.selectedSurah,
 
         fromAyah:
             from,
@@ -569,16 +652,15 @@ function startMemorization() {
 
         playing:
             false
-
     };
 
-    openMemorizationScreen();
 
+    openMemorizationScreen();
 }
 
 
 /* =========================================
-   فتح عالم التحفيظ
+   عالم التحفيظ
 ========================================= */
 
 function openMemorizationScreen() {
@@ -591,16 +673,20 @@ function openMemorizationScreen() {
         "hidden"
     );
 
+
     completionMessage.classList.add(
         "hidden"
     );
 
+
     currentSurahName.textContent =
-        `سورة ${session.surah.name}`;
+        `سورة ${state.session.surah.name}`;
+
 
     renderCurrentAyah();
 
     updateSessionInfo();
+
 
     playPauseButton.textContent =
         "▶️";
@@ -611,42 +697,51 @@ function openMemorizationScreen() {
    الآية الحالية
 ========================================= */
 
+function getCurrentAyah() {
+
+    if (!state.session) {
+        return null;
+    }
+
+
+    const surah =
+        state.quran.find(
+            item =>
+                item.number ===
+                state.session.surah.number
+        );
+
+
+    if (!surah) {
+        return null;
+    }
+
+
+    return surah.ayahs?.find(
+        ayah =>
+            ayah.number ===
+            state.session.currentAyah
+    ) || null;
+}
+
+
 function renderCurrentAyah() {
 
     const ayah =
         getCurrentAyah();
 
+
     if (!ayah) {
 
         currentAyahText.textContent =
-            "—";
+            "سيظهر نص الآية هنا";
 
         return;
     }
 
+
     currentAyahText.innerHTML =
         `${ayah.text} <span class="ayah-number">۝${ayah.number}</span>`;
-}
-
-
-function getCurrentAyah() {
-
-    if (!session) {
-        return null;
-    }
-
-    return quranData
-        .find(
-            surah =>
-                surah.number ===
-                session.surah.number
-        )
-        ?.ayahs
-        ?.find(
-            ayah =>
-                ayah.number ===
-                session.currentAyah
-        );
 }
 
 
@@ -656,40 +751,43 @@ function getCurrentAyah() {
 
 function updateSessionInfo() {
 
-    if (!session) {
+    if (!state.session) {
         return;
     }
 
+
     blockRepeatInfo.textContent =
-        `المقطع ${session.currentBlockRepeat} / ${session.blockRepeat}`;
+        `المقطع ${state.session.currentBlockRepeat} / ${state.session.blockRepeat}`;
+
 
     ayahRepeatInfo.textContent =
-        `الآية ${session.currentAyahRepeat} / ${session.ayahRepeat}`;
+        `الآية ${state.session.currentAyahRepeat} / ${state.session.ayahRepeat}`;
 }
 
 
 /* =========================================
-   الآية السابقة
+   السابق
 ========================================= */
 
 previousAyahButton.addEventListener(
     "click",
     () => {
 
-        if (!session) {
+        if (!state.session) {
             return;
         }
 
+
         if (
-            session.currentAyah >
-            session.fromAyah
+            state.session.currentAyah >
+            state.session.fromAyah
         ) {
 
             stopPlayback();
 
-            session.currentAyah--;
+            state.session.currentAyah--;
 
-            session.currentAyahRepeat =
+            state.session.currentAyahRepeat =
                 1;
 
             renderCurrentAyah();
@@ -701,27 +799,28 @@ previousAyahButton.addEventListener(
 
 
 /* =========================================
-   الآية التالية
+   التالي
 ========================================= */
 
 nextAyahButton.addEventListener(
     "click",
     () => {
 
-        if (!session) {
+        if (!state.session) {
             return;
         }
 
+
         if (
-            session.currentAyah <
-            session.toAyah
+            state.session.currentAyah <
+            state.session.toAyah
         ) {
 
             stopPlayback();
 
-            session.currentAyah++;
+            state.session.currentAyah++;
 
-            session.currentAyahRepeat =
+            state.session.currentAyahRepeat =
                 1;
 
             renderCurrentAyah();
@@ -733,36 +832,28 @@ nextAyahButton.addEventListener(
 
 
 /* =========================================
-   إعادة المقطع الحالي
+   إعادة بداية المقطع
 ========================================= */
 
 restartBlockButton.addEventListener(
     "click",
     () => {
 
-        if (!session) {
+        if (!state.session) {
             return;
         }
 
+
         stopPlayback();
 
-        /*
-            مهم:
-            نعيد إلى بداية المقطع
-            لكن لا نعيد رقم تكرار المقطع.
 
-            مثال:
-            4 / 7 + الآية 5
+        state.session.currentAyah =
+            state.session.fromAyah;
 
-            تصبح:
-            4 / 7 + الآية 1
-        */
 
-        session.currentAyah =
-            session.fromAyah;
-
-        session.currentAyahRepeat =
+        state.session.currentAyahRepeat =
             1;
+
 
         renderCurrentAyah();
 
@@ -781,18 +872,18 @@ playPauseButton.addEventListener(
     "click",
     () => {
 
-        if (!session) {
+        if (!state.session) {
             return;
         }
 
-        if (session.playing) {
+
+        if (state.session.playing) {
 
             pausePlayback();
 
         } else {
 
             playCurrentAyah();
-
         }
     }
 );
@@ -800,36 +891,43 @@ playPauseButton.addEventListener(
 
 function playCurrentAyah() {
 
-    if (!session) {
+    if (!state.session) {
         return;
     }
 
-    session.playing = true;
+
+    state.session.playing = true;
 
     playPauseButton.textContent =
         "⏸️";
 
+
     /*
-        محرك الصوت الحقيقي سيأتي هنا.
-        لن نستخدم Audio API الآن
-        قبل تثبيت بنية الملفات والـ manifest.
+        محرك الصوت سيأتي بعد تجهيز:
+        manifest + ملفات الصوت.
     */
 }
 
 
 function pausePlayback() {
 
-    if (!session) {
+    if (!state.session) {
         return;
     }
 
-    session.playing = false;
+
+    state.session.playing = false;
 
     /*
-        حسب المواصفة:
-        عند العودة للتشغيل تبدأ الآية الحالية
-        من أولها، مع الحفاظ على أرقام التكرار.
+        لا نغير:
+        الآية
+        رقم التكرار
+        رقم تكرار المقطع
+
+        وعند التشغيل من جديد سيبدأ
+        الصوت من بداية الآية.
     */
+
 
     playPauseButton.textContent =
         "▶️";
@@ -838,11 +936,12 @@ function pausePlayback() {
 
 function stopPlayback() {
 
-    if (!session) {
+    if (!state.session) {
         return;
     }
 
-    session.playing = false;
+
+    state.session.playing = false;
 
     playPauseButton.textContent =
         "▶️";
@@ -850,51 +949,217 @@ function stopPlayback() {
 
 
 /* =========================================
-   الإعدادات من عالم التحفيظ
+   العودة للإعدادات
 ========================================= */
-
-settingsButton.addEventListener(
-    "click",
-    returnToSetup
-);
 
 playerSettingsButton.addEventListener(
     "click",
-    returnToSetup
+    () => {
+
+        stopPlayback();
+
+        memorizationScreen.classList.add(
+            "hidden"
+        );
+
+        setupScreen.classList.remove(
+            "hidden"
+        );
+    }
 );
 
 
-function returnToSetup() {
+/* =========================================
+   الحفظ التلقائي للإعدادات
+========================================= */
 
-    stopPlayback();
+function saveSettings() {
 
-    memorizationScreen.classList.add(
-        "hidden"
+    const settings = {
+
+        reciter:
+            reciterSelect.value,
+
+        surah:
+            surahSelect.value,
+
+        fromAyah:
+            fromAyah.value,
+
+        toAyah:
+            toAyah.value,
+
+        speed:
+            speedRange.value,
+
+        ayahRepeat:
+            ayahRepeat.value,
+
+        blockRepeat:
+            blockRepeat.value,
+
+        wait:
+            waitSelect.value,
+
+        teacherMode:
+            teacherMode.checked
+    };
+
+
+    localStorage.setItem(
+        "tahfeez-settings",
+        JSON.stringify(settings)
     );
+}
 
-    setupScreen.classList.remove(
-        "hidden"
-    );
+
+function restoreSettings() {
+
+    const saved =
+        localStorage.getItem(
+            "tahfeez-settings"
+        );
+
+
+    populateSurahs();
+
+
+    if (!saved) {
+        return;
+    }
+
+
+    try {
+
+        const settings =
+            JSON.parse(saved);
+
+
+        if (settings.reciter) {
+
+            reciterSelect.value =
+                settings.reciter;
+
+            state.selectedReciter =
+                state.reciters.find(
+                    reciter =>
+                        reciter.id ===
+                        settings.reciter
+                ) || null;
+        }
+
+
+        updateTeacherMode();
+
+
+        if (settings.surah) {
+
+            surahSelect.value =
+                settings.surah;
+
+            state.selectedSurah =
+                state.surahs.find(
+                    surah =>
+                        String(surah.number) ===
+                        String(settings.surah)
+                ) || null;
+        }
+
+
+        if (state.selectedSurah) {
+
+            const available =
+                getAvailableSurah(
+                    state.selectedSurah.number
+                );
+
+
+            if (available) {
+
+                enableAyahInputs();
+
+                fromAyah.min =
+                    available.from;
+
+                fromAyah.max =
+                    available.to;
+
+                toAyah.min =
+                    available.from;
+
+                toAyah.max =
+                    available.to;
+
+                fromAyah.value =
+                    settings.fromAyah ||
+                    available.from;
+
+                toAyah.value =
+                    settings.toAyah ||
+                    available.to;
+
+            } else {
+
+                disableAyahInputs();
+
+                showAvailability(
+                    `سورة ${state.selectedSurah.name} غير متوفرة بصوت ${state.selectedReciter.name} حاليًا.`
+                );
+            }
+        }
+
+
+        if (settings.speed) {
+
+            speedRange.value =
+                settings.speed;
+
+            speedValue.textContent =
+                `${Number(settings.speed).toFixed(2)}×`;
+        }
+
+
+        if (settings.ayahRepeat) {
+
+            ayahRepeat.value =
+                settings.ayahRepeat;
+        }
+
+
+        if (settings.blockRepeat) {
+
+            blockRepeat.value =
+                settings.blockRepeat;
+        }
+
+
+        if (settings.wait) {
+
+            waitSelect.value =
+                settings.wait;
+        }
+
+
+        validateSetup();
+
+    } catch (error) {
+
+        console.error(
+            "تعذر استعادة الإعدادات",
+            error
+        );
+    }
 }
 
 
 /* =========================================
-   أدوات الواجهة
+   أدوات
 ========================================= */
-
-function resetSurahSelection() {
-
-    surahSelect.value = "";
-
-    resetAyahInputs();
-
-    hideAvailability();
-}
-
 
 function resetAyahInputs() {
 
     fromAyah.value = 1;
+
     toAyah.value = 1;
 
     disableAyahInputs();
@@ -904,6 +1169,7 @@ function resetAyahInputs() {
 function disableAyahInputs() {
 
     fromAyah.disabled = true;
+
     toAyah.disabled = true;
 }
 
@@ -911,6 +1177,7 @@ function disableAyahInputs() {
 function enableAyahInputs() {
 
     fromAyah.disabled = false;
+
     toAyah.disabled = false;
 }
 
@@ -937,16 +1204,8 @@ function hideAvailability() {
 }
 
 
-function showMessage(message) {
-
-    showAvailability(message);
-}
-
-
 /* =========================================
-   البداية
+   تشغيل البداية
 ========================================= */
 
-disableAyahInputs();
-
-loadQuran();
+loadData();
