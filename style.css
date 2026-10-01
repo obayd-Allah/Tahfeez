@@ -757,3 +757,91 @@ input:not(:disabled):focus {
 
     white-space: nowrap;
 }
+/* =========================================
+   Download
+========================================= */
+
+.download-section {
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 14px;
+
+    padding: 15px 16px;
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-medium);
+
+    background: var(--surface);
+}
+
+.download-info {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 5px;
+}
+
+.download-info strong {
+    font-size: 0.9rem;
+}
+
+.download-info span {
+    color: var(--muted);
+
+    font-size: 0.75rem;
+
+    line-height: 1.5;
+}
+
+.secondary-button {
+    flex: 0 0 auto;
+
+    min-height: 44px;
+
+    padding:
+        0
+        16px;
+
+    border: 1px solid
+        rgba(217, 185, 110, 0.3);
+
+    border-radius: 12px;
+
+    background: var(--surface-2);
+
+    color: var(--primary);
+
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+.secondary-button:hover {
+    background: var(--surface-3);
+}
+
+.secondary-button:disabled {
+    opacity: 0.4;
+
+    cursor: not-allowed;
+}
+
+
+@media (max-width: 420px) {
+
+    .download-section {
+        align-items: stretch;
+
+        flex-direction: column;
+    }
+
+    .secondary-button {
+        width: 100%;
+    }
+
+}
