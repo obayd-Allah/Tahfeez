@@ -8,7 +8,7 @@ const state = {
 
     session: null
 };
-
+let audio = null;
 
 /* =========================================
    عناصر الصفحة
@@ -947,53 +947,170 @@ function playCurrentAyah() {
         return;
     }
 
+    const reciter =
+        state.session.reciter;
 
-    state.session.playing = true;
+    const surahNumber =
+        state.session.surah.number;
 
-    playPauseButton.textContent =
-        "⏸️";
+    const ayahNumber =
+        state.session.currentAyah;
 
+    if (!reciter.audioBaseUrl) {
+        return;
+    }
 
-    /*
-        محرك الصوت سيأتي بعد تجهيز:
-        manifest + ملفات الصوت.
-    */
+    const url =
+        `${reciter.audioBaseUrl}/normal/${surahNumber}/${ayahNumber}.mp3`;
+
+    if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+    }
+
+    audio = new Audio(url);
+
+    audio.playbackRate =
+        state.session.speed;
+
+    audio.onended =
+        handleAyahEnded;
+
+    audio.onerror = () => {
+
+        state.session.playing = false;
+
+        playPauseButton.textContent =
+            "▶️";
+
+        showAvailability(
+            "تعذر تشغيل ملف الصوت."
+        );
+    };
+
+    audio.play()
+        .then(() => {
+
+            state.session.playing = true;
+
+            playPauseButton.textContent =
+                "⏸️";
+
+        })
+        .catch(error => {
+
+            console.error(error);
+
+            state.session.playing = false;
+
+            playPauseButton.textContent =
+                "▶️";
+        });
 }
-
-
-function pausePlayback() {
+function handleAyahEnded() {
 
     if (!state.session) {
         return;
     }
 
+    if (
+        state.session.currentAyahRepeat <
+        state.session.ayahRepeat
+    ) {
+
+        state.session.currentAyahRepeat++;
+
+        updateSessionInfo();
+
+        playCurrentAyah();
+
+        return;
+    }
+
+    state.session.currentAyahRepeat = 1;
+
+    if (
+        state.session.currentAyah <
+        state.session.toAyah
+    ) {
+
+        state.session.currentAyah++;
+
+        renderCurrentAyah();
+
+        updateSessionInfo();
+
+        playCurrentAyah();
+
+        return;
+    }
+
+    if (
+        state.session.currentBlockRepeat <
+        state.session.blockRepeat
+    ) {
+
+        state.session.currentBlockRepeat++;
+
+        state.session.currentAyah =
+            state.session.fromAyah;
+
+        state.session.currentAyahRepeat =
+            1;
+
+        renderCurrentAyah();
+
+        updateSessionInfo();
+
+        playCurrentAyah();
+
+        return;
+    }
+
+    finishMemorization();
+                }
+function finishMemorization() {
+
+    stopPlayback();
+
+    completionMessage.classList.remove(
+        "hidden"
+    );
 
     state.session.playing = false;
-
-    /*
-        لا نغير:
-        الآية
-        رقم التكرار
-        رقم تكرار المقطع
-
-        وعند التشغيل من جديد سيبدأ
-        الصوت من بداية الآية.
-    */
-
 
     playPauseButton.textContent =
         "▶️";
 }
 
-
-function stopPlayback() {
+function pausePlayback()function pausePlayback() {
 
     if (!state.session) {
         return;
     }
 
+    if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+    }
 
     state.session.playing = false;
+
+    playPauseButton.textContent =
+        "▶️";
+}
+
+function stopPlayback() {
+
+    if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+        audio = null;
+    }
+
+    if (state.session) {
+        state.session.playing = false;
+    }
 
     playPauseButton.textContent =
         "▶️";
