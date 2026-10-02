@@ -126,19 +126,19 @@ async function loadData() {
     try {
 
         const [
-            surahsResponse,
+            quranResponse,
             recitersResponse
         ] = await Promise.all([
 
-            fetch("./data/surahs.json"),
+            fetch("./data/quran.json"),
 
             fetch("./data/reciters.json")
         ]);
 
 
-        if (!surahsResponse.ok) {
+        if (!quranResponse.ok) {
             throw new Error(
-                "تعذر تحميل surahs.json"
+                "تعذر تحميل quran.json"
             );
         }
 
@@ -150,11 +150,48 @@ async function loadData() {
         }
 
 
-        state.surahs =
-            await surahsResponse.json();
+        const quranData =
+            await quranResponse.json();
+
 
         state.reciters =
             await recitersResponse.json();
+
+
+        /*
+            quran.json هو المصدر الأساسي للقرآن.
+
+            نحوله إلى الشكل الذي يستخدمه
+            باقي التطبيق حاليًا، حتى لا نضطر
+            لتغيير بقية الكود.
+        */
+
+        state.quran =
+            quranData.map(surah => ({
+
+                number:
+                    surah.id,
+
+                name:
+                    surah.name,
+
+                ayahCount:
+                    surah.total_verses,
+
+                ayahs:
+                    surah.verses.map(ayah => ({
+
+                        number:
+                            ayah.id,
+
+                        text:
+                            ayah.text
+                    }))
+            }));
+
+
+        state.surahs =
+            state.quran;
 
 
         populateReciters();
