@@ -9,7 +9,9 @@ const state = {
     session: null
 };
 let audio = null;
-
+let pausePoints = [];
+let currentPauseIndex = 0;
+let segmentStart = 0;
 /* =========================================
    عناصر الصفحة
 ========================================= */
@@ -940,8 +942,74 @@ playPauseButton.addEventListener(
     }
 );
 
+async function loadPausePoints() {
 
-function playCurrentAyah() {
+    pausePoints = [];
+
+    if (!state.session) {
+        return;
+    }
+
+    const reciter =
+        state.session.reciter;
+
+    if (!reciter.audioBaseUrl) {
+        return;
+    }
+
+    const surahNumber =
+        state.session.surah.number;
+
+    try {
+
+        const response =
+            await fetch(
+                `${reciter.audioBaseUrl}/pauses/${surahNumber}.json`
+            );
+
+        if (!response.ok) {
+            return;
+        }
+
+        const data =
+            await response.json();
+
+        const ayahNumber =
+            state.session.currentAyah;
+
+        const ayahData =
+            data.find(
+                item =>
+                    Number(item.ayah) ===
+                    Number(ayahNumber)
+            );
+
+        if (ayahData && Array.isArray(ayahData.pauses)) {
+
+            pausePoints =
+                ayahData.pauses
+                    .map(Number)
+                    .filter(
+                        value =>
+                            Number.isFinite(value) &&
+                            value >= 0
+                    )
+                    .sort(
+                        (a, b) => a - b
+                    );
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "تعذر تحميل pauses.json",
+            error
+        );
+
+        pausePoints = [];
+    }
+}
+async function playCurrentAyah() {
 
     if (!state.session) {
         return;
@@ -960,6 +1028,11 @@ function playCurrentAyah() {
         return;
     }
 
+    await loadPausePoints();
+
+    currentPauseIndex = 0;
+    segmentStart = 0;
+
     const url =
         `${reciter.audioBaseUrl}/normal/${surahNumber}/${ayahNumber}.mp3`;
 
@@ -973,8 +1046,11 @@ function playCurrentAyah() {
     audio.playbackRate =
         state.session.speed;
 
+    audio.ontimeupdate =
+        handleAudioTimeUpdate;
+
     audio.onended =
-        handleAyahEnded;
+        handleAudioEnded;
 
     audio.onerror = () => {
 
