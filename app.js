@@ -1083,6 +1083,84 @@ async function playCurrentAyah() {
                 "▶️";
         });
 }
+
+function handleAudioTimeUpdate() {
+
+    if (!audio || !state.session) {
+        return;
+    }
+
+    if (
+        currentPauseIndex >=
+        pausePoints.length
+    ) {
+        return;
+    }
+
+    const pauseTime =
+        pausePoints[currentPauseIndex];
+
+    if (
+        audio.currentTime >= pauseTime
+    ) {
+
+        const segmentDuration =
+            pauseTime - segmentStart;
+
+        audio.pause();
+
+        currentPauseIndex++;
+
+        segmentStart = pauseTime;
+
+        waitAfterSegment(
+            segmentDuration,
+            () => {
+
+                if (!audio || !state.session) {
+                    return;
+                }
+
+                audio.play();
+            }
+        );
+    }
+}
+function waitAfterSegment(
+    segmentDuration,
+    callback
+) {
+
+    if (!state.session) {
+        return;
+    }
+
+    const multiplier =
+        state.session.wait;
+
+    if (
+        multiplier <= 0 ||
+        segmentDuration <= 0
+    ) {
+        callback();
+        return;
+    }
+
+    const waitTime =
+        segmentDuration *
+        multiplier *
+        1000;
+
+    setTimeout(() => {
+
+        if (!state.session) {
+            return;
+        }
+
+        callback();
+
+    }, waitTime);
+}
 function handleAyahEnded() {
 
     if (!state.session) {
