@@ -1161,6 +1161,26 @@ function waitAfterSegment(
 
     }, waitTime);
 }
+function handleAudioEnded() {
+
+    if (!state.session) {
+        return;
+    }
+
+    const finalSegmentDuration =
+        Math.max(
+            0,
+            (audio?.duration || 0) -
+            segmentStart
+        );
+
+    waitAfterSegment(
+        finalSegmentDuration,
+        () => {
+            handleAyahEnded();
+        }
+    );
+}
 function handleAyahEnded() {
 
     if (!state.session) {
