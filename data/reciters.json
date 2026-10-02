@@ -42,16 +42,15 @@
     "surahs": {}
   },
   {
-  "schemaVersion": 1,
-  "reciterId": "osama",
-  "name": "الشيخ أسامة",
-  "teacherMode": false,
-  "surahs": {
-    "93": {
-      "from": 1,
-      "to": 11
+    "id": "osama",
+    "name": "الشيخ أسامة",
+    "audioBaseUrl": "https://osama-tasgeel.pages.dev",
+    "teacherMode": false,
+    "surahs": {
+      "93": {
+        "from": 1,
+        "to": 11
+      }
     }
   }
-}
-
 ]
