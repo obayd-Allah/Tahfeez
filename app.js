@@ -1083,7 +1083,7 @@ function finishMemorization() {
         "▶️";
 }
 
-function pausePlayback()function pausePlayback() {
+function pausePlayback() {
 
     if (!state.session) {
         return;
@@ -1190,7 +1190,7 @@ function restoreSettings() {
         );
 
 
-    populateSurahs();
+    
 
 
     if (!saved) {
