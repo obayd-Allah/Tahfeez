@@ -1098,6 +1098,7 @@ function restoreSettings() {
                         reciter.id ===
                         settings.reciter
                 ) || null;
+            populateSurahs();
         }
 
 
