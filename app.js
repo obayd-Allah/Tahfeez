@@ -123,7 +123,7 @@ const nextAyahButton =
 
 async function loadData() {
 
-    try {٩
+    try {
 
         const [
             quranResponse,
