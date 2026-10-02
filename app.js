@@ -241,7 +241,6 @@ function populateReciters() {
 /* =========================================
    السور
 ========================================= */
-
 function populateSurahs() {
 
     surahSelect.innerHTML = `
@@ -250,8 +249,23 @@ function populateSurahs() {
         </option>
     `;
 
+    if (!state.selectedReciter) {
+        surahSelect.disabled = true;
+        return;
+    }
 
-    for (const surah of state.surahs) {
+    const availableSurahs =
+        state.selectedReciter.surahs || {};
+
+    for (const number of Object.keys(availableSurahs)) {
+
+        const surah =
+            state.surahs.find(
+                item =>
+                    String(item.number) === String(number)
+            );
+
+        if (!surah) continue;
 
         const option =
             document.createElement("option");
@@ -264,8 +278,9 @@ function populateSurahs() {
 
         surahSelect.appendChild(option);
     }
-}
 
+    surahSelect.disabled = false;
+} 
 
 /* =========================================
    اختيار الشيخ
