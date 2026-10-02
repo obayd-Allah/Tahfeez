@@ -108,7 +108,7 @@ const restartBlockButton =
 
 const playPauseButton =
     document.getElementById(
-        "playPauseButton"
+       "playPauseButton"
     );
 
 const nextAyahButton =
@@ -123,7 +123,7 @@ const nextAyahButton =
 
 async function loadData() {
 
-    try {
+    try {٩
 
         const [
             quranResponse,
