@@ -558,7 +558,21 @@ teacherMode.addEventListener(
 /* =========================================
    وضع المعلم
 ========================================= */
+async function playCurrentAyah() {
 
+    if (!state.session) {
+        return;
+    }
+
+    await loadPausePoints();
+
+    currentPauseIndex = 0;
+    segmentStart = 0;
+
+    currentAudioType = "normal";
+
+    playAudioFromCurrentPosition();
+    }
 function updateTeacherMode() {
 
     const available =
@@ -1078,73 +1092,7 @@ function playAudioFromCurrentPosition() {
                 "▶️";
         });
 }
-function playAudioFromCurrentPosition() {
 
-    if (!state.session) {
-        return;
-    }
-
-    const reciter =
-        state.session.reciter;
-
-    const surahNumber =
-        state.session.surah.number;
-
-    const ayahNumber =
-        state.session.currentAyah;
-
-    const url =
-        `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
-
-    if (audio) {
-        audio.pause();
-    }
-
-    audio = new Audio(url);
-
-    audio.playbackRate =
-        state.session.speed;
-
-    audio.currentTime =
-        segmentStart;
-
-    audio.ontimeupdate =
-        handleAudioTimeUpdate;
-
-    audio.onended =
-        handleAudioEnded;
-
-    audio.onerror = () => {
-
-        state.session.playing = false;
-
-        playPauseButton.textContent =
-            "▶️";
-
-        showAvailability(
-            "تعذر تشغيل ملف الصوت."
-        );
-    };
-
-    audio.play()
-        .then(() => {
-
-            state.session.playing = true;
-
-            playPauseButton.textContent =
-                "⏸️";
-
-        })
-        .catch(error => {
-
-            console.error(error);
-
-            state.session.playing = false;
-
-            playPauseButton.textContent =
-                "▶️";
-        });
-}
 
 function handleAudioTimeUpdate() {
 
