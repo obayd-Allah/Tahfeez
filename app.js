@@ -8,12 +8,20 @@ const state = {
 
     session: null
 };
+
 let audio = null;
 
 let pausePoints = [];
 let currentPauseIndex = 0;
+
 let segmentStart = 0;
+let segmentEnd = null;
+
 let currentAudioType = "normal";
+
+let waitTimer = null;
+
+
 /* =========================================
    عناصر الصفحة
 ========================================= */
@@ -112,7 +120,7 @@ const restartBlockButton =
 
 const playPauseButton =
     document.getElementById(
-       "playPauseButton"
+        "playPauseButton"
     );
 
 const nextAyahButton =
@@ -141,6 +149,7 @@ async function loadData() {
 
 
         if (!quranResponse.ok) {
+
             throw new Error(
                 "تعذر تحميل quran.json"
             );
@@ -148,6 +157,7 @@ async function loadData() {
 
 
         if (!recitersResponse.ok) {
+
             throw new Error(
                 "تعذر تحميل reciters.json"
             );
@@ -164,10 +174,6 @@ async function loadData() {
 
         /*
             quran.json هو المصدر الأساسي للقرآن.
-
-            نحوله إلى الشكل الذي يستخدمه
-            باقي التطبيق حاليًا، حتى لا نضطر
-            لتغيير بقية الكود.
         */
 
         state.quran =
@@ -231,11 +237,14 @@ function populateReciters() {
         const option =
             document.createElement("option");
 
+
         option.value =
             reciter.id;
 
+
         option.textContent =
             reciter.name;
+
 
         reciterSelect.appendChild(option);
     }
@@ -245,6 +254,7 @@ function populateReciters() {
 /* =========================================
    السور
 ========================================= */
+
 function populateSurahs() {
 
     surahSelect.innerHTML = `
@@ -253,38 +263,56 @@ function populateSurahs() {
         </option>
     `;
 
+
     if (!state.selectedReciter) {
+
         surahSelect.disabled = true;
+
         return;
     }
+
 
     const availableSurahs =
         state.selectedReciter.surahs || {};
 
-    for (const number of Object.keys(availableSurahs)) {
+
+    for (
+        const number of
+        Object.keys(availableSurahs)
+    ) {
 
         const surah =
             state.surahs.find(
                 item =>
-                    String(item.number) === String(number)
+                    String(item.number) ===
+                    String(number)
             );
 
-        if (!surah) continue;
+
+        if (!surah) {
+            continue;
+        }
+
 
         const option =
             document.createElement("option");
 
+
         option.value =
             surah.number;
+
 
         option.textContent =
             `${surah.number}. ${surah.name}`;
 
+
         surahSelect.appendChild(option);
     }
 
+
     surahSelect.disabled = false;
-} 
+}
+
 
 /* =========================================
    اختيار الشيخ
@@ -297,21 +325,13 @@ reciterSelect.addEventListener(
         const id =
             reciterSelect.value;
 
+
         state.selectedReciter =
             state.reciters.find(
                 reciter =>
                     reciter.id === id
             ) || null;
 
-
-        /*
-            بمجرد اختيار الشيخ،
-            نعرض السور.
-
-            لكن availability الخاصة بالشيخ
-            هي التي ستحدد لاحقًا إن كانت
-            السورة متوفرة أم لا.
-        */
 
         populateSurahs();
 
@@ -338,6 +358,7 @@ surahSelect.addEventListener(
 
         const number =
             Number(surahSelect.value);
+
 
         state.selectedSurah =
             state.surahs.find(
@@ -388,6 +409,7 @@ surahSelect.addEventListener(
 
         fromAyah.max =
             available.to;
+
 
         toAyah.min =
             available.from;
@@ -463,6 +485,7 @@ function validateAyahRange() {
     let from =
         Number(fromAyah.value);
 
+
     let to =
         Number(toAyah.value);
 
@@ -471,7 +494,9 @@ function validateAyahRange() {
         !Number.isFinite(from) ||
         from < available.from
     ) {
-        from = available.from;
+
+        from =
+            available.from;
     }
 
 
@@ -479,22 +504,30 @@ function validateAyahRange() {
         !Number.isFinite(to) ||
         to < available.from
     ) {
-        to = available.from;
+
+        to =
+            available.from;
     }
 
 
     if (from > available.to) {
-        from = available.to;
+
+        from =
+            available.to;
     }
 
 
     if (to > available.to) {
-        to = available.to;
+
+        to =
+            available.to;
     }
 
 
     if (to < from) {
-        to = from;
+
+        to =
+            from;
     }
 
 
@@ -522,8 +555,10 @@ speedRange.addEventListener(
         const speed =
             Number(speedRange.value);
 
+
         speedValue.textContent =
             `${speed.toFixed(2)}×`;
+
 
         saveSettings();
     }
@@ -558,21 +593,7 @@ teacherMode.addEventListener(
 /* =========================================
    وضع المعلم
 ========================================= */
-async function playCurrentAyah() {
 
-    if (!state.session) {
-        return;
-    }
-
-    await loadPausePoints();
-
-    currentPauseIndex = 0;
-    segmentStart = 0;
-
-    currentAudioType = "normal";
-
-    playAudioFromCurrentPosition();
-    }
 function updateTeacherMode() {
 
     const available =
@@ -582,6 +603,7 @@ function updateTeacherMode() {
 
 
     teacherMode.checked = false;
+
 
     teacherMode.disabled =
         !available;
@@ -593,8 +615,10 @@ function updateTeacherMode() {
             "is-disabled"
         );
 
+
         teacherModeDescription.textContent =
             "غير متوفر لهذا الشيخ";
+
 
         return;
     }
@@ -604,8 +628,9 @@ function updateTeacherMode() {
         "is-disabled"
     );
 
+
     teacherModeDescription.textContent =
-        "سيكرر الطفل ما يقرأه الشيخ";
+        "يقرأ المحفّظ أولًا ثم يردد التسجيل التعليمي";
 }
 
 
@@ -643,6 +668,7 @@ function validateSetup() {
     const from =
         Number(fromAyah.value);
 
+
     const to =
         Number(toAyah.value);
 
@@ -671,12 +697,14 @@ function startMemorization() {
         !state.selectedReciter ||
         !state.selectedSurah
     ) {
+
         return;
     }
 
 
     const from =
         Number(fromAyah.value);
+
 
     const to =
         Number(toAyah.value);
@@ -738,6 +766,7 @@ function openMemorizationScreen() {
     setupScreen.classList.add(
         "hidden"
     );
+
 
     memorizationScreen.classList.remove(
         "hidden"
@@ -855,10 +884,12 @@ previousAyahButton.addEventListener(
 
             stopPlayback();
 
+
             state.session.currentAyah--;
 
             state.session.currentAyahRepeat =
                 1;
+
 
             renderCurrentAyah();
 
@@ -888,10 +919,13 @@ nextAyahButton.addEventListener(
 
             stopPlayback();
 
+
             state.session.currentAyah++;
+
 
             state.session.currentAyahRepeat =
                 1;
+
 
             renderCurrentAyah();
 
@@ -958,23 +992,33 @@ playPauseButton.addEventListener(
     }
 );
 
+
+/* =========================================
+   تحميل نقاط الوقف
+========================================= */
+
 async function loadPausePoints() {
 
     pausePoints = [];
+
 
     if (!state.session) {
         return;
     }
 
+
     const reciter =
         state.session.reciter;
+
 
     if (!reciter.audioBaseUrl) {
         return;
     }
 
+
     const surahNumber =
         state.session.surah.number;
+
 
     try {
 
@@ -983,15 +1027,19 @@ async function loadPausePoints() {
                 `${reciter.audioBaseUrl}/pauses/${surahNumber}.json`
             );
 
+
         if (!response.ok) {
             return;
         }
 
+
         const data =
             await response.json();
 
+
         const ayahNumber =
             state.session.currentAyah;
+
 
         const ayahData =
             data.find(
@@ -1000,7 +1048,11 @@ async function loadPausePoints() {
                     Number(ayahNumber)
             );
 
-        if (ayahData && Array.isArray(ayahData.pauses)) {
+
+        if (
+            ayahData &&
+            Array.isArray(ayahData.pauses)
+        ) {
 
             pausePoints =
                 ayahData.pauses
@@ -1022,61 +1074,156 @@ async function loadPausePoints() {
             error
         );
 
+
         pausePoints = [];
     }
 }
-function playAudioFromCurrentPosition() {
+
+
+/* =========================================
+   بدء الآية
+========================================= */
+
+async function playCurrentAyah() {
 
     if (!state.session) {
         return;
     }
 
+
+    if (waitTimer) {
+
+        clearTimeout(waitTimer);
+
+        waitTimer = null;
+    }
+
+
+    await loadPausePoints();
+
+
+    currentPauseIndex = 0;
+
+    segmentStart = 0;
+
+
+    currentAudioType =
+        "normal";
+
+
+    segmentEnd =
+        pausePoints.length > 0
+            ? pausePoints[0]
+            : null;
+
+
+    playCurrentSegment();
+}
+
+
+/* =========================================
+   تشغيل الجزء الحالي
+========================================= */
+
+function playCurrentSegment() {
+
+    if (!state.session) {
+        return;
+    }
+
+
     const reciter =
         state.session.reciter;
+
 
     const surahNumber =
         state.session.surah.number;
 
+
     const ayahNumber =
         state.session.currentAyah;
+
 
     const url =
         `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
 
+
     if (audio) {
+
         audio.pause();
+
+        audio = null;
     }
 
-    audio = new Audio(url);
 
-    audio.playbackRate =
+    const newAudio =
+        new Audio(url);
+
+
+    audio =
+        newAudio;
+
+
+    newAudio.playbackRate =
         state.session.speed;
 
-    audio.currentTime =
-        segmentStart;
 
-    audio.ontimeupdate =
+    newAudio.onloadedmetadata = () => {
+
+        if (!state.session) {
+            return;
+        }
+
+
+        /*
+            نبدأ من بداية الجزء الحالي.
+        */
+
+        newAudio.currentTime =
+            segmentStart;
+    };
+
+
+    newAudio.ontimeupdate =
         handleAudioTimeUpdate;
 
-    audio.onended =
+
+    newAudio.onended =
         handleAudioEnded;
 
-    audio.onerror = () => {
 
-        state.session.playing = false;
+    newAudio.onerror = () => {
+
+        if (!state.session) {
+            return;
+        }
+
+
+        state.session.playing =
+            false;
+
 
         playPauseButton.textContent =
             "▶️";
+
 
         showAvailability(
             "تعذر تشغيل ملف الصوت."
         );
     };
 
-    audio.play()
+
+    newAudio.play()
         .then(() => {
 
-            state.session.playing = true;
+            if (!state.session) {
+                return;
+            }
+
+
+            state.session.playing =
+                true;
+
 
             playPauseButton.textContent =
                 "⏸️";
@@ -1086,7 +1233,15 @@ function playAudioFromCurrentPosition() {
 
             console.error(error);
 
-            state.session.playing = false;
+
+            if (!state.session) {
+                return;
+            }
+
+
+            state.session.playing =
+                false;
+
 
             playPauseButton.textContent =
                 "▶️";
@@ -1094,62 +1249,241 @@ function playAudioFromCurrentPosition() {
 }
 
 
+/* =========================================
+   الوصول إلى نهاية الجزء
+========================================= */
+
 function handleAudioTimeUpdate() {
 
-    if (!audio || !state.session) {
+    if (
+        !audio ||
+        !state.session
+    ) {
+
         return;
     }
 
-    if (
-        currentPauseIndex >=
-        pausePoints.length
-    ) {
+
+    /*
+        null تعني أن هذا هو الجزء الأخير
+        حتى نهاية الملف.
+    */
+
+    if (segmentEnd === null) {
         return;
     }
 
-    const pauseTime =
-        pausePoints[currentPauseIndex];
 
     if (
-        audio.currentTime >= pauseTime
+        audio.currentTime >=
+        segmentEnd
     ) {
-
-        const segmentDuration =
-            pauseTime - segmentStart;
 
         audio.pause();
 
-        currentPauseIndex++;
 
-        segmentStart = pauseTime;
-
-        waitAfterSegment(
-            segmentDuration,
-            () => {
-
-                if (!state.session) {
-                    return;
-                }
-
-                if (
-                    state.session.teacherMode
-                ) {
-
-                    currentAudioType =
-                        currentAudioType === "normal"
-                            ? "teacher"
-                            : "normal";
-
-                    playAudioFromCurrentPosition();
-
-                } else {
-
-                    audio.play();
-                }
-            }
-        );
+        handleSegmentFinished();
     }
 }
+
+
+/* =========================================
+   انتهاء الجزء الحالي
+========================================= */
+
+function handleSegmentFinished() {
+
+    if (!state.session) {
+        return;
+    }
+
+
+    /*
+        إذا كان الشيخ قد قرأ الجزء،
+        وفي وضع المعلم:
+        نعيد نفس الجزء من نفس البداية
+        إلى نفس النهاية بالتسجيل التعليمي.
+    */
+
+    if (
+        state.session.teacherMode &&
+        currentAudioType === "normal"
+    ) {
+
+        currentAudioType =
+            "teacher";
+
+
+        playCurrentSegment();
+
+        return;
+    }
+
+
+    /*
+        هنا انتهى الجزء بالكامل:
+        سواء كان الوضع عاديًا،
+        أو انتهى تسجيل المعلم.
+    */
+
+    const segmentDuration =
+        segmentEnd !== null
+            ? Math.max(
+                0,
+                segmentEnd -
+                segmentStart
+            )
+            : 0;
+
+
+    currentAudioType =
+        "normal";
+
+
+    currentPauseIndex++;
+
+
+    segmentStart =
+        segmentEnd !== null
+            ? segmentEnd
+            : segmentStart;
+
+
+    segmentEnd =
+        currentPauseIndex <
+        pausePoints.length
+
+            ? pausePoints[
+                currentPauseIndex
+            ]
+
+            : null;
+
+
+    waitAfterSegment(
+        segmentDuration,
+        () => {
+
+            if (!state.session) {
+                return;
+            }
+
+
+            /*
+                ما زالت هناك نقطة وقف،
+                إذن نبدأ الجزء التالي.
+            */
+
+            if (segmentEnd !== null) {
+
+                playCurrentSegment();
+
+                return;
+            }
+
+
+            /*
+                انتهت جميع الأجزاء.
+            */
+
+            handleAyahEnded();
+        }
+    );
+}
+
+
+/* =========================================
+   انتهاء الملف الصوتي
+========================================= */
+
+function handleAudioEnded() {
+
+    if (!state.session) {
+        return;
+    }
+
+
+    /*
+        إذا كانت هناك نقطة نهاية للجزء،
+        فهذا يعني أن onended وصل قبل
+        timeupdate إلى النقطة المطلوبة.
+    */
+
+    if (segmentEnd !== null) {
+
+        handleSegmentFinished();
+
+        return;
+    }
+
+
+    /*
+        لا توجد نقطة وقف أخرى.
+        إذن هذا هو آخر جزء في الآية.
+    */
+
+
+    /*
+        في وضع المعلم:
+        الشيخ أنهى الجزء الأخير،
+        فنشغل التسجيل التعليمي من نفس
+        segmentStart حتى نهاية الآية.
+
+        مهم:
+        لا نعيد segmentStart إلى صفر هنا،
+        لأننا قد نكون في الجزء الأخير
+        مثل 7 → نهاية الآية.
+    */
+
+    if (
+        state.session.teacherMode &&
+        currentAudioType === "normal"
+    ) {
+
+        currentAudioType =
+            "teacher";
+
+
+        playCurrentSegment();
+
+        return;
+    }
+
+
+    /*
+        انتهى التسجيل التعليمي
+        أو الوضع العادي.
+    */
+
+    const duration =
+        audio?.duration || 0;
+
+
+    const finalSegmentDuration =
+        Math.max(
+            0,
+            duration - segmentStart
+        );
+
+
+    currentAudioType =
+        "normal";
+
+
+    waitAfterSegment(
+        finalSegmentDuration,
+        () => {
+
+            handleAyahEnded();
+        }
+    );
+}
+
+
+/* =========================================
+   الانتظار بين الأجزاء
+========================================= */
+
 function waitAfterSegment(
     segmentDuration,
     callback
@@ -1159,57 +1493,68 @@ function waitAfterSegment(
         return;
     }
 
+
     const multiplier =
         state.session.wait;
+
 
     if (
         multiplier <= 0 ||
         segmentDuration <= 0
     ) {
+
         callback();
+
         return;
     }
+
 
     const waitTime =
         segmentDuration *
         multiplier *
         1000;
 
-    setTimeout(() => {
 
-        if (!state.session) {
-            return;
-        }
+    if (waitTimer) {
 
-        callback();
-
-    }, waitTime);
-}
-function handleAudioEnded() {
-
-    if (!state.session) {
-        return;
+        clearTimeout(waitTimer);
     }
 
-    const finalSegmentDuration =
-        Math.max(
-            0,
-            (audio?.duration || 0) -
-            segmentStart
-        );
 
-    waitAfterSegment(
-        finalSegmentDuration,
-        () => {
-            handleAyahEnded();
-        }
-    );
+    waitTimer =
+        setTimeout(
+            () => {
+
+                waitTimer = null;
+
+
+                if (!state.session) {
+                    return;
+                }
+
+
+                callback();
+
+            },
+            waitTime
+        );
 }
+
+
+/* =========================================
+   انتهاء الآية
+========================================= */
+
 function handleAyahEnded() {
 
     if (!state.session) {
         return;
     }
+
+
+    /*
+        تكرار الآية نفسها
+    */
 
     if (
         state.session.currentAyahRepeat <
@@ -1218,14 +1563,29 @@ function handleAyahEnded() {
 
         state.session.currentAyahRepeat++;
 
+
         updateSessionInfo();
 
+
         playCurrentAyah();
+
 
         return;
     }
 
-    state.session.currentAyahRepeat = 1;
+
+    /*
+        انتهت تكرارات الآية.
+        نعيد عداد تكرار الآية إلى 1.
+    */
+
+    state.session.currentAyahRepeat =
+        1;
+
+
+    /*
+        الانتقال إلى الآية التالية.
+    */
 
     if (
         state.session.currentAyah <
@@ -1234,14 +1594,23 @@ function handleAyahEnded() {
 
         state.session.currentAyah++;
 
+
         renderCurrentAyah();
 
         updateSessionInfo();
 
+
         playCurrentAyah();
+
 
         return;
     }
+
+
+    /*
+        انتهى المقطع بالكامل.
+        هل بقي تكرار للمقطع؟
+    */
 
     if (
         state.session.currentBlockRepeat <
@@ -1250,36 +1619,64 @@ function handleAyahEnded() {
 
         state.session.currentBlockRepeat++;
 
+
         state.session.currentAyah =
             state.session.fromAyah;
 
+
         state.session.currentAyahRepeat =
             1;
+
 
         renderCurrentAyah();
 
         updateSessionInfo();
 
+
         playCurrentAyah();
+
 
         return;
     }
 
+
+    /*
+        انتهى كل شيء.
+    */
+
     finishMemorization();
-                }
+}
+
+
+/* =========================================
+   إنهاء التحفيظ
+========================================= */
+
 function finishMemorization() {
 
     stopPlayback();
+
 
     completionMessage.classList.remove(
         "hidden"
     );
 
-    state.session.playing = false;
+
+    if (state.session) {
+
+        state.session.playing =
+            false;
+    }
+
 
     playPauseButton.textContent =
         "▶️";
 }
+
+
+/* =========================================
+   إيقاف مؤقت
+========================================= */
 
 function pausePlayback() {
 
@@ -1287,28 +1684,103 @@ function pausePlayback() {
         return;
     }
 
-    if (audio) {
-        audio.pause();
-        audio.currentTime = 0;
+
+    /*
+        إذا كنا في فترة انتظار،
+        نلغي الانتظار.
+    */
+
+    if (waitTimer) {
+
+        clearTimeout(waitTimer);
+
+        waitTimer = null;
     }
 
-    state.session.playing = false;
+
+    /*
+        إيقاف الصوت وإعادته للبداية.
+    */
+
+    if (audio) {
+
+        audio.pause();
+
+        audio.currentTime = 0;
+
+        audio = null;
+    }
+
+
+    /*
+        عند الضغط على تشغيل مرة أخرى،
+        تبدأ الآية الحالية من البداية.
+    */
+
+    currentPauseIndex = 0;
+
+    segmentStart = 0;
+
+    segmentEnd =
+        pausePoints.length > 0
+            ? pausePoints[0]
+            : null;
+
+
+    currentAudioType =
+        "normal";
+
+
+    state.session.playing =
+        false;
+
 
     playPauseButton.textContent =
         "▶️";
 }
 
+
+/* =========================================
+   إيقاف كامل
+========================================= */
+
 function stopPlayback() {
 
+    if (waitTimer) {
+
+        clearTimeout(waitTimer);
+
+        waitTimer = null;
+    }
+
+
     if (audio) {
+
         audio.pause();
+
         audio.currentTime = 0;
+
         audio = null;
     }
 
+
+    currentPauseIndex = 0;
+
+    segmentStart = 0;
+
+    segmentEnd = null;
+
+
+    currentAudioType =
+        "normal";
+
+
     if (state.session) {
-        state.session.playing = false;
+
+        state.session.playing =
+            false;
     }
+
 
     playPauseButton.textContent =
         "▶️";
@@ -1325,9 +1797,11 @@ playerSettingsButton.addEventListener(
 
         stopPlayback();
 
+
         memorizationScreen.classList.add(
             "hidden"
         );
+
 
         setupScreen.classList.remove(
             "hidden"
@@ -1388,9 +1862,6 @@ function restoreSettings() {
         );
 
 
-    
-
-
     if (!saved) {
         return;
     }
@@ -1402,10 +1873,15 @@ function restoreSettings() {
             JSON.parse(saved);
 
 
+        /*
+            الشيخ
+        */
+
         if (settings.reciter) {
 
             reciterSelect.value =
                 settings.reciter;
+
 
             state.selectedReciter =
                 state.reciters.find(
@@ -1413,6 +1889,8 @@ function restoreSettings() {
                         reciter.id ===
                         settings.reciter
                 ) || null;
+
+
             populateSurahs();
         }
 
@@ -1420,10 +1898,15 @@ function restoreSettings() {
         updateTeacherMode();
 
 
+        /*
+            السورة
+        */
+
         if (settings.surah) {
 
             surahSelect.value =
                 settings.surah;
+
 
             state.selectedSurah =
                 state.surahs.find(
@@ -1433,6 +1916,10 @@ function restoreSettings() {
                 ) || null;
         }
 
+
+        /*
+            الآيات
+        */
 
         if (state.selectedSurah) {
 
@@ -1446,11 +1933,13 @@ function restoreSettings() {
 
                 enableAyahInputs();
 
+
                 fromAyah.min =
                     available.from;
 
                 fromAyah.max =
                     available.to;
+
 
                 toAyah.min =
                     available.from;
@@ -1458,9 +1947,11 @@ function restoreSettings() {
                 toAyah.max =
                     available.to;
 
+
                 fromAyah.value =
                     settings.fromAyah ||
                     available.from;
+
 
                 toAyah.value =
                     settings.toAyah ||
@@ -1470,6 +1961,7 @@ function restoreSettings() {
 
                 disableAyahInputs();
 
+
                 showAvailability(
                     `سورة ${state.selectedSurah.name} غير متوفرة بصوت ${state.selectedReciter.name} حاليًا.`
                 );
@@ -1477,34 +1969,83 @@ function restoreSettings() {
         }
 
 
-        if (settings.speed) {
+        /*
+            السرعة
+        */
+
+        if (
+            settings.speed !==
+            undefined
+        ) {
 
             speedRange.value =
                 settings.speed;
+
 
             speedValue.textContent =
                 `${Number(settings.speed).toFixed(2)}×`;
         }
 
 
-        if (settings.ayahRepeat) {
+        /*
+            تكرار الآية
+        */
+
+        if (
+            settings.ayahRepeat !==
+            undefined
+        ) {
 
             ayahRepeat.value =
                 settings.ayahRepeat;
         }
 
 
-        if (settings.blockRepeat) {
+        /*
+            تكرار المقطع
+        */
+
+        if (
+            settings.blockRepeat !==
+            undefined
+        ) {
 
             blockRepeat.value =
                 settings.blockRepeat;
         }
 
 
-        if (settings.wait) {
+        /*
+            الانتظار
+
+            نستخدم !== undefined
+            حتى يعمل أيضًا اختيار 0.
+        */
+
+        if (
+            settings.wait !==
+            undefined
+        ) {
 
             waitSelect.value =
                 settings.wait;
+        }
+
+
+        /*
+            وضع المعلم
+
+            لا نفعّله إلا إذا كان متاحًا
+            للشيخ المختار.
+        */
+
+        if (
+            settings.teacherMode === true &&
+            state.selectedReciter?.teacherMode
+        ) {
+
+            teacherMode.checked =
+                true;
         }
 
 
@@ -1526,9 +2067,13 @@ function restoreSettings() {
 
 function resetAyahInputs() {
 
-    fromAyah.value = 1;
+    fromAyah.value =
+        1;
 
-    toAyah.value = 1;
+
+    toAyah.value =
+        1;
+
 
     disableAyahInputs();
 }
@@ -1536,17 +2081,23 @@ function resetAyahInputs() {
 
 function disableAyahInputs() {
 
-    fromAyah.disabled = true;
+    fromAyah.disabled =
+        true;
 
-    toAyah.disabled = true;
+
+    toAyah.disabled =
+        true;
 }
 
 
 function enableAyahInputs() {
 
-    fromAyah.disabled = false;
+    fromAyah.disabled =
+        false;
 
-    toAyah.disabled = false;
+
+    toAyah.disabled =
+        false;
 }
 
 
@@ -1554,6 +2105,7 @@ function showAvailability(message) {
 
     availabilityMessage.textContent =
         message;
+
 
     availabilityMessage.classList.remove(
         "hidden"
@@ -1565,6 +2117,7 @@ function hideAvailability() {
 
     availabilityMessage.textContent =
         "";
+
 
     availabilityMessage.classList.add(
         "hidden"
