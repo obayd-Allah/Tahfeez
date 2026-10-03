@@ -9,9 +9,11 @@ const state = {
     session: null
 };
 let audio = null;
+
 let pausePoints = [];
 let currentPauseIndex = 0;
 let segmentStart = 0;
+let currentAudioType = "normal";
 /* =========================================
    عناصر الصفحة
 ========================================= */
@@ -1009,7 +1011,7 @@ async function loadPausePoints() {
         pausePoints = [];
     }
 }
-async function playCurrentAyah() {
+function playAudioFromCurrentPosition() {
 
     if (!state.session) {
         return;
@@ -1024,27 +1026,87 @@ async function playCurrentAyah() {
     const ayahNumber =
         state.session.currentAyah;
 
-    if (!reciter.audioBaseUrl) {
-        return;
-    }
-
-    await loadPausePoints();
-
-    currentPauseIndex = 0;
-    segmentStart = 0;
-
     const url =
-        `${reciter.audioBaseUrl}/normal/${surahNumber}/${ayahNumber}.mp3`;
+        `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
 
     if (audio) {
         audio.pause();
-        audio.currentTime = 0;
     }
 
     audio = new Audio(url);
 
     audio.playbackRate =
         state.session.speed;
+
+    audio.currentTime =
+        segmentStart;
+
+    audio.ontimeupdate =
+        handleAudioTimeUpdate;
+
+    audio.onended =
+        handleAudioEnded;
+
+    audio.onerror = () => {
+
+        state.session.playing = false;
+
+        playPauseButton.textContent =
+            "▶️";
+
+        showAvailability(
+            "تعذر تشغيل ملف الصوت."
+        );
+    };
+
+    audio.play()
+        .then(() => {
+
+            state.session.playing = true;
+
+            playPauseButton.textContent =
+                "⏸️";
+
+        })
+        .catch(error => {
+
+            console.error(error);
+
+            state.session.playing = false;
+
+            playPauseButton.textContent =
+                "▶️";
+        });
+}
+function playAudioFromCurrentPosition() {
+
+    if (!state.session) {
+        return;
+    }
+
+    const reciter =
+        state.session.reciter;
+
+    const surahNumber =
+        state.session.surah.number;
+
+    const ayahNumber =
+        state.session.currentAyah;
+
+    const url =
+        `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
+
+    if (audio) {
+        audio.pause();
+    }
+
+    audio = new Audio(url);
+
+    audio.playbackRate =
+        state.session.speed;
+
+    audio.currentTime =
+        segmentStart;
 
     audio.ontimeupdate =
         handleAudioTimeUpdate;
@@ -1117,11 +1179,25 @@ function handleAudioTimeUpdate() {
             segmentDuration,
             () => {
 
-                if (!audio || !state.session) {
+                if (!state.session) {
                     return;
                 }
 
-                audio.play();
+                if (
+                    state.session.teacherMode
+                ) {
+
+                    currentAudioType =
+                        currentAudioType === "normal"
+                            ? "teacher"
+                            : "normal";
+
+                    playAudioFromCurrentPosition();
+
+                } else {
+
+                    audio.play();
+                }
             }
         );
     }
