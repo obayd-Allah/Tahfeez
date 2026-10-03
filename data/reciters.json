@@ -45,7 +45,7 @@
     "id": "osama",
     "name": "الشيخ أسامة",
     "audioBaseUrl": "https://osama-tasgeel.pages.dev",
-    "teacherMode": false,
+    "teacherMode": true,
     "surahs": {
       "93": {
         "from": 1,
