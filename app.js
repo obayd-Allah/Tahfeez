@@ -21,6 +21,13 @@ let currentAudioType = "normal";
 
 let waitTimer = null;
 
+/*
+    رقم تشغيل جديد لكل عملية تشغيل.
+    يمنع أحداث الصوت القديم من التأثير
+    على الجزء الجديد.
+*/
+let playbackToken = 0;
+
 
 /* =========================================
    عناصر الصفحة
@@ -66,67 +73,43 @@ const teacherMode =
     document.getElementById("teacherMode");
 
 const teacherModeDescription =
-    document.getElementById(
-        "teacherModeDescription"
-    );
+    document.getElementById("teacherModeDescription");
 
 const availabilityMessage =
-    document.getElementById(
-        "availabilityMessage"
-    );
+    document.getElementById("availabilityMessage");
 
 const startButton =
     document.getElementById("startButton");
 
 const playerSettingsButton =
-    document.getElementById(
-        "playerSettingsButton"
-    );
+    document.getElementById("playerSettingsButton");
 
 const currentSurahName =
-    document.getElementById(
-        "currentSurahName"
-    );
+    document.getElementById("currentSurahName");
 
 const currentAyahText =
-    document.getElementById(
-        "currentAyahText"
-    );
+    document.getElementById("currentAyahText");
 
 const blockRepeatInfo =
-    document.getElementById(
-        "blockRepeatInfo"
-    );
+    document.getElementById("blockRepeatInfo");
 
 const ayahRepeatInfo =
-    document.getElementById(
-        "ayahRepeatInfo"
-    );
+    document.getElementById("ayahRepeatInfo");
 
 const completionMessage =
-    document.getElementById(
-        "completionMessage"
-    );
+    document.getElementById("completionMessage");
 
 const previousAyahButton =
-    document.getElementById(
-        "previousAyahButton"
-    );
+    document.getElementById("previousAyahButton");
 
 const restartBlockButton =
-    document.getElementById(
-        "restartBlockButton"
-    );
+    document.getElementById("restartBlockButton");
 
 const playPauseButton =
-    document.getElementById(
-        "playPauseButton"
-    );
+    document.getElementById("playPauseButton");
 
 const nextAyahButton =
-    document.getElementById(
-        "nextAyahButton"
-    );
+    document.getElementById("nextAyahButton");
 
 
 /* =========================================
@@ -149,7 +132,6 @@ async function loadData() {
 
 
         if (!quranResponse.ok) {
-
             throw new Error(
                 "تعذر تحميل quran.json"
             );
@@ -157,7 +139,6 @@ async function loadData() {
 
 
         if (!recitersResponse.ok) {
-
             throw new Error(
                 "تعذر تحميل reciters.json"
             );
@@ -166,7 +147,6 @@ async function loadData() {
 
         const quranData =
             await quranResponse.json();
-
 
         state.reciters =
             await recitersResponse.json();
@@ -237,14 +217,11 @@ function populateReciters() {
         const option =
             document.createElement("option");
 
-
         option.value =
             reciter.id;
 
-
         option.textContent =
             reciter.name;
-
 
         reciterSelect.appendChild(option);
     }
@@ -485,7 +462,6 @@ function validateAyahRange() {
     let from =
         Number(fromAyah.value);
 
-
     let to =
         Number(toAyah.value);
 
@@ -511,21 +487,18 @@ function validateAyahRange() {
 
 
     if (from > available.to) {
-
         from =
             available.to;
     }
 
 
     if (to > available.to) {
-
         to =
             available.to;
     }
 
 
     if (to < from) {
-
         to =
             from;
     }
@@ -604,7 +577,6 @@ function updateTeacherMode() {
 
     teacherMode.checked = false;
 
-
     teacherMode.disabled =
         !available;
 
@@ -668,7 +640,6 @@ function validateSetup() {
     const from =
         Number(fromAyah.value);
 
-
     const to =
         Number(toAyah.value);
 
@@ -697,14 +668,12 @@ function startMemorization() {
         !state.selectedReciter ||
         !state.selectedSurah
     ) {
-
         return;
     }
 
 
     const from =
         Number(fromAyah.value);
-
 
     const to =
         Number(toAyah.value);
@@ -922,7 +891,6 @@ nextAyahButton.addEventListener(
 
             state.session.currentAyah++;
 
-
             state.session.currentAyahRepeat =
                 1;
 
@@ -962,6 +930,7 @@ restartBlockButton.addEventListener(
         renderCurrentAyah();
 
         updateSessionInfo();
+
 
         playCurrentAyah();
     }
@@ -1060,10 +1029,11 @@ async function loadPausePoints() {
                     .filter(
                         value =>
                             Number.isFinite(value) &&
-                            value >= 0
+                            value > 0
                     )
                     .sort(
-                        (a, b) => a - b
+                        (a, b) =>
+                            a - b
                     );
         }
 
@@ -1073,7 +1043,6 @@ async function loadPausePoints() {
             "تعذر تحميل pauses.json",
             error
         );
-
 
         pausePoints = [];
     }
@@ -1091,6 +1060,16 @@ async function playCurrentAyah() {
     }
 
 
+    /*
+        إلغاء أي تشغيل أو انتظار قديم.
+    */
+
+    playbackToken++;
+
+    const token =
+        playbackToken;
+
+
     if (waitTimer) {
 
         clearTimeout(waitTimer);
@@ -1099,17 +1078,55 @@ async function playCurrentAyah() {
     }
 
 
+    if (audio) {
+
+        audio.pause();
+
+        audio.src = "";
+
+        audio = null;
+    }
+
+
+    state.session.playing =
+        false;
+
+
+    /*
+        تحميل نقاط الوقف الخاصة بالآية.
+    */
+
     await loadPausePoints();
+
+
+    /*
+        قد يكون المستخدم أوقف التشغيل
+        أثناء تحميل pauses.json.
+    */
+
+    if (
+        !state.session ||
+        token !== playbackToken
+    ) {
+        return;
+    }
 
 
     currentPauseIndex = 0;
 
     segmentStart = 0;
 
-
     currentAudioType =
         "normal";
 
+
+    /*
+        إذا توجد وقفة:
+        الجزء الأول 0 → أول وقفة.
+
+        إذا لا توجد وقفات:
+        الآية كلها جزء واحد.
+    */
 
     segmentEnd =
         pausePoints.length > 0
@@ -1117,7 +1134,7 @@ async function playCurrentAyah() {
             : null;
 
 
-    playCurrentSegment();
+    playCurrentSegment(token);
 }
 
 
@@ -1125,9 +1142,12 @@ async function playCurrentAyah() {
    تشغيل الجزء الحالي
 ========================================= */
 
-function playCurrentSegment() {
+function playCurrentSegment(token) {
 
-    if (!state.session) {
+    if (
+        !state.session ||
+        token !== playbackToken
+    ) {
         return;
     }
 
@@ -1148,94 +1168,347 @@ function playCurrentSegment() {
         `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
 
 
+    /*
+        إيقاف الصوت السابق.
+    */
+
     if (audio) {
 
         audio.pause();
+
+        audio.src = "";
 
         audio = null;
     }
 
 
     const newAudio =
-        new Audio(url);
+        new Audio();
 
 
     audio =
         newAudio;
 
 
+    newAudio.preload =
+        "auto";
+
+
+    newAudio.src =
+        url;
+
+
     newAudio.playbackRate =
         state.session.speed;
 
 
-    newAudio.onloadedmetadata = () => {
+    let finished = false;
 
-        if (!state.session) {
-            return;
-        }
+    let endTimer = null;
 
 
-        /*
-            نبدأ من بداية الجزء الحالي.
-        */
+    /*
+        إنهاء الجزء مرة واحدة فقط.
+    */
 
-        newAudio.currentTime =
-            segmentStart;
-    };
+    const finishOnce =
+        () => {
 
-
-    newAudio.ontimeupdate =
-        handleAudioTimeUpdate;
-
-
-    newAudio.onended =
-        handleAudioEnded;
-
-
-    newAudio.onerror = () => {
-
-        if (!state.session) {
-            return;
-        }
-
-
-        state.session.playing =
-            false;
-
-
-        playPauseButton.textContent =
-            "▶️";
-
-
-        showAvailability(
-            "تعذر تشغيل ملف الصوت."
-        );
-    };
-
-
-    newAudio.play()
-        .then(() => {
-
-            if (!state.session) {
+            if (finished) {
                 return;
             }
 
 
-            state.session.playing =
-                true;
+            finished = true;
 
 
-            playPauseButton.textContent =
-                "⏸️";
+            if (endTimer) {
 
-        })
-        .catch(error => {
+                clearTimeout(endTimer);
 
-            console.error(error);
+                endTimer = null;
+            }
 
 
-            if (!state.session) {
+            if (
+                token !== playbackToken ||
+                audio !== newAudio
+            ) {
                 return;
+            }
+
+
+            newAudio.pause();
+
+
+            handleSegmentFinished(
+                token,
+                newAudio
+            );
+        };
+
+
+    /*
+        عند تحميل بيانات الملف:
+        نثبت البداية أولًا،
+        ثم نبدأ التشغيل.
+
+        هذا مهم جدًا حتى لا يبدأ
+        الصوت من الثانية 0 قبل
+        الوصول إلى segmentStart.
+    */
+
+    newAudio.onloadedmetadata =
+        () => {
+
+            if (
+                !state.session ||
+                token !== playbackToken ||
+                audio !== newAudio
+            ) {
+                return;
+            }
+
+
+            const duration =
+                newAudio.duration;
+
+
+            /*
+                تنظيف نقاط الوقف التي تتجاوز
+                مدة الملف.
+            */
+
+            pausePoints =
+                pausePoints.filter(
+                    point =>
+                        point > 0 &&
+                        point < duration
+                );
+
+
+            /*
+                بعد التنظيف، قد تتغير النهاية.
+            */
+
+            if (
+                segmentEnd !== null &&
+                segmentEnd >= duration
+            ) {
+
+                segmentEnd =
+                    null;
+            }
+
+
+            /*
+                إذا كنا في الجزء الأخير،
+                فالنهاية هي مدة الملف.
+            */
+
+            const actualEnd =
+                segmentEnd !== null
+                    ? Math.min(
+                        segmentEnd,
+                        duration
+                    )
+                    : duration;
+
+
+            /*
+                إذا كانت البداية وصلت للنهاية
+                فلا يوجد جزء صالح.
+            */
+
+            if (
+                segmentStart >=
+                actualEnd
+            ) {
+
+                finishOnce();
+
+                return;
+            }
+
+
+            /*
+                نضع الصوت عند البداية الدقيقة
+                للجزء قبل play().
+            */
+
+            try {
+
+                newAudio.currentTime =
+                    segmentStart;
+
+            } catch (error) {
+
+                console.error(error);
+
+                finishOnce();
+
+                return;
+            }
+
+
+            /*
+                مدة الجزء على الخط الزمني
+                للصوت نفسه.
+            */
+
+            const remainingDuration =
+                Math.max(
+                    0,
+                    actualEnd -
+                    segmentStart
+                );
+
+
+            /*
+                إذا كانت هناك نهاية للجزء،
+                نستخدم مؤقتًا دقيقًا بالإضافة
+                إلى timeupdate كاحتياط.
+
+                القسمة على playbackRate لأن
+                remainingDuration هي مدة
+                صوتية، وليست مدة زمنية فعلية
+                عند السرعات المختلفة.
+            */
+
+            if (
+                segmentEnd !== null &&
+                remainingDuration > 0
+            ) {
+
+                const wallTime =
+                    (
+                        remainingDuration /
+                        state.session.speed
+                    ) * 1000;
+
+
+                endTimer =
+                    setTimeout(
+                        finishOnce,
+                        wallTime + 20
+                    );
+            }
+
+
+            /*
+                نبدأ التشغيل فقط بعد ضبط
+                currentTime.
+            */
+
+            newAudio.play()
+                .then(() => {
+
+                    if (
+                        !state.session ||
+                        token !== playbackToken ||
+                        audio !== newAudio
+                    ) {
+                        return;
+                    }
+
+
+                    state.session.playing =
+                        true;
+
+
+                    playPauseButton.textContent =
+                        "⏸️";
+
+                })
+                .catch(error => {
+
+                    console.error(error);
+
+
+                    if (
+                        token !== playbackToken
+                    ) {
+                        return;
+                    }
+
+
+                    state.session.playing =
+                        false;
+
+
+                    playPauseButton.textContent =
+                        "▶️";
+                });
+        };
+
+
+    /*
+        احتياط إضافي:
+        إذا وصل timeupdate إلى النهاية
+        قبل المؤقت.
+    */
+
+    newAudio.ontimeupdate =
+        () => {
+
+            if (
+                !state.session ||
+                token !== playbackToken ||
+                audio !== newAudio ||
+                finished
+            ) {
+                return;
+            }
+
+
+            if (
+                segmentEnd !== null &&
+                newAudio.currentTime >=
+                segmentEnd
+            ) {
+
+                finishOnce();
+            }
+        };
+
+
+    /*
+        onended يستخدم فقط عندما يصل
+        الملف فعليًا إلى نهايته.
+    */
+
+    newAudio.onended =
+        () => {
+
+            if (
+                finished ||
+                token !== playbackToken ||
+                audio !== newAudio
+            ) {
+                return;
+            }
+
+
+            finishOnce();
+        };
+
+
+    newAudio.onerror =
+        () => {
+
+            if (
+                token !== playbackToken ||
+                audio !== newAudio
+            ) {
+                return;
+            }
+
+
+            if (endTimer) {
+
+                clearTimeout(endTimer);
+
+                endTimer = null;
             }
 
 
@@ -1245,45 +1518,12 @@ function playCurrentSegment() {
 
             playPauseButton.textContent =
                 "▶️";
-        });
-}
 
 
-/* =========================================
-   الوصول إلى نهاية الجزء
-========================================= */
-
-function handleAudioTimeUpdate() {
-
-    if (
-        !audio ||
-        !state.session
-    ) {
-
-        return;
-    }
-
-
-    /*
-        null تعني أن هذا هو الجزء الأخير
-        حتى نهاية الملف.
-    */
-
-    if (segmentEnd === null) {
-        return;
-    }
-
-
-    if (
-        audio.currentTime >=
-        segmentEnd
-    ) {
-
-        audio.pause();
-
-
-        handleSegmentFinished();
-    }
+            showAvailability(
+                "تعذر تشغيل ملف الصوت."
+            );
+        };
 }
 
 
@@ -1291,18 +1531,64 @@ function handleAudioTimeUpdate() {
    انتهاء الجزء الحالي
 ========================================= */
 
-function handleSegmentFinished() {
+function handleSegmentFinished(
+    token,
+    finishedAudio
+) {
 
-    if (!state.session) {
+    if (
+        !state.session ||
+        token !== playbackToken ||
+        audio !== finishedAudio
+    ) {
         return;
     }
 
 
     /*
-        إذا كان الشيخ قد قرأ الجزء،
-        وفي وضع المعلم:
-        نعيد نفس الجزء من نفس البداية
-        إلى نفس النهاية بالتسجيل التعليمي.
+        نحسب مدة الجزء من نقاط الوقف
+        وليس من وقت وصول الحدث.
+
+        مثال:
+        0 → 2.5
+        = 2.5 ثانية
+
+        2.5 → 7.4
+        = 4.9 ثانية
+    */
+
+    let segmentDuration = 0;
+
+
+    if (segmentEnd !== null) {
+
+        segmentDuration =
+            Math.max(
+                0,
+                segmentEnd -
+                segmentStart
+            );
+    }
+
+
+    /*
+        في وضع المعلم:
+
+        الشيخ:
+        0 → 3
+
+        المعلم:
+        0 → 3
+
+        ثم ننتقل للجزء التالي.
+
+        المهم أننا لا نغير:
+        segmentStart
+        segmentEnd
+        currentPauseIndex
+
+        أثناء إعادة الجزء بالتسجيل
+        التعليمي.
     */
 
     if (
@@ -1314,167 +1600,124 @@ function handleSegmentFinished() {
             "teacher";
 
 
-        playCurrentSegment();
+        playCurrentSegment(
+            token
+        );
+
 
         return;
     }
 
 
     /*
-        هنا انتهى الجزء بالكامل:
-        سواء كان الوضع عاديًا،
-        أو انتهى تسجيل المعلم.
+        هنا انتهى الجزء بالكامل.
     */
-
-    const segmentDuration =
-        segmentEnd !== null
-            ? Math.max(
-                0,
-                segmentEnd -
-                segmentStart
-            )
-            : 0;
-
 
     currentAudioType =
         "normal";
 
 
-    currentPauseIndex++;
+    /*
+        إذا كانت هناك نقطة وقف:
+        ننتقل إلى الوقفة التالية.
+    */
+
+    if (segmentEnd !== null) {
+
+        segmentStart =
+            segmentEnd;
 
 
-    segmentStart =
-        segmentEnd !== null
-            ? segmentEnd
-            : segmentStart;
+        currentPauseIndex++;
 
 
-    segmentEnd =
-        currentPauseIndex <
-        pausePoints.length
+        segmentEnd =
+            currentPauseIndex <
+            pausePoints.length
 
-            ? pausePoints[
-                currentPauseIndex
-            ]
+                ? pausePoints[
+                    currentPauseIndex
+                ]
 
-            : null;
+                : null;
+    }
 
+
+    /*
+        إذا كان هذا هو الجزء الأخير،
+        فـ segmentDuration لا يمكن حسابه
+        من segmentEnd لأنه null.
+
+        في هذه الحالة نحسب مدة الجزء
+        من مدة الملف.
+    */
+
+    if (
+        segmentEnd === null &&
+        segmentDuration === 0
+    ) {
+
+        const duration =
+            Number.isFinite(
+                finishedAudio.duration
+            )
+                ? finishedAudio.duration
+                : 0;
+
+
+        segmentDuration =
+            Math.max(
+                0,
+                duration -
+                segmentStart
+            );
+    }
+
+
+    /*
+        الانتظار بعد كل جزء.
+
+        بما في ذلك:
+        الجزء الأخير من الآية.
+    */
 
     waitAfterSegment(
         segmentDuration,
         () => {
 
-            if (!state.session) {
+            if (
+                !state.session ||
+                token !== playbackToken
+            ) {
                 return;
             }
 
 
             /*
-                ما زالت هناك نقطة وقف،
-                إذن نبدأ الجزء التالي.
+                ما زالت هناك نقطة وقف.
+                إذن نشغل الجزء التالي.
             */
 
-            if (segmentEnd !== null) {
+            if (
+                segmentEnd !== null
+            ) {
 
-                playCurrentSegment();
+                playCurrentSegment(
+                    token
+                );
 
                 return;
             }
 
 
             /*
-                انتهت جميع الأجزاء.
+                لا توجد وقفات أخرى.
+                انتهت الآية.
             */
 
-            handleAyahEnded();
-        }
-    );
-}
-
-
-/* =========================================
-   انتهاء الملف الصوتي
-========================================= */
-
-function handleAudioEnded() {
-
-    if (!state.session) {
-        return;
-    }
-
-
-    /*
-        إذا كانت هناك نقطة نهاية للجزء،
-        فهذا يعني أن onended وصل قبل
-        timeupdate إلى النقطة المطلوبة.
-    */
-
-    if (segmentEnd !== null) {
-
-        handleSegmentFinished();
-
-        return;
-    }
-
-
-    /*
-        لا توجد نقطة وقف أخرى.
-        إذن هذا هو آخر جزء في الآية.
-    */
-
-
-    /*
-        في وضع المعلم:
-        الشيخ أنهى الجزء الأخير،
-        فنشغل التسجيل التعليمي من نفس
-        segmentStart حتى نهاية الآية.
-
-        مهم:
-        لا نعيد segmentStart إلى صفر هنا،
-        لأننا قد نكون في الجزء الأخير
-        مثل 7 → نهاية الآية.
-    */
-
-    if (
-        state.session.teacherMode &&
-        currentAudioType === "normal"
-    ) {
-
-        currentAudioType =
-            "teacher";
-
-
-        playCurrentSegment();
-
-        return;
-    }
-
-
-    /*
-        انتهى التسجيل التعليمي
-        أو الوضع العادي.
-    */
-
-    const duration =
-        audio?.duration || 0;
-
-
-    const finalSegmentDuration =
-        Math.max(
-            0,
-            duration - segmentStart
-        );
-
-
-    currentAudioType =
-        "normal";
-
-
-    waitAfterSegment(
-        finalSegmentDuration,
-        () => {
-
-            handleAyahEnded();
+            handleAyahEnded(
+                token
+            );
         }
     );
 }
@@ -1518,7 +1761,17 @@ function waitAfterSegment(
     if (waitTimer) {
 
         clearTimeout(waitTimer);
+
+        waitTimer = null;
     }
+
+
+    state.session.playing =
+        false;
+
+
+    playPauseButton.textContent =
+        "▶️";
 
 
     waitTimer =
@@ -1534,7 +1787,6 @@ function waitAfterSegment(
 
 
                 callback();
-
             },
             waitTime
         );
@@ -1545,15 +1797,18 @@ function waitAfterSegment(
    انتهاء الآية
 ========================================= */
 
-function handleAyahEnded() {
+function handleAyahEnded(token) {
 
-    if (!state.session) {
+    if (
+        !state.session ||
+        token !== playbackToken
+    ) {
         return;
     }
 
 
     /*
-        تكرار الآية نفسها
+        تكرار الآية نفسها.
     */
 
     if (
@@ -1576,7 +1831,6 @@ function handleAyahEnded() {
 
     /*
         انتهت تكرارات الآية.
-        نعيد عداد تكرار الآية إلى 1.
     */
 
     state.session.currentAyahRepeat =
@@ -1609,7 +1863,6 @@ function handleAyahEnded() {
 
     /*
         انتهى المقطع بالكامل.
-        هل بقي تكرار للمقطع؟
     */
 
     if (
@@ -1641,7 +1894,7 @@ function handleAyahEnded() {
 
 
     /*
-        انتهى كل شيء.
+        انتهت الجلسة كلها.
     */
 
     finishMemorization();
@@ -1686,8 +1939,7 @@ function pausePlayback() {
 
 
     /*
-        إذا كنا في فترة انتظار،
-        نلغي الانتظار.
+        إلغاء الانتظار.
     */
 
     if (waitTimer) {
@@ -1699,21 +1951,28 @@ function pausePlayback() {
 
 
     /*
-        إيقاف الصوت وإعادته للبداية.
+        إلغاء أي أحداث صوت قديم.
+    */
+
+    playbackToken++;
+
+
+    /*
+        إيقاف الصوت.
     */
 
     if (audio) {
 
         audio.pause();
 
-        audio.currentTime = 0;
+        audio.src = "";
 
         audio = null;
     }
 
 
     /*
-        عند الضغط على تشغيل مرة أخرى،
+        عند الضغط على تشغيل مرة أخرى:
         تبدأ الآية الحالية من البداية.
     */
 
@@ -1746,6 +2005,13 @@ function pausePlayback() {
 
 function stopPlayback() {
 
+    /*
+        إلغاء كل الأحداث القديمة.
+    */
+
+    playbackToken++;
+
+
     if (waitTimer) {
 
         clearTimeout(waitTimer);
@@ -1758,7 +2024,7 @@ function stopPlayback() {
 
         audio.pause();
 
-        audio.currentTime = 0;
+        audio.src = "";
 
         audio = null;
     }
@@ -2017,9 +2283,6 @@ function restoreSettings() {
 
         /*
             الانتظار
-
-            نستخدم !== undefined
-            حتى يعمل أيضًا اختيار 0.
         */
 
         if (
@@ -2034,9 +2297,6 @@ function restoreSettings() {
 
         /*
             وضع المعلم
-
-            لا نفعّله إلا إذا كان متاحًا
-            للشيخ المختار.
         */
 
         if (
@@ -2070,7 +2330,6 @@ function resetAyahInputs() {
     fromAyah.value =
         1;
 
-
     toAyah.value =
         1;
 
@@ -2084,7 +2343,6 @@ function disableAyahInputs() {
     fromAyah.disabled =
         true;
 
-
     toAyah.disabled =
         true;
 }
@@ -2094,7 +2352,6 @@ function enableAyahInputs() {
 
     fromAyah.disabled =
         false;
-
 
     toAyah.disabled =
         false;
