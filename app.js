@@ -28,6 +28,25 @@ let segmentTimer = null;
 let playbackToken = 0;
 
 
+/*
+    هذا المتغير مهم جدًا.
+
+    عندما نوقف الصوت نحن من داخل التطبيق،
+    لا نريد أن يعتبر التطبيق حدث pause
+    إيقافًا خارجيًا من شريط الهاتف.
+
+    لذلك نضعه true مؤقتًا أثناء الإيقاف الداخلي.
+*/
+let internalAudioAction = false;
+
+
+/*
+    هذا المتغير يمنع حماية السحب من التدخل
+    عندما يغير التطبيق currentTime بنفسه.
+*/
+let internalSeekAction = false;
+
+
 /* =========================================================
    عناصر الصفحة
 ========================================================= */
@@ -116,16 +135,13 @@ const nextAyahButton =
 ========================================================= */
 
 /*
-    لا ننشئ MediaMetadata ولا نسجل أزرار النظام.
-
-    وعند وجود Media Session في المتصفح،
-    نحاول إبقاء حالتها none.
+    نحاول منع الموقع من إعطاء النظام معلومات
+    إضافية عن الصوت.
 
     ملاحظة:
-    المتصفح/نظام الهاتف قد يعرض تحكمات الوسائط
-    رغم ذلك أثناء تشغيل <audio>.
+    المتصفح أو نظام Android قد يظل قادرًا على إظهار
+    شريط الوسائط؛ لذلك نتعامل معه أيضًا برمجيًا.
 */
-
 function setMediaSessionNone() {
 
     if (!("mediaSession" in navigator)) {
@@ -133,11 +149,14 @@ function setMediaSessionNone() {
     }
 
     try {
+
         navigator.mediaSession.metadata = null;
 
         navigator.mediaSession.playbackState =
             "none";
+
     } catch (error) {
+
         console.warn(
             "تعذر ضبط Media Session:",
             error
@@ -147,10 +166,316 @@ function setMediaSessionNone() {
 
 
 /*
-    لا نستخدم Media Session للتحكم في التطبيق.
+    تسجيل أوامر شريط النظام.
+
+    هذه الأوامر تجعلنا نعرف ماذا فعل المستخدم
+    من شريط الوسائط بدل ترك النظام يتعامل معها
+    بطريقة قد تتجاوز نظام Tahfeez.
 */
+function setupMediaSessionHandlers() {
+
+    if (!("mediaSession" in navigator)) {
+        return;
+    }
+
+
+    try {
+
+        /*
+            زر التشغيل من شريط النظام.
+        */
+
+        navigator.mediaSession.setActionHandler(
+            "play",
+            () => {
+
+                if (!state.session) {
+                    return;
+                }
+
+                if (!state.session.playing) {
+                    playCurrentAyah();
+                }
+            }
+        );
+
+
+        /*
+            زر الإيقاف المؤقت من شريط النظام.
+        */
+
+        navigator.mediaSession.setActionHandler(
+            "pause",
+            () => {
+
+                if (!state.session) {
+                    return;
+                }
+
+                if (state.session.playing) {
+                    pausePlayback();
+                }
+            }
+        );
+
+
+        /*
+            زر Stop إن كان المتصفح يدعمه.
+        */
+
+        try {
+
+            navigator.mediaSession.setActionHandler(
+                "stop",
+                () => {
+
+                    handleExternalAudioStop();
+                }
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "زر stop غير مدعوم:",
+                error
+            );
+        }
+
+
+        /*
+            ⏪ التأخير من شريط النظام.
+
+            لا نسمح بتغيير الموضع.
+            نعيد الآية من بدايتها.
+        */
+
+        try {
+
+            navigator.mediaSession.setActionHandler(
+                "seekbackward",
+                () => {
+
+                    handleExternalSeekAttempt();
+                }
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "زر seekbackward غير مدعوم:",
+                error
+            );
+        }
+
+
+        /*
+            ⏩ التقديم من شريط النظام.
+
+            لا نسمح بتجاوز نظام المقاطع.
+            نعيد الآية من بدايتها.
+        */
+
+        try {
+
+            navigator.mediaSession.setActionHandler(
+                "seekforward",
+                () => {
+
+                    handleExternalSeekAttempt();
+                }
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "زر seekforward غير مدعوم:",
+                error
+            );
+        }
+
+
+        /*
+            نلغي الأوامر التي يمكن أن تغير المسار
+            بالكامل.
+        */
+
+        try {
+
+            navigator.mediaSession.setActionHandler(
+                "previoustrack",
+                null
+            );
+
+        } catch (error) {}
+
+
+        try {
+
+            navigator.mediaSession.setActionHandler(
+                "nexttrack",
+                null
+            );
+
+        } catch (error) {}
+
+
+        try {
+
+            navigator.mediaSession.setActionHandler(
+                "seekto",
+                () => {
+
+                    handleExternalSeekAttempt();
+                }
+            );
+
+        } catch (error) {
+
+            console.warn(
+                "زر seekto غير مدعوم:",
+                error
+            );
+        }
+
+
+    } catch (error) {
+
+        console.warn(
+            "تعذر إعداد Media Session:",
+            error
+        );
+    }
+}
+
+
+/*
+    نهيئ Media Session عند فتح الصفحة.
+*/
+setupMediaSessionHandlers();
 
 setMediaSessionNone();
+
+
+/* =========================================================
+   محاولة تغيير الموضع من النظام
+========================================================= */
+
+/*
+    هذه الدالة تستخدم عندما يحاول المستخدم:
+
+    ⏪ التأخير
+    ⏩ التقديم
+    🎚️ سحب شريط التقدم
+    seekto من النظام
+
+    لا نسمح له بتجاوز نظام Tahfeez.
+
+    النتيجة:
+    إيقاف التشغيل وإعادة الآية الحالية
+    من بدايتها عند الضغط على تشغيل.
+*/
+function handleExternalSeekAttempt() {
+
+    if (!state.session) {
+        return;
+    }
+
+
+    playbackToken++;
+
+
+    if (waitTimer) {
+
+        clearTimeout(waitTimer);
+
+        waitTimer = null;
+    }
+
+
+    if (segmentTimer) {
+
+        clearTimeout(segmentTimer);
+
+        segmentTimer = null;
+    }
+
+
+    if (audio) {
+
+        const oldAudio =
+            audio;
+
+
+        internalAudioAction =
+            true;
+
+
+        try {
+            oldAudio.pause();
+        } catch (error) {}
+
+
+        oldAudio.onloadedmetadata =
+            null;
+
+        oldAudio.ontimeupdate =
+            null;
+
+        oldAudio.onended =
+            null;
+
+        oldAudio.onerror =
+            null;
+
+        oldAudio.onpause =
+            null;
+
+        oldAudio.onemptied =
+            null;
+
+        oldAudio.onseeking =
+            null;
+
+
+        oldAudio.removeAttribute("src");
+
+
+        try {
+            oldAudio.load();
+        } catch (error) {}
+
+
+        audio =
+            null;
+
+
+        internalAudioAction =
+            false;
+    }
+
+
+    /*
+        التشغيل القادم يبدأ من أول الآية.
+    */
+
+    segmentIndex =
+        0;
+
+
+    currentAudioType =
+        "normal";
+
+
+    state.session.playing =
+        false;
+
+
+    playPauseButton.textContent =
+        "▶️";
+
+
+    setMediaSessionNone();
+}
 
 
 /* =========================================================
@@ -173,6 +498,7 @@ async function loadData() {
 
 
         if (!quranResponse.ok) {
+
             throw new Error(
                 "تعذر تحميل quran.json"
             );
@@ -180,6 +506,7 @@ async function loadData() {
 
 
         if (!recitersResponse.ok) {
+
             throw new Error(
                 "تعذر تحميل reciters.json"
             );
@@ -188,6 +515,7 @@ async function loadData() {
 
         const quranData =
             await quranResponse.json();
+
 
         state.reciters =
             await recitersResponse.json();
@@ -432,6 +760,7 @@ surahSelect.addEventListener(
         fromAyah.max =
             available.to;
 
+
         toAyah.min =
             available.from;
 
@@ -505,6 +834,7 @@ function validateAyahRange() {
 
     let from =
         Number(fromAyah.value);
+
 
     let to =
         Number(toAyah.value);
@@ -625,6 +955,7 @@ function updateTeacherMode() {
     teacherMode.checked =
         false;
 
+
     teacherMode.disabled =
         !available;
 
@@ -690,6 +1021,7 @@ function validateSetup() {
     const from =
         Number(fromAyah.value);
 
+
     const to =
         Number(toAyah.value);
 
@@ -725,6 +1057,7 @@ function startMemorization() {
 
     const from =
         Number(fromAyah.value);
+
 
     const to =
         Number(toAyah.value);
@@ -767,14 +1100,6 @@ function startMemorization() {
 
         teacherMode:
             teacherMode.checked,
-
-        /*
-            هذه تعني أن جلسة الصفحة
-            في حالة تشغيل حتى أثناء الانتظار.
-
-            لذلك زر الصفحة يبقى ⏸️
-            أثناء السكوت أيضًا.
-        */
 
         playing:
             false
@@ -981,7 +1306,7 @@ restartBlockButton.addEventListener(
         /*
             إيقاف حقيقي.
 
-            لا تشغيل بعده.
+            لا يبدأ التشغيل تلقائيًا.
         */
 
         stopPlayback();
@@ -1036,8 +1361,8 @@ playPauseButton.addEventListener(
                 سواء كان الصوت يعمل
                 أو نحن في فترة انتظار:
 
-                الضغط على ⏸️ يوقف الجلسة
-                ويعيد الآية من البداية.
+                الإيقاف يعيد الآية
+                من البداية عند التشغيل التالي.
             */
 
             pausePlayback();
@@ -1163,25 +1488,64 @@ function clearPlaybackResources() {
 
     if (audio) {
 
+        const oldAudio =
+            audio;
+
+
+        internalAudioAction =
+            true;
+
+
         try {
-            audio.pause();
+            oldAudio.pause();
         } catch (error) {}
 
 
-        audio.onloadedmetadata = null;
-        audio.ontimeupdate = null;
-        audio.onended = null;
-        audio.onerror = null;
+        oldAudio.onloadedmetadata =
+            null;
+
+        oldAudio.ontimeupdate =
+            null;
+
+        oldAudio.onended =
+            null;
+
+        oldAudio.onerror =
+            null;
+
+        oldAudio.onpause =
+            null;
+
+        oldAudio.onemptied =
+            null;
+
+        oldAudio.onseeking =
+            null;
 
 
-        audio.removeAttribute("src");
+        oldAudio.removeAttribute("src");
+
 
         try {
-            audio.load();
+            oldAudio.load();
         } catch (error) {}
 
 
-        audio = null;
+        audio =
+            null;
+
+
+        /*
+            نعيد السماح بأحداث pause
+            بعد انتهاء عملية التنظيف.
+        */
+
+        setTimeout(
+            () => {
+                internalAudioAction = false;
+            },
+            0
+        );
     }
 
 
@@ -1236,15 +1600,6 @@ async function playCurrentAyah() {
     currentAudioType =
         "normal";
 
-
-    /*
-        نبدأ تشغيل الجلسة.
-
-        مهم:
-        بمجرد بدء التشغيل الناجح،
-        يبقى session.playing = true
-        حتى أثناء الانتظار.
-    */
 
     startCurrentSegment(token);
 }
@@ -1326,7 +1681,7 @@ function sanitizePausePoints(duration) {
 
 
 /* =========================================================
-   إعداد السرعة بدون تغيير طبقة الصوت
+   إعداد السرعة
 ========================================================= */
 
 function configureAudioSpeed(
@@ -1345,37 +1700,32 @@ function configureAudioSpeed(
 
 
     /*
-        مهم:
-
-        نحدد preserve pitch صراحةً
-        لتقليل تشوه الصوت عند تغيير
-        السرعة.
-
-        المتصفحات المختلفة تستخدم
-        أسماء مختلفة لهذه الخاصية.
+        المحافظة على طبقة الصوت.
     */
 
     try {
+
         media.preservesPitch =
             true;
+
     } catch (error) {}
 
 
     try {
+
         media.webkitPreservesPitch =
             true;
+
     } catch (error) {}
 
 
     try {
+
         media.mozPreservesPitch =
             true;
+
     } catch (error) {}
 
-
-    /*
-        نحدد السرعة قبل play().
-    */
 
     try {
 
@@ -1404,7 +1754,176 @@ function configureAudioSpeed(
 
 
 /* =========================================================
-   تشغيل الجزء
+   إيقاف صوت داخلي
+========================================================= */
+
+function pauseAudioInternally(media) {
+
+    if (!media) {
+        return;
+    }
+
+
+    internalAudioAction =
+        true;
+
+
+    try {
+        media.pause();
+    } catch (error) {}
+
+
+    /*
+        pause event غالبًا يحدث فورًا،
+        لكن نترك الحماية للحظة قصيرة
+        أيضًا للمتصفحات المختلفة.
+    */
+
+    setTimeout(
+        () => {
+            internalAudioAction = false;
+        },
+        0
+    );
+}
+
+
+/* =========================================================
+   إيقاف خارجي من النظام
+========================================================= */
+
+function handleExternalAudioStop() {
+
+    /*
+        إذا كان الإيقاف صادرًا من داخل التطبيق
+        فلا نفعل شيئًا.
+    */
+
+    if (internalAudioAction) {
+        return;
+    }
+
+
+    if (!state.session) {
+        return;
+    }
+
+
+    /*
+        نتحقق أن الجلسة كانت تعمل فعلًا.
+    */
+
+    if (!state.session.playing) {
+        return;
+    }
+
+
+    /*
+        النظام أوقف الصوت.
+
+        نلغي أي انتظار أو مؤقت،
+        ونلغي كل الأحداث القديمة.
+    */
+
+    playbackToken++;
+
+
+    if (waitTimer) {
+
+        clearTimeout(waitTimer);
+
+        waitTimer = null;
+    }
+
+
+    if (segmentTimer) {
+
+        clearTimeout(segmentTimer);
+
+        segmentTimer = null;
+    }
+
+
+    const stoppedAudio =
+        audio;
+
+
+    internalAudioAction =
+        true;
+
+
+    if (stoppedAudio) {
+
+        stoppedAudio.onloadedmetadata =
+            null;
+
+        stoppedAudio.ontimeupdate =
+            null;
+
+        stoppedAudio.onended =
+            null;
+
+        stoppedAudio.onerror =
+            null;
+
+        stoppedAudio.onpause =
+            null;
+
+        stoppedAudio.onemptied =
+            null;
+
+        stoppedAudio.onseeking =
+            null;
+
+
+        try {
+            stoppedAudio.pause();
+        } catch (error) {}
+
+
+        stoppedAudio.removeAttribute("src");
+
+
+        try {
+            stoppedAudio.load();
+        } catch (error) {}
+    }
+
+
+    audio =
+        null;
+
+
+    internalAudioAction =
+        false;
+
+
+    /*
+        التشغيل القادم يبدأ من أول الآية.
+    */
+
+    segmentIndex =
+        0;
+
+
+    currentAudioType =
+        "normal";
+
+
+    state.session.playing =
+        false;
+
+
+    playPauseButton.textContent =
+        "▶️";
+
+
+    setMediaSessionNone();
+}
+
+
+/* =========================================================
+   تشغيل الجزء الحالي
 ========================================================= */
 
 function startCurrentSegment(token) {
@@ -1440,18 +1959,37 @@ function startCurrentSegment(token) {
 
     if (audio) {
 
+        const oldAudio =
+            audio;
+
+
+        internalAudioAction =
+            true;
+
+
         try {
-            audio.pause();
+            oldAudio.pause();
         } catch (error) {}
 
 
-        audio.removeAttribute("src");
+        oldAudio.removeAttribute("src");
+
 
         try {
-            audio.load();
+            oldAudio.load();
         } catch (error) {}
 
-        audio = null;
+
+        audio =
+            null;
+
+
+        setTimeout(
+            () => {
+                internalAudioAction = false;
+            },
+            0
+        );
     }
 
 
@@ -1463,41 +2001,25 @@ function startCurrentSegment(token) {
         newAudio;
 
 
-    /*
-        خصائص مهمة للصوت.
-    */
-
     newAudio.preload =
         "auto";
 
-
-    /*
-        لا توجد controls أصلًا،
-        حتى لا يظهر مشغل داخل الصفحة.
-    */
 
     newAudio.controls =
         false;
 
 
-    /*
-        منع الإرسال إلى جهاز خارجي
-        إن كان المتصفح يدعم ذلك.
-    */
-
     try {
+
         newAudio.disableRemotePlayback =
             true;
+
     } catch (error) {}
 
 
     newAudio.src =
         url;
 
-
-    /*
-        نضبط السرعة وPitch.
-    */
 
     const actualSpeed =
         configureAudioSpeed(
@@ -1517,7 +2039,8 @@ function startCurrentSegment(token) {
         }
 
 
-        finished = true;
+        finished =
+            true;
 
 
         if (segmentTimer) {
@@ -1540,9 +2063,9 @@ function startCurrentSegment(token) {
         }
 
 
-        try {
-            newAudio.pause();
-        } catch (error) {}
+        pauseAudioInternally(
+            newAudio
+        );
 
 
         handleCurrentSegmentFinished(
@@ -1626,8 +2149,15 @@ function startCurrentSegment(token) {
 
 
             /*
-                أولًا نضع الموضع.
+                هذا تغيير داخلي من التطبيق،
+                لذلك نفعّل الحماية مؤقتًا
+                حتى لا تعتبر onseeking هذه العملية
+                محاولة سحب من النظام.
             */
+
+            internalSeekAction =
+                true;
+
 
             try {
 
@@ -1638,19 +2168,25 @@ function startCurrentSegment(token) {
 
                 console.error(error);
 
+                internalSeekAction =
+                    false;
+
                 finishOnce();
 
                 return;
             }
 
 
-            /*
-                ثم نثبت السرعة مرة أخرى
-                بعد تحميل metadata.
+            setTimeout(
+                () => {
+                    internalSeekAction = false;
+                },
+                0
+            );
 
-                هذا مهم في بعض المتصفحات
-                التي تعيد السرعة إلى 1 أثناء
-                تحميل الملف.
+
+            /*
+                تثبيت السرعة بعد تحميل الملف.
             */
 
             configureAudioSpeed(
@@ -1664,7 +2200,8 @@ function startCurrentSegment(token) {
 
 
             /*
-                مدة التشغيل الحقيقية مع السرعة.
+                مدة التشغيل الحقيقية
+                مع السرعة.
             */
 
             const wallTime =
@@ -1675,9 +2212,7 @@ function startCurrentSegment(token) {
 
 
             /*
-                المؤقت مجرد حماية.
-
-                ontimeupdate هو الحارس الآخر.
+                مؤقت حماية.
             */
 
             segmentTimer =
@@ -1695,69 +2230,73 @@ function startCurrentSegment(token) {
             */
 
             newAudio.play()
-                .then(() => {
+                .then(
+                    () => {
 
-                    if (
-                        !state.session ||
-                        token !== playbackToken ||
-                        audio !== newAudio
-                    ) {
+                        if (
+                            !state.session ||
+                            token !== playbackToken ||
+                            audio !== newAudio
+                        ) {
 
-                        return;
+                            return;
+                        }
+
+
+                        state.session.playing =
+                            true;
+
+
+                        playPauseButton.textContent =
+                            "⏸️";
+
+
+                        /*
+                            أثناء التشغيل نسمح للنظام
+                            بمعرفة أن هناك جلسة صوتية.
+                        */
+
+                        if (
+                            "mediaSession" in navigator
+                        ) {
+
+                            try {
+
+                                navigator.mediaSession.playbackState =
+                                    "playing";
+
+                            } catch (error) {}
+                        }
                     }
+                )
+                .catch(
+                    error => {
+
+                        console.error(
+                            "تعذر تشغيل الصوت:",
+                            error
+                        );
 
 
-                    /*
-                        من هنا وحتى نهاية
-                        الانتظار:
+                        if (
+                            token !== playbackToken
+                        ) {
 
-                        session.playing = true
-
-                        لذلك الزر يبقى ⏸️.
-                    */
-
-                    state.session.playing =
-                        true;
+                            return;
+                        }
 
 
-                    playPauseButton.textContent =
-                        "⏸️";
+                        state.session.playing =
+                            false;
 
 
-                    /*
-                        لا نعلن Media Session
-                        على مستوى النظام.
-                    */
-
-                    setMediaSessionNone();
-
-                })
-                .catch(error => {
-
-                    console.error(
-                        "تعذر تشغيل الصوت:",
-                        error
-                    );
+                        playPauseButton.textContent =
+                            "▶️";
 
 
-                    if (
-                        token !== playbackToken
-                    ) {
-
-                        return;
+                        setMediaSessionNone();
                     }
-
-
-                    state.session.playing =
-                        false;
-
-
-                    playPauseButton.textContent =
-                        "▶️";
-
-
-                    setMediaSessionNone();
-                });
+                );
         };
 
 
@@ -1805,11 +2344,6 @@ function startCurrentSegment(token) {
             }
 
 
-            /*
-                هامش صغير لمنع تجاوز
-                نهاية الجزء.
-            */
-
             if (
                 newAudio.currentTime >=
                 bounds.end - 0.015
@@ -1817,6 +2351,49 @@ function startCurrentSegment(token) {
 
                 finishOnce();
             }
+        };
+
+
+    /* -----------------------------------------------------
+       حماية السحب الخارجي
+    ----------------------------------------------------- */
+
+    newAudio.onseeking =
+        () => {
+
+            /*
+                إذا كان التطبيق نفسه هو الذي
+                غيّر currentTime، لا نفعل شيئًا.
+            */
+
+            if (internalSeekAction) {
+                return;
+            }
+
+
+            if (internalAudioAction) {
+                return;
+            }
+
+
+            if (
+                !state.session ||
+                token !== playbackToken ||
+                audio !== newAudio
+            ) {
+
+                return;
+            }
+
+
+            /*
+                المستخدم حاول تغيير الموضع
+                من شريط النظام.
+
+                لا نسمح بتجاوز نظام Tahfeez.
+            */
+
+            handleExternalSeekAttempt();
         };
 
 
@@ -1843,6 +2420,81 @@ function startCurrentSegment(token) {
 
 
     /* -----------------------------------------------------
+       إيقاف من شريط النظام
+    ----------------------------------------------------- */
+
+    newAudio.onpause =
+        () => {
+
+            /*
+                إذا نحن الذين أوقفنا الصوت،
+                لا نعتبره إيقافًا خارجيًا.
+            */
+
+            if (internalAudioAction) {
+                return;
+            }
+
+
+            if (
+                !state.session ||
+                token !== playbackToken ||
+                audio !== newAudio
+            ) {
+
+                return;
+            }
+
+
+            /*
+                إذا وصل pause من النظام
+                بينما الجلسة تعتبر نفسها تعمل،
+                فهذا هو السيناريو الذي نريد علاجه.
+            */
+
+            if (state.session.playing) {
+
+                handleExternalAudioStop();
+            }
+        };
+
+
+    /* -----------------------------------------------------
+       emptied
+    ----------------------------------------------------- */
+
+    newAudio.onemptied =
+        () => {
+
+            /*
+                لا نعتبر emptied إيقافًا خارجيًا
+                إلا إذا كان الصوت كان يعمل
+                ولم نكن نحن ننظفه.
+            */
+
+            if (internalAudioAction) {
+                return;
+            }
+
+
+            if (
+                !state.session ||
+                token !== playbackToken ||
+                audio !== newAudio
+            ) {
+
+                return;
+            }
+
+
+            if (state.session.playing) {
+
+                handleExternalAudioStop();
+            }
+        };
+
+
+    /* -----------------------------------------------------
        خطأ الصوت
     ----------------------------------------------------- */
 
@@ -1850,8 +2502,7 @@ function startCurrentSegment(token) {
         () => {
 
             if (
-                token !== playbackToken ||
-                audio !== newAudio
+                token !== playbackToken
             ) {
 
                 return;
@@ -1939,9 +2590,9 @@ function handleCurrentSegmentFinished(
         وضع المعلم:
 
         normal
-          ↓
+            ↓
         teacher
-          ↓
+            ↓
         wait
     */
 
@@ -1956,6 +2607,7 @@ function handleCurrentSegmentFinished(
 
         /*
             لا نغير segmentIndex.
+
             نعيد نفس الجزء تمامًا.
         */
 
@@ -1982,10 +2634,8 @@ function handleCurrentSegmentFinished(
     /*
         الانتظار.
 
-        والأهم:
-        لا نغير session.playing إلى false.
-
-        لذلك الزر يظل ⏸️.
+        الجلسة تظل playing=true
+        حتى أثناء الصمت.
     */
 
     waitAfterSegment(
@@ -2044,14 +2694,10 @@ function waitAfterSegment(
 
 
     /*
-        هنا التغيير المهم:
+        مهم:
 
-        لا نقول playing = false.
-
-        من وجهة نظر زر الصفحة:
-        الجلسة ما زالت تعمل.
-
-        لذلك الزر يبقى ⏸️.
+        الجلسة ما زالت تعمل،
+        لذلك الزر يظل ⏸️.
     */
 
     state.session.playing =
@@ -2063,8 +2709,7 @@ function waitAfterSegment(
 
 
     /*
-        لكن لا يوجد صوت حاليًا،
-        لذلك لا نحتاج Media Session.
+        لا يوجد صوت أثناء الانتظار.
     */
 
     setMediaSessionNone();
@@ -2096,14 +2741,9 @@ function waitAfterSegment(
                 }
 
 
-                /*
-                    نستمر تلقائيًا.
-                */
-
                 continueAfterWait(
                     token
                 );
-
             },
             waitTime
         );
@@ -2219,10 +2859,6 @@ function finishAyah(token) {
         updateSessionInfo();
 
 
-        /*
-            الانتقال المباشر.
-        */
-
         playCurrentAyah();
 
 
@@ -2232,6 +2868,7 @@ function finishAyah(token) {
 
     /*
         انتهت الآيات.
+
         نكرر المقطع إذا لزم.
     */
 
@@ -2301,7 +2938,7 @@ function finishMemorization() {
 
 
 /* =========================================================
-   زر ⏸️
+   زر ⏸️ داخل التطبيق
 ========================================================= */
 
 function pausePlayback() {
@@ -2312,7 +2949,7 @@ function pausePlayback() {
 
 
     /*
-        إلغاء الانتظار إن كان موجودًا.
+        إلغاء الانتظار.
     */
 
     if (waitTimer) {
@@ -2347,30 +2984,60 @@ function pausePlayback() {
 
 
     /*
-        إيقاف الصوت.
+        إيقاف الصوت داخليًا.
     */
 
     if (audio) {
 
+        const oldAudio =
+            audio;
+
+
+        internalAudioAction =
+            true;
+
+
         try {
-            audio.pause();
+            oldAudio.pause();
         } catch (error) {}
 
 
-        audio.onloadedmetadata = null;
-        audio.ontimeupdate = null;
-        audio.onended = null;
-        audio.onerror = null;
+        oldAudio.onloadedmetadata =
+            null;
+
+        oldAudio.ontimeupdate =
+            null;
+
+        oldAudio.onended =
+            null;
+
+        oldAudio.onerror =
+            null;
+
+        oldAudio.onpause =
+            null;
+
+        oldAudio.onemptied =
+            null;
+
+        oldAudio.onseeking =
+            null;
 
 
-        audio.removeAttribute("src");
+        oldAudio.removeAttribute("src");
+
 
         try {
-            audio.load();
+            oldAudio.load();
         } catch (error) {}
 
 
-        audio = null;
+        audio =
+            null;
+
+
+        internalAudioAction =
+            false;
     }
 
 
