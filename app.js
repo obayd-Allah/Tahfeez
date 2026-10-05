@@ -14,7 +14,23 @@ const state = {
    نظام التشغيل
 ========================================================= */
 
-let audio = null;
+/*
+    مهم جدًا لـ Firefox:
+
+    نستخدم Audio واحد فقط طوال جلسة التحفيظ.
+
+    لا ننشئ new Audio() عند كل وقفة أو مقطع.
+    هذا يمنع Firefox من اعتبار كل مقطع تشغيلًا تلقائيًا جديدًا.
+*/
+let audio = new Audio();
+
+audio.preload = "auto";
+audio.controls = false;
+
+try {
+    audio.disableRemotePlayback = true;
+} catch (error) {}
+
 
 let pausePoints = [];
 
@@ -31,8 +47,6 @@ let playbackToken = 0;
 
 
 /*
-    مهم جدًا:
-
     عندما نوقف الصوت نحن من داخل التطبيق،
     لا نريد أن يعتبر التطبيق حدث pause
     إيقافًا خارجيًا من شريط الهاتف.
@@ -342,42 +356,15 @@ function handleExternalSeekAttempt() {
     }
 
 
-    if (audio) {
+    /*
+        لا نحذف عنصر Audio نفسه.
 
-        const oldAudio =
-            audio;
+        فقط نوقفه ونفرغ المصدر.
+        هذا مهم حتى يبقى لدينا Audio واحد
+        طوال الجلسة.
+    */
 
-
-        internalAudioAction =
-            true;
-
-
-        try {
-            oldAudio.pause();
-        } catch (error) {}
-
-
-        oldAudio.onloadedmetadata = null;
-        oldAudio.ontimeupdate = null;
-        oldAudio.onended = null;
-        oldAudio.onerror = null;
-        oldAudio.onpause = null;
-        oldAudio.onemptied = null;
-        oldAudio.onseeking = null;
-
-
-        oldAudio.removeAttribute("src");
-
-
-        try {
-            oldAudio.load();
-        } catch (error) {}
-
-
-        audio = null;
-
-        internalAudioAction = false;
-    }
+    resetAudioElement();
 
 
     /*
@@ -1318,8 +1305,6 @@ playPauseButton.addEventListener(
         } else {
 
             /*
-                مهم جدًا:
-
                 هذا الاستدعاء يحدث مباشرة من
                 ضغطة المستخدم.
 
@@ -1480,6 +1465,72 @@ async function loadPausePoints() {
 
 
 /* =========================================================
+   إعادة ضبط عنصر الصوت
+========================================================= */
+
+/*
+    هذه الدالة لا تحذف عنصر Audio.
+
+    فقط:
+    - توقفه
+    - تلغي أحداثه
+    - تزيل المصدر
+    - تعيد تحميله
+
+    ويظل نفس عنصر Audio موجودًا.
+
+    هذا هو الجزء الأساسي في إصلاح Firefox.
+*/
+
+function resetAudioElement() {
+
+    if (!audio) {
+        return;
+    }
+
+
+    internalAudioAction = true;
+
+
+    try {
+        audio.pause();
+    } catch (error) {}
+
+
+    audio.onplay = null;
+    audio.onplaying = null;
+    audio.onloadedmetadata = null;
+    audio.ontimeupdate = null;
+    audio.onended = null;
+    audio.onerror = null;
+    audio.onpause = null;
+    audio.onemptied = null;
+    audio.onseeking = null;
+
+
+    audio.removeAttribute("src");
+
+
+    try {
+        audio.load();
+    } catch (error) {}
+
+
+    /*
+        نعطي أحداث pause / emptied الداخلية
+        فرصة للانتهاء قبل السماح بمعالجتها.
+    */
+
+    setTimeout(
+        () => {
+            internalAudioAction = false;
+        },
+        0
+    );
+}
+
+
+/* =========================================================
    تنظيف الموارد
 ========================================================= */
 
@@ -1501,48 +1552,7 @@ function clearPlaybackResources() {
     }
 
 
-    if (audio) {
-
-        const oldAudio =
-            audio;
-
-
-        internalAudioAction =
-            true;
-
-
-        try {
-            oldAudio.pause();
-        } catch (error) {}
-
-
-        oldAudio.onloadedmetadata = null;
-        oldAudio.ontimeupdate = null;
-        oldAudio.onended = null;
-        oldAudio.onerror = null;
-        oldAudio.onpause = null;
-        oldAudio.onemptied = null;
-        oldAudio.onseeking = null;
-
-
-        oldAudio.removeAttribute("src");
-
-
-        try {
-            oldAudio.load();
-        } catch (error) {}
-
-
-        audio = null;
-
-
-        setTimeout(
-            () => {
-                internalAudioAction = false;
-            },
-            0
-        );
-    }
+    resetAudioElement();
 
 
     setMediaSessionNone();
@@ -1818,42 +1828,11 @@ function handleExternalAudioStop() {
     }
 
 
-    const stoppedAudio =
-        audio;
+    /*
+        نحافظ على نفس عنصر Audio.
+    */
 
-
-    internalAudioAction =
-        true;
-
-
-    if (stoppedAudio) {
-
-        stoppedAudio.onloadedmetadata = null;
-        stoppedAudio.ontimeupdate = null;
-        stoppedAudio.onended = null;
-        stoppedAudio.onerror = null;
-        stoppedAudio.onpause = null;
-        stoppedAudio.onemptied = null;
-        stoppedAudio.onseeking = null;
-
-
-        try {
-            stoppedAudio.pause();
-        } catch (error) {}
-
-
-        stoppedAudio.removeAttribute("src");
-
-
-        try {
-            stoppedAudio.load();
-        } catch (error) {}
-    }
-
-
-    audio = null;
-
-    internalAudioAction = false;
+    resetAudioElement();
 
 
     segmentIndex =
@@ -1915,90 +1894,72 @@ function startCurrentSegment(
 
 
     /*
-        إزالة الصوت السابق.
+        =====================================================
+        التعديل الأساسي لـ Firefox
+        =====================================================
+
+        لا ننشئ Audio جديدًا.
+
+        نستخدم نفس audio ونغير src فقط.
     */
 
-    if (audio) {
-
-        const oldAudio =
-            audio;
-
-
-        internalAudioAction =
-            true;
-
-
-        try {
-            oldAudio.pause();
-        } catch (error) {}
-
-
-        oldAudio.onloadedmetadata = null;
-        oldAudio.ontimeupdate = null;
-        oldAudio.onended = null;
-        oldAudio.onerror = null;
-        oldAudio.onpause = null;
-        oldAudio.onemptied = null;
-        oldAudio.onseeking = null;
-
-
-        oldAudio.removeAttribute("src");
-
-
-        try {
-            oldAudio.load();
-        } catch (error) {}
-
-
-        audio = null;
-
-
-        setTimeout(
-            () => {
-                internalAudioAction = false;
-            },
-            0
-        );
-    }
-
-
-    const newAudio =
-        new Audio();
-
-
-    audio =
-        newAudio;
-
-
-    newAudio.preload =
-        "auto";
-
-
-    newAudio.controls =
-        false;
+    internalAudioAction = true;
 
 
     try {
-
-        newAudio.disableRemotePlayback =
-            true;
-
+        audio.pause();
     } catch (error) {}
 
 
     /*
-        تحديد المصدر.
+        إزالة أحداث المقطع السابق.
     */
 
-    newAudio.src =
+    audio.onplay = null;
+    audio.onplaying = null;
+    audio.onloadedmetadata = null;
+    audio.ontimeupdate = null;
+    audio.onended = null;
+    audio.onerror = null;
+    audio.onpause = null;
+    audio.onemptied = null;
+    audio.onseeking = null;
+
+
+    /*
+        نضع المصدر الجديد على نفس العنصر.
+    */
+
+    audio.src =
         url;
 
 
+    try {
+        audio.load();
+    } catch (error) {}
+
+
+    /*
+        إعداد السرعة قبل التشغيل.
+    */
+
     const actualSpeed =
         configureAudioSpeed(
-            newAudio,
+            audio,
             state.session.speed
         );
+
+
+    /*
+        الآن انتهت عملية تغيير المصدر.
+    */
+
+    setTimeout(
+        () => {
+            internalAudioAction = false;
+        },
+        0
+    );
 
 
     let finished =
@@ -2007,6 +1968,17 @@ function startCurrentSegment(
 
     let playbackStarted =
         false;
+
+
+    /*
+        حفظ عنصر الصوت الحالي.
+
+        بما أن العنصر نفسه دائمًا،
+        نعتمد على token أيضًا لمنع الأحداث القديمة.
+    */
+
+    const currentAudio =
+        audio;
 
 
     /* -----------------------------------------------------
@@ -2037,7 +2009,7 @@ function startCurrentSegment(
         if (
             !state.session ||
             token !== playbackToken ||
-            audio !== newAudio
+            audio !== currentAudio
         ) {
 
             return;
@@ -2045,13 +2017,13 @@ function startCurrentSegment(
 
 
         pauseAudioInternally(
-            newAudio
+            currentAudio
         );
 
 
         handleCurrentSegmentFinished(
             token,
-            newAudio
+            currentAudio
         );
     }
 
@@ -2060,13 +2032,13 @@ function startCurrentSegment(
        play event
     ----------------------------------------------------- */
 
-    newAudio.onplay =
+    currentAudio.onplay =
         () => {
 
             if (
                 !state.session ||
                 token !== playbackToken ||
-                audio !== newAudio
+                audio !== currentAudio
             ) {
 
                 return;
@@ -2103,13 +2075,13 @@ function startCurrentSegment(
        playing event
     ----------------------------------------------------- */
 
-    newAudio.onplaying =
+    currentAudio.onplaying =
         () => {
 
             if (
                 !state.session ||
                 token !== playbackToken ||
-                audio !== newAudio
+                audio !== currentAudio
             ) {
 
                 return;
@@ -2146,13 +2118,13 @@ function startCurrentSegment(
        Metadata
     ----------------------------------------------------- */
 
-    newAudio.onloadedmetadata =
+    currentAudio.onloadedmetadata =
         () => {
 
             if (
                 !state.session ||
                 token !== playbackToken ||
-                audio !== newAudio
+                audio !== currentAudio
             ) {
 
                 return;
@@ -2161,7 +2133,7 @@ function startCurrentSegment(
 
             const duration =
                 Number(
-                    newAudio.duration
+                    currentAudio.duration
                 );
 
 
@@ -2223,12 +2195,12 @@ function startCurrentSegment(
                 إذا كانت بداية المقطع ليست 0،
                 فهذا مقطع بعد وقفة.
 
-                نغيّر الموضع داخليًا قبل التشغيل.
+                نغير الموضع داخليًا.
             */
 
             if (
                 Math.abs(
-                    newAudio.currentTime - start
+                    currentAudio.currentTime - start
                 ) > 0.02
             ) {
 
@@ -2238,7 +2210,7 @@ function startCurrentSegment(
 
                 try {
 
-                    newAudio.currentTime =
+                    currentAudio.currentTime =
                         start;
 
                 } catch (error) {
@@ -2264,7 +2236,7 @@ function startCurrentSegment(
 
 
             configureAudioSpeed(
-                newAudio,
+                currentAudio,
                 actualSpeed
             );
 
@@ -2284,6 +2256,14 @@ function startCurrentSegment(
                 مؤقت إضافي لإنهاء الجزء.
             */
 
+            if (segmentTimer) {
+
+                clearTimeout(
+                    segmentTimer
+                );
+            }
+
+
             segmentTimer =
                 setTimeout(
                     finishOnce,
@@ -2299,11 +2279,9 @@ function startCurrentSegment(
                 مهم جدًا لـ Firefox
                 =================================================
 
-                إذا كان هذا هو أول جزء وقد بدأ بالفعل
-                من ضغطة المستخدم، فلا نطلب play مرة ثانية.
+                أول جزء normal بدأ مباشرة من ضغطة المستخدم.
 
-                أما المقاطع التالية، فهي الآن بعد metadata
-                وcurrentTime تم ضبطه، ولذلك نطلب play هنا.
+                لا نعيد play هنا.
             */
 
             if (
@@ -2311,11 +2289,6 @@ function startCurrentSegment(
                 segmentIndex === 0 &&
                 currentAudioType === "normal"
             ) {
-
-                /*
-                    التشغيل الأول بدأ بالفعل
-                    من أسفل الدالة.
-                */
 
                 return;
             }
@@ -2327,12 +2300,19 @@ function startCurrentSegment(
             */
 
             if (
-                !newAudio.paused
+                !currentAudio.paused
             ) {
 
                 return;
             }
 
+
+            /*
+                المقاطع التالية تستخدم نفس عنصر Audio.
+
+                وبالتالي Firefox لا يراها كعنصر صوت
+                جديد يحتاج إلى gesture جديد.
+            */
 
             let playPromise;
 
@@ -2340,7 +2320,7 @@ function startCurrentSegment(
             try {
 
                 playPromise =
-                    newAudio.play();
+                    currentAudio.play();
 
             } catch (error) {
 
@@ -2426,14 +2406,14 @@ function startCurrentSegment(
        مراقبة الموضع
     ----------------------------------------------------- */
 
-    newAudio.ontimeupdate =
+    currentAudio.ontimeupdate =
         () => {
 
             if (
                 finished ||
                 !state.session ||
                 token !== playbackToken ||
-                audio !== newAudio
+                audio !== currentAudio
             ) {
 
                 return;
@@ -2442,7 +2422,7 @@ function startCurrentSegment(
 
             const duration =
                 Number(
-                    newAudio.duration
+                    currentAudio.duration
                 );
 
 
@@ -2467,7 +2447,7 @@ function startCurrentSegment(
 
 
             if (
-                newAudio.currentTime >=
+                currentAudio.currentTime >=
                 bounds.end - 0.015
             ) {
 
@@ -2480,7 +2460,7 @@ function startCurrentSegment(
        حماية السحب الخارجي
     ----------------------------------------------------- */
 
-    newAudio.onseeking =
+    currentAudio.onseeking =
         () => {
 
             if (internalSeekAction) {
@@ -2496,7 +2476,7 @@ function startCurrentSegment(
             if (
                 !state.session ||
                 token !== playbackToken ||
-                audio !== newAudio
+                audio !== currentAudio
             ) {
 
                 return;
@@ -2511,14 +2491,14 @@ function startCurrentSegment(
        نهاية الملف
     ----------------------------------------------------- */
 
-    newAudio.onended =
+    currentAudio.onended =
         () => {
 
             if (
                 finished ||
                 !state.session ||
                 token !== playbackToken ||
-                audio !== newAudio
+                audio !== currentAudio
             ) {
 
                 return;
@@ -2533,7 +2513,7 @@ function startCurrentSegment(
        إيقاف من شريط النظام
     ----------------------------------------------------- */
 
-    newAudio.onpause =
+    currentAudio.onpause =
         () => {
 
             if (internalAudioAction) {
@@ -2544,7 +2524,7 @@ function startCurrentSegment(
             if (
                 !state.session ||
                 token !== playbackToken ||
-                audio !== newAudio
+                audio !== currentAudio
             ) {
 
                 return;
@@ -2562,7 +2542,7 @@ function startCurrentSegment(
        emptied
     ----------------------------------------------------- */
 
-    newAudio.onemptied =
+    currentAudio.onemptied =
         () => {
 
             if (internalAudioAction) {
@@ -2573,7 +2553,7 @@ function startCurrentSegment(
             if (
                 !state.session ||
                 token !== playbackToken ||
-                audio !== newAudio
+                audio !== currentAudio
             ) {
 
                 return;
@@ -2591,7 +2571,7 @@ function startCurrentSegment(
        خطأ الصوت
     ----------------------------------------------------- */
 
-    newAudio.onerror =
+    currentAudio.onerror =
         () => {
 
             if (
@@ -2625,7 +2605,7 @@ function startCurrentSegment(
 
             console.error(
                 "خطأ في ملف الصوت:",
-                newAudio.error
+                currentAudio.error
             );
 
 
@@ -2640,19 +2620,15 @@ function startCurrentSegment(
         التشغيل المباشر لأول جزء فقط
         =====================================================
 
-        هذا هو التعديل الأساسي لـ Firefox.
+        هذه هي أهم نقطة لـ Firefox.
 
-        إذا كانت ضغطة المستخدم هي التي بدأت التشغيل،
-        وكان هذا أول جزء normal:
+        عند الضغط على ▶️:
 
-            play() يحدث الآن مباشرة.
+        play() يحدث مباشرة هنا،
+        من نفس حدث click.
 
-        أما teacher وبقية الأجزاء:
-            لا تدخل هنا.
-            تنتظر loadedmetadata.
-            تضبط currentTime.
-            ثم play().
-        =====================================================
+        وبعد ذلك، عند الوصول إلى pausePoints،
+        نستخدم نفس عنصر Audio بدل إنشاء Audio جديد.
     */
 
     if (
@@ -2667,7 +2643,7 @@ function startCurrentSegment(
         try {
 
             immediatePlayPromise =
-                newAudio.play();
+                currentAudio.play();
 
         } catch (error) {
 
@@ -2712,7 +2688,7 @@ function startCurrentSegment(
                         if (
                             !state.session ||
                             token !== playbackToken ||
-                            audio !== newAudio
+                            audio !== currentAudio
                         ) {
 
                             return;
@@ -3230,43 +3206,20 @@ function pausePlayback() {
     playbackToken++;
 
 
-    if (audio) {
+    /*
+        لا نحذف audio.
 
-        const oldAudio =
-            audio;
+        فقط نوقفه ونفرغ المصدر.
+    */
 
-
-        internalAudioAction =
-            true;
-
-
-        try {
-            oldAudio.pause();
-        } catch (error) {}
+    resetAudioElement();
 
 
-        oldAudio.onloadedmetadata = null;
-        oldAudio.ontimeupdate = null;
-        oldAudio.onended = null;
-        oldAudio.onerror = null;
-        oldAudio.onpause = null;
-        oldAudio.onemptied = null;
-        oldAudio.onseeking = null;
-
-
-        oldAudio.removeAttribute("src");
-
-
-        try {
-            oldAudio.load();
-        } catch (error) {}
-
-
-        audio = null;
-
-        internalAudioAction = false;
-    }
-
+    /*
+        حسب تصميم التطبيق:
+        الضغط على ⏸️ ثم ▶️ يبدأ الآية
+        الحالية من بدايتها.
+    */
 
     segmentIndex =
         0;
