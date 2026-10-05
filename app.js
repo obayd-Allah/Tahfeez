@@ -178,7 +178,13 @@ function setupMediaSessionHandlers() {
                 }
 
                 if (!state.session.playing) {
-                    playCurrentAyah(false);
+
+                    /*
+                        أمر Play من شريط النظام
+                        يعتبر أيضًا أمرًا مباشرًا من المستخدم.
+                    */
+
+                    playCurrentAyah(true);
                 }
             }
         );
@@ -974,13 +980,10 @@ startButton.addEventListener(
 
 
 /*
-    هنا نجهز نقاط وقف الآية الأولى مسبقًا.
+    نجهز نقاط وقف الآية الأولى مسبقًا.
 
     هذه العملية تحدث عند الضغط على "ابدأ التحفيظ"
     وليس عند الضغط على زر الصوت.
-
-    بذلك عندما يضغط المستخدم ▶️ لاحقًا،
-    لا نحتاج إلى await قبل أول play().
 */
 async function startMemorization() {
 
@@ -1046,7 +1049,6 @@ async function startMemorization() {
 
     /*
         تجهيز نقاط وقف الآية الأولى.
-        إذا فشل التحميل، نكمل بدون نقاط وقف.
     */
 
     await loadPausePoints();
@@ -1198,10 +1200,6 @@ previousAyahButton.addEventListener(
                 1;
 
 
-            /*
-                تحميل نقاط الوقف مسبقًا للآية الجديدة.
-            */
-
             loadPausePoints();
 
 
@@ -1325,8 +1323,8 @@ playPauseButton.addEventListener(
                 هذا الاستدعاء يحدث مباشرة من
                 ضغطة المستخدم.
 
-                لذلك لا يوجد await قبل إنشاء
-                الصوت وطلب play().
+                لذلك أول جزء يستطيع استخدام
+                play() مباشرة.
             */
 
             playCurrentAyah(true);
@@ -1558,7 +1556,7 @@ function clearPlaybackResources() {
 /*
     لم تعد async.
 
-    وهذا تغيير أساسي.
+    وهذا مهم جدًا.
 
     عندما يستدعيها زر ▶️،
     نستطيع الوصول إلى startCurrentSegment()
@@ -1589,11 +1587,7 @@ function playCurrentAyah(userInitiated = false) {
 
 
     /*
-        نقاط الوقف موجودة مسبقًا للآية الحالية
-        في التشغيل الطبيعي.
-
-        إذا لم تكن موجودة، نبدأ بدونها.
-        ويمكن تحميلها في الخلفية.
+        نقاط الوقف موجودة مسبقًا للآية الحالية.
     */
 
     segmentIndex =
@@ -1993,7 +1987,7 @@ function startCurrentSegment(
 
 
     /*
-        تحديد المصدر قبل التشغيل.
+        تحديد المصدر.
     */
 
     newAudio.src =
@@ -2015,9 +2009,9 @@ function startCurrentSegment(
         false;
 
 
-    let metadataReady =
-        false;
-
+    /* -----------------------------------------------------
+       دالة إنهاء الجزء مرة واحدة
+    ----------------------------------------------------- */
 
     function finishOnce() {
 
@@ -2165,10 +2159,6 @@ function startCurrentSegment(
             }
 
 
-            metadataReady =
-                true;
-
-
             const duration =
                 Number(
                     newAudio.duration
@@ -2185,6 +2175,10 @@ function startCurrentSegment(
                 return;
             }
 
+
+            /*
+                تنظيف نقاط الوقف حسب مدة الملف الحالي.
+            */
 
             sanitizePausePoints(
                 duration
@@ -2226,10 +2220,10 @@ function startCurrentSegment(
 
 
             /*
-                إذا كان بداية المقطع ليست 0،
-                فهذا يحدث في المقاطع اللاحقة.
+                إذا كانت بداية المقطع ليست 0،
+                فهذا مقطع بعد وقفة.
 
-                هنا نحتاج seek داخلي.
+                نغيّر الموضع داخليًا قبل التشغيل.
             */
 
             if (
@@ -2286,6 +2280,10 @@ function startCurrentSegment(
                 ) * 1000;
 
 
+            /*
+                مؤقت إضافي لإنهاء الجزء.
+            */
+
             segmentTimer =
                 setTimeout(
                     finishOnce,
@@ -2297,11 +2295,35 @@ function startCurrentSegment(
 
 
             /*
-                إذا كان التشغيل الأول قد بدأ بالفعل
-                من ضغطة المستخدم، لا نعيد play هنا.
+                =================================================
+                مهم جدًا لـ Firefox
+                =================================================
 
-                أما في المقاطع اللاحقة، إذا لم يكن
-                الصوت يعمل، نطلب التشغيل.
+                إذا كان هذا هو أول جزء وقد بدأ بالفعل
+                من ضغطة المستخدم، فلا نطلب play مرة ثانية.
+
+                أما المقاطع التالية، فهي الآن بعد metadata
+                وcurrentTime تم ضبطه، ولذلك نطلب play هنا.
+            */
+
+            if (
+                userInitiated &&
+                segmentIndex === 0 &&
+                currentAudioType === "normal"
+            ) {
+
+                /*
+                    التشغيل الأول بدأ بالفعل
+                    من أسفل الدالة.
+                */
+
+                return;
+            }
+
+
+            /*
+                إذا كان الصوت يعمل بالفعل،
+                فلا نعيد play().
             */
 
             if (
@@ -2312,8 +2334,42 @@ function startCurrentSegment(
             }
 
 
-            const playPromise =
-                newAudio.play();
+            let playPromise;
+
+
+            try {
+
+                playPromise =
+                    newAudio.play();
+
+            } catch (error) {
+
+                console.error(
+                    "تعذر تشغيل الجزء:",
+                    error
+                );
+
+
+                if (
+                    token !== playbackToken
+                ) {
+
+                    return;
+                }
+
+
+                state.session.playing =
+                    false;
+
+
+                playPauseButton.textContent =
+                    "▶️";
+
+
+                setMediaSessionNone();
+
+                return;
+            }
 
 
             if (
@@ -2326,7 +2382,7 @@ function startCurrentSegment(
                     error => {
 
                         console.error(
-                            "تعذر تشغيل الصوت بعد metadata:",
+                            "تعذر تشغيل الجزء بعد metadata:",
                             error
                         );
 
@@ -2348,6 +2404,18 @@ function startCurrentSegment(
 
 
                         setMediaSessionNone();
+
+
+                        if (
+                            error &&
+                            error.name ===
+                            "NotAllowedError"
+                        ) {
+
+                            showAvailability(
+                                "تعذر متابعة تشغيل الصوت."
+                            );
+                        }
                     }
                 );
             }
@@ -2569,141 +2637,160 @@ function startCurrentSegment(
 
     /*
         =====================================================
-        الأهم:
+        التشغيل المباشر لأول جزء فقط
+        =====================================================
 
-        نطلب التشغيل مباشرة هنا.
+        هذا هو التعديل الأساسي لـ Firefox.
 
-        إذا كان هذا أول تشغيل من زر المستخدم،
-        فهذا الاستدعاء يحدث بدون await قبله.
+        إذا كانت ضغطة المستخدم هي التي بدأت التشغيل،
+        وكان هذا أول جزء normal:
+
+            play() يحدث الآن مباشرة.
+
+        أما teacher وبقية الأجزاء:
+            لا تدخل هنا.
+            تنتظر loadedmetadata.
+            تضبط currentTime.
+            ثم play().
         =====================================================
     */
 
-    let immediatePlayPromise;
-
-
-    try {
-
-        immediatePlayPromise =
-            newAudio.play();
-
-    } catch (error) {
-
-        console.error(
-            "تعذر بدء الصوت:",
-            error
-        );
-
-
-        state.session.playing =
-            false;
-
-
-        playPauseButton.textContent =
-            "▶️";
-
-
-        setMediaSessionNone();
-
-        return;
-    }
-
-
     if (
-        immediatePlayPromise &&
-        typeof immediatePlayPromise.then ===
-        "function"
+        userInitiated &&
+        segmentIndex === 0 &&
+        currentAudioType === "normal"
     ) {
 
-        immediatePlayPromise
-            .then(
-                () => {
-
-                    if (
-                        !state.session ||
-                        token !== playbackToken ||
-                        audio !== newAudio
-                    ) {
-
-                        return;
-                    }
+        let immediatePlayPromise;
 
 
-                    playbackStarted =
-                        true;
+        try {
 
+            immediatePlayPromise =
+                newAudio.play();
 
-                    state.session.playing =
-                        true;
+        } catch (error) {
 
-
-                    playPauseButton.textContent =
-                        "⏸️";
-
-
-                    if (
-                        "mediaSession" in navigator
-                    ) {
-
-                        try {
-
-                            navigator.mediaSession.playbackState =
-                                "playing";
-
-                        } catch (error) {}
-                    }
-                }
-            )
-            .catch(
-                error => {
-
-                    console.error(
-                        "تعذر تشغيل الصوت:",
-                        error
-                    );
-
-
-                    if (
-                        token !== playbackToken
-                    ) {
-
-                        return;
-                    }
-
-
-                    state.session.playing =
-                        false;
-
-
-                    playPauseButton.textContent =
-                        "▶️";
-
-
-                    setMediaSessionNone();
-
-
-                    /*
-                        نعرض رسالة أوضح إذا كان Firefox
-                        قد منع التشغيل.
-                    */
-
-                    if (
-                        error &&
-                        error.name ===
-                        "NotAllowedError"
-                    ) {
-
-                        showAvailability(
-                            "اضغط زر التشغيل مرة أخرى للسماح بتشغيل الصوت."
-                        );
-
-                    } else {
-
-                        showAvailability(
-                            "تعذر تشغيل ملف الصوت."
-                        );
-                    }
-                }
+            console.error(
+                "تعذر بدء الصوت:",
+                error
             );
+
+
+            if (
+                token !== playbackToken
+            ) {
+
+                return;
+            }
+
+
+            state.session.playing =
+                false;
+
+
+            playPauseButton.textContent =
+                "▶️";
+
+
+            setMediaSessionNone();
+
+            return;
+        }
+
+
+        if (
+            immediatePlayPromise &&
+            typeof immediatePlayPromise.then ===
+            "function"
+        ) {
+
+            immediatePlayPromise
+                .then(
+                    () => {
+
+                        if (
+                            !state.session ||
+                            token !== playbackToken ||
+                            audio !== newAudio
+                        ) {
+
+                            return;
+                        }
+
+
+                        playbackStarted =
+                            true;
+
+
+                        state.session.playing =
+                            true;
+
+
+                        playPauseButton.textContent =
+                            "⏸️";
+
+
+                        if (
+                            "mediaSession" in navigator
+                        ) {
+
+                            try {
+
+                                navigator.mediaSession.playbackState =
+                                    "playing";
+
+                            } catch (error) {}
+                        }
+                    }
+                )
+                .catch(
+                    error => {
+
+                        console.error(
+                            "تعذر تشغيل الصوت:",
+                            error
+                        );
+
+
+                        if (
+                            token !== playbackToken
+                        ) {
+
+                            return;
+                        }
+
+
+                        state.session.playing =
+                            false;
+
+
+                        playPauseButton.textContent =
+                            "▶️";
+
+
+                        setMediaSessionNone();
+
+
+                        if (
+                            error &&
+                            error.name ===
+                            "NotAllowedError"
+                        ) {
+
+                            showAvailability(
+                                "اضغط زر التشغيل مرة أخرى للسماح بتشغيل الصوت."
+                            );
+
+                        } else {
+
+                            showAvailability(
+                                "تعذر تشغيل ملف الصوت."
+                            );
+                        }
+                    }
+                );
+        }
     }
 }
 
@@ -2862,9 +2949,7 @@ function waitAfterSegment(
 
     if (waitTimer) {
 
-        clearTimeout(
-            waitTimer
-        );
+        clearTimeout(waitTimer);
 
         waitTimer = null;
     }
@@ -3128,9 +3213,7 @@ function pausePlayback() {
 
     if (waitTimer) {
 
-        clearTimeout(
-            waitTimer
-        );
+        clearTimeout(waitTimer);
 
         waitTimer = null;
     }
@@ -3138,9 +3221,7 @@ function pausePlayback() {
 
     if (segmentTimer) {
 
-        clearTimeout(
-            segmentTimer
-        );
+        clearTimeout(segmentTimer);
 
         segmentTimer = null;
     }
