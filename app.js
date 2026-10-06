@@ -2,10 +2,8 @@ const state = {
     quran: [],
     surahs: [],
     reciters: [],
-
     selectedReciter: null,
     selectedSurah: null,
-
     session: null
 };
 
@@ -14,7 +12,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 16";
+const CODE_VERSION = "CODE 18";
 
 
 /* =========================================================
@@ -26,7 +24,6 @@ const CODE_VERSION = "CODE 16";
     const box = document.createElement("div");
 
     box.textContent = CODE_VERSION;
-
     box.id = "temporaryCodeVersion";
 
     box.style.position = "fixed";
@@ -71,1485 +68,8 @@ const isFirefox =
 
 
 /* =========================================================
-   Web Audio - Firefox فقط
+   حالة التشغيل
 ========================================================= */
-
-let firefoxAudioContext = null;
-
-let firefoxGainNode = null;
-
-let firefoxSource = null;
-
-let firefoxSourceId = 0;
-
-const firefoxBufferCache = new Map();
-
-
-/* =========================================================
-   AudioWorklet - Firefox فقط
-========================================================= */
-
-let firefoxWorkletReady = false;
-
-let firefoxWorkletPromise = null;
-
-let firefoxStretchNode = null;
-
-
-/* =========================================================
-   Firefox WSOLA Time Stretch
-=========================================================
-
-   مهم:
-
-   لا نستخدم playbackRate في Firefox.
-
-   الهدف هو تغيير الزمن مع محاولة
-   المحافظة على طبقة الصوت.
-
-   الخوارزمية:
-   - تقسم الصوت إلى مقاطع.
-   - لا تعيد تشغيل المقطع بسرعة مختلفة.
-   - تبحث عن أفضل موضع مشابه للمقطع السابق.
-   - تستخدم Overlap-Add مع Hann Window.
-   - تطبع مستوى الصوت بعد الدمج.
-
-========================================================= */
-
-const FIREFOX_WORKLET_CODE = `
-
-class TahfeezWSOLAProcessor
-    extends AudioWorkletProcessor {
-
-    constructor() {
-
-        super();
-
-
-        /* =================================================
-           البيانات الصوتية
-        ================================================= */
-
-        this.buffer = null;
-
-        this.channels = 1;
-
-        this.bufferLength = 0;
-
-
-        /* =================================================
-           حدود الجزء الحالي
-        ================================================= */
-
-        this.startFrame = 0;
-
-        this.endFrame = 0;
-
-
-        /* =================================================
-           السرعة
-        ================================================= */
-
-        this.speed = 1;
-
-
-        /* =================================================
-           حالة التشغيل
-        ================================================= */
-
-        this.active = false;
-
-        this.finished = false;
-
-
-        /* =================================================
-           إعدادات WSOLA
-        ================================================= */
-
-        /*
-            حجم المقطع.
-
-            لا نغير سرعة تشغيل هذا المقطع نفسه.
-            نستخدمه كما هو ثم نعيد ترتيب المقاطع.
-        */
-
-        this.grainSize = 2048;
-
-
-        /*
-            المسافة الزمنية بين المقاطع
-            في الخرج.
-        */
-
-        this.hopOut = 512;
-
-
-        /*
-            منطقة البحث عن أفضل تطابق.
-
-            كلما زادت المنطقة:
-            - قد يتحسن التطابق.
-            - لكن يزداد الحمل على المعالج.
-
-        */
-
-        this.searchRadius = 256;
-
-
-        /*
-            عدد العينات المستخدمة
-            في مقارنة التشابه.
-        */
-
-        this.correlationSize = 512;
-
-
-        /* =================================================
-           مواضع القراءة والكتابة
-        ================================================= */
-
-        this.inputPosition = 0;
-
-        this.outputPosition = 0;
-
-        this.nextOutputPosition = 0;
-
-
-        /* =================================================
-           آخر مقطع
-        ================================================= */
-
-        this.previousGrain = null;
-
-
-        /* =================================================
-           المقاطع الموجودة في الذاكرة
-        ================================================= */
-
-        this.grains = [];
-
-
-        /* =================================================
-           استقبال الرسائل
-        ================================================= */
-
-        this.port.onmessage = event => {
-
-            const data =
-                event.data || {};
-
-
-            /* ---------------------------------------------
-               إرسال البيانات الصوتية
-            --------------------------------------------- */
-
-            if (
-                data.type === "buffer"
-            ) {
-
-                this.buffer =
-                    data.channels || null;
-
-
-                this.channels =
-                    this.buffer
-                        ? this.buffer.length
-                        : 1;
-
-
-                this.bufferLength =
-                    this.buffer &&
-                    this.buffer[0]
-                        ? this.buffer[0].length
-                        : 0;
-
-
-                return;
-            }
-
-
-            /* ---------------------------------------------
-               بدء جزء جديد
-            --------------------------------------------- */
-
-            if (
-                data.type === "start"
-            ) {
-
-                this.startFrame =
-                    Math.max(
-                        0,
-                        Number(
-                            data.startFrame
-                        ) || 0
-                    );
-
-
-                this.endFrame =
-                    Math.min(
-                        this.bufferLength,
-                        Number(
-                            data.endFrame
-                        ) ||
-                        this.bufferLength
-                    );
-
-
-                this.speed =
-                    Math.min(
-                        1.25,
-                        Math.max(
-                            0.75,
-                            Number(
-                                data.speed
-                            ) || 1
-                        )
-                    );
-
-
-                this.inputPosition =
-                    this.startFrame;
-
-
-                this.outputPosition =
-                    0;
-
-
-                this.nextOutputPosition =
-                    0;
-
-
-                this.previousGrain =
-                    null;
-
-
-                this.grains =
-                    [];
-
-
-                this.active =
-                    true;
-
-
-                this.finished =
-                    false;
-
-
-                return;
-            }
-
-
-            /* ---------------------------------------------
-               تغيير السرعة أثناء التشغيل
-            --------------------------------------------- */
-
-            if (
-                data.type === "speed"
-            ) {
-
-                this.speed =
-                    Math.min(
-                        1.25,
-                        Math.max(
-                            0.75,
-                            Number(
-                                data.speed
-                            ) || 1
-                        )
-                    );
-
-
-                return;
-            }
-
-
-            /* ---------------------------------------------
-               إيقاف
-            --------------------------------------------- */
-
-            if (
-                data.type === "stop"
-            ) {
-
-                this.active =
-                    false;
-
-
-                this.finished =
-                    true;
-
-
-                this.grains =
-                    [];
-
-
-                this.previousGrain =
-                    null;
-
-
-                return;
-            }
-        };
-    }
-
-
-    /* =====================================================
-       Hann Window
-    ===================================================== */
-
-    getWindow(
-        index,
-        length
-    ) {
-
-        if (
-            length <= 1
-        ) {
-
-            return 1;
-        }
-
-
-        return (
-            0.5 -
-            0.5 *
-            Math.cos(
-                2 *
-                Math.PI *
-                index /
-                (length - 1)
-            )
-        );
-    }
-
-
-    /* =====================================================
-       البحث عن أفضل تطابق
-    ===================================================== */
-
-    findBestPosition(
-        expectedPosition
-    ) {
-
-        if (
-            !this.buffer ||
-            !this.buffer[0]
-        ) {
-
-            return expectedPosition;
-        }
-
-
-        /*
-            إذا لم يوجد مقطع سابق،
-            لا يوجد شيء نقارنه به.
-        */
-
-        if (
-            !this.previousGrain
-        ) {
-
-            return expectedPosition;
-        }
-
-
-        const source =
-            this.buffer[0];
-
-
-        const previous =
-            this.previousGrain;
-
-
-        const overlap =
-            Math.min(
-                this.correlationSize,
-                this.grainSize -
-                    this.hopOut
-            );
-
-
-        if (
-            overlap <= 16
-        ) {
-
-            return expectedPosition;
-        }
-
-
-        /*
-            نبدأ من موضع متوقع،
-            ثم نبحث حوله.
-        */
-
-        const minimum =
-            Math.max(
-                this.startFrame,
-                Math.floor(
-                    expectedPosition -
-                    this.searchRadius
-                )
-            );
-
-
-        const maximum =
-            Math.min(
-                this.endFrame -
-                    this.grainSize,
-                Math.ceil(
-                    expectedPosition +
-                    this.searchRadius
-                )
-            );
-
-
-        if (
-            maximum < minimum
-        ) {
-
-            return Math.max(
-                this.startFrame,
-                Math.min(
-                    expectedPosition,
-                    this.endFrame -
-                        this.grainSize
-                )
-            );
-        }
-
-
-        let bestPosition =
-            Math.max(
-                minimum,
-                Math.min(
-                    expectedPosition,
-                    maximum
-                )
-            );
-
-
-        let bestScore =
-            -Infinity;
-
-
-        /*
-            نبحث كل 8 عينات.
-
-            هذا يقلل الحمل مقارنة
-            بالبحث في كل عينة.
-        */
-
-        for (
-            let candidate =
-                minimum;
-
-            candidate <=
-                maximum;
-
-            candidate += 8
-        ) {
-
-            let numerator = 0;
-
-            let energyA = 0;
-
-            let energyB = 0;
-
-
-            for (
-                let i = 0;
-                i < overlap;
-                i++
-            ) {
-
-                /*
-                    الجزء الأخير من grain السابق
-                    هو الذي نقارنه ببداية
-                    grain الجديد.
-                */
-
-                const previousIndex =
-                    previous.length -
-                    overlap +
-                    i;
-
-
-                const currentIndex =
-                    candidate +
-                    i;
-
-
-                if (
-                    previousIndex < 0 ||
-                    previousIndex >=
-                        previous.length ||
-                    currentIndex < 0 ||
-                    currentIndex >=
-                        source.length
-                ) {
-
-                    break;
-                }
-
-
-                const a =
-                    previous[
-                        previousIndex
-                    ];
-
-
-                const b =
-                    source[
-                        currentIndex
-                    ];
-
-
-                numerator +=
-                    a * b;
-
-
-                energyA +=
-                    a * a;
-
-
-                energyB +=
-                    b * b;
-            }
-
-
-            const denominator =
-                Math.sqrt(
-                    energyA *
-                    energyB
-                );
-
-
-            if (
-                denominator <=
-                0.000001
-            ) {
-
-                continue;
-            }
-
-
-            const score =
-                numerator /
-                denominator;
-
-
-            if (
-                score >
-                bestScore
-            ) {
-
-                bestScore =
-                    score;
-
-
-                bestPosition =
-                    candidate;
-            }
-        }
-
-
-        return bestPosition;
-    }
-
-
-    /* =====================================================
-       إنشاء Grain
-    ===================================================== */
-
-    createGrain() {
-
-        if (
-            !this.buffer ||
-            !this.buffer[0] ||
-            !this.bufferLength
-        ) {
-
-            return null;
-        }
-
-
-        let expectedPosition =
-            Math.floor(
-                this.inputPosition
-            );
-
-
-        /*
-            إذا كان لدينا grain سابق،
-            نبحث عن موضع صوتي مشابه.
-        */
-
-        if (
-            this.previousGrain
-        ) {
-
-            expectedPosition =
-                this.findBestPosition(
-                    expectedPosition
-                );
-        }
-
-
-        if (
-            expectedPosition >=
-            this.endFrame
-        ) {
-
-            return null;
-        }
-
-
-        const remaining =
-            this.endFrame -
-            expectedPosition;
-
-
-        const length =
-            Math.min(
-                this.grainSize,
-                remaining
-            );
-
-
-        if (
-            length <= 0
-        ) {
-
-            return null;
-        }
-
-
-        const grain = {
-
-            start:
-                expectedPosition,
-
-            length:
-                length,
-
-            outputStart:
-                this.nextOutputPosition,
-
-            data:
-                []
-        };
-
-
-        /*
-            نسخ بيانات القنوات.
-        */
-
-        for (
-            let channel = 0;
-            channel < this.channels;
-            channel++
-        ) {
-
-            const source =
-                this.buffer[channel];
-
-
-            const samples =
-                new Float32Array(
-                    length
-                );
-
-
-            for (
-                let i = 0;
-                i < length;
-                i++
-            ) {
-
-                samples[i] =
-                    source[
-                        expectedPosition +
-                        i
-                    ] || 0;
-            }
-
-
-            grain.data.push(
-                samples
-            );
-        }
-
-
-        /*
-            نحتفظ بالقناة الأولى
-            للمقارنة مع grain التالي.
-        */
-
-        this.previousGrain =
-            grain.data[0];
-
-
-        /*
-            هنا يتم التحكم في الزمن.
-
-            لا نغير playbackRate.
-
-            المقطع نفسه لا يصبح أعلى
-            أو أوطأ.
-
-            فقط موضع القراءة من التسجيل
-            يتقدم بمعدل مختلف.
-        */
-
-        this.inputPosition +=
-            this.hopOut *
-            this.speed;
-
-
-        this.nextOutputPosition +=
-            this.hopOut;
-
-
-        return grain;
-    }
-
-
-    /* =====================================================
-       المعالجة
-    ===================================================== */
-
-    process(
-        inputs,
-        outputs
-    ) {
-
-        const output =
-            outputs[0];
-
-
-        if (
-            !output ||
-            !output[0]
-        ) {
-
-            return true;
-        }
-
-
-        const outputLength =
-            output[0].length;
-
-
-        /* =================================================
-           تنظيف المخرج
-        ================================================= */
-
-        for (
-            let channel = 0;
-            channel < output.length;
-            channel++
-        ) {
-
-            output[channel].fill(0);
-        }
-
-
-        /* =================================================
-           لا يوجد تشغيل
-        ================================================= */
-
-        if (
-            !this.active ||
-            !this.buffer ||
-            !this.buffer[0]
-        ) {
-
-            return true;
-        }
-
-
-        /* =================================================
-           إنشاء مقاطع كافية
-        ================================================= */
-
-        const requiredEnd =
-            this.outputPosition +
-            outputLength +
-            this.grainSize;
-
-
-        while (
-            this.nextOutputPosition <
-            requiredEnd
-        ) {
-
-            const grain =
-                this.createGrain();
-
-
-            if (!grain) {
-                break;
-            }
-
-
-            this.grains.push(
-                grain
-            );
-        }
-
-
-        /* =================================================
-           مصفوفة التطبيع
-        ================================================= */
-
-        const normalization =
-            new Float32Array(
-                outputLength
-            );
-
-
-        /* =================================================
-           Overlap-Add
-        ================================================= */
-
-        for (
-            const grain of
-                this.grains
-        ) {
-
-            const relativeStart =
-                grain.outputStart -
-                this.outputPosition;
-
-
-            for (
-                let i = 0;
-                i < grain.length;
-                i++
-            ) {
-
-                const outIndex =
-                    relativeStart +
-                    i;
-
-
-                if (
-                    outIndex < 0 ||
-                    outIndex >=
-                        outputLength
-                ) {
-
-                    continue;
-                }
-
-
-                const window =
-                    this.getWindow(
-                        i,
-                        grain.length
-                    );
-
-
-                normalization[
-                    outIndex
-                ] += window;
-
-
-                for (
-                    let channel = 0;
-                    channel <
-                        output.length;
-                    channel++
-                ) {
-
-                    const sourceChannel =
-                        Math.min(
-                            channel,
-                            grain.data.length -
-                                1
-                        );
-
-
-                    output[channel][
-                        outIndex
-                    ] +=
-                        grain.data[
-                            sourceChannel
-                        ][i] *
-                        window;
-                }
-            }
-        }
-
-
-        /* =================================================
-           Normalize
-        ================================================= */
-
-        for (
-            let i = 0;
-            i < outputLength;
-            i++
-        ) {
-
-            const weight =
-                normalization[i];
-
-
-            if (
-                weight >
-                0.0001
-            ) {
-
-                const inverse =
-                    1 / weight;
-
-
-                for (
-                    let channel = 0;
-                    channel <
-                        output.length;
-                    channel++
-                ) {
-
-                    output[channel][i] *=
-                        inverse;
-                }
-            }
-        }
-
-
-        /* =================================================
-           تقدم الخرج
-        ================================================= */
-
-        this.outputPosition +=
-            outputLength;
-
-
-        /* =================================================
-           حذف المقاطع القديمة
-        ================================================= */
-
-        this.grains =
-            this.grains.filter(
-                grain =>
-                    grain.outputStart +
-                    grain.length >
-                    this.outputPosition
-            );
-
-
-        /* =================================================
-           نهاية الجزء
-        ================================================= */
-
-        if (
-            this.inputPosition >=
-                this.endFrame &&
-            this.grains.length === 0
-        ) {
-
-            if (
-                !this.finished
-            ) {
-
-                this.finished =
-                    true;
-
-
-                this.active =
-                    false;
-
-
-                this.port.postMessage({
-                    type:
-                        "ended"
-                });
-            }
-        }
-
-
-        return true;
-    }
-}
-
-
-registerProcessor(
-    "tahfeez-time-stretch",
-    TahfeezWSOLAProcessor
-);
-
-`;
-
-
-/* =========================================================
-   إنشاء Worklet Firefox
-========================================================= */
-
-async function ensureFirefoxWorklet() {
-
-    if (!isFirefox) {
-        return false;
-    }
-
-
-    const context =
-        getFirefoxAudioContext();
-
-
-    if (!context) {
-        return false;
-    }
-
-
-    if (firefoxWorkletReady) {
-        return true;
-    }
-
-
-    if (firefoxWorkletPromise) {
-        return firefoxWorkletPromise;
-    }
-
-
-    firefoxWorkletPromise =
-        (async () => {
-
-            try {
-
-                if (
-                    !context.audioWorklet ||
-                    !context.audioWorklet.addModule
-                ) {
-
-                    throw new Error(
-                        "AudioWorklet غير متوفر في Firefox."
-                    );
-                }
-
-
-                const blob =
-                    new Blob(
-                        [
-                            FIREFOX_WORKLET_CODE
-                        ],
-                        {
-                            type:
-                                "application/javascript"
-                        }
-                    );
-
-
-                const url =
-                    URL.createObjectURL(
-                        blob
-                    );
-
-
-                try {
-
-                    await context.audioWorklet.addModule(
-                        url
-                    );
-
-                } finally {
-
-                    URL.revokeObjectURL(
-                        url
-                    );
-                }
-
-
-                firefoxWorkletReady =
-                    true;
-
-
-                return true;
-
-            } catch (error) {
-
-                console.error(
-                    "تعذر إنشاء Firefox AudioWorklet:",
-                    error
-                );
-
-
-                firefoxWorkletReady =
-                    false;
-
-
-                return false;
-            }
-        })();
-
-
-    return firefoxWorkletPromise;
-}
-
-
-/* =========================================================
-   إنشاء AudioContext لـ Firefox
-========================================================= */
-
-function getFirefoxAudioContext() {
-
-    if (!isFirefox) {
-        return null;
-    }
-
-
-    if (firefoxAudioContext) {
-        return firefoxAudioContext;
-    }
-
-
-    try {
-
-        const AudioContextClass =
-            window.AudioContext ||
-            window.webkitAudioContext;
-
-
-        if (!AudioContextClass) {
-
-            throw new Error(
-                "Web Audio API غير متوفر في Firefox."
-            );
-        }
-
-
-        firefoxAudioContext =
-            new AudioContextClass();
-
-
-        firefoxGainNode =
-            firefoxAudioContext.createGain();
-
-
-        firefoxGainNode.gain.value =
-            1;
-
-
-        firefoxGainNode.connect(
-            firefoxAudioContext.destination
-        );
-
-
-        return firefoxAudioContext;
-
-    } catch (error) {
-
-        console.error(
-            "تعذر إنشاء Web Audio في Firefox:",
-            error
-        );
-
-
-        firefoxAudioContext =
-            null;
-
-
-        firefoxGainNode =
-            null;
-
-
-        return null;
-    }
-}
-
-
-/* =========================================================
-   تشغيل / استئناف AudioContext
-========================================================= */
-
-async function resumeFirefoxAudioContext() {
-
-    if (!isFirefox) {
-        return true;
-    }
-
-
-    const context =
-        getFirefoxAudioContext();
-
-
-    if (!context) {
-        return false;
-    }
-
-
-    try {
-
-        if (
-            context.state !==
-            "running"
-        ) {
-
-            await context.resume();
-        }
-
-
-        return true;
-
-    } catch (error) {
-
-        console.error(
-            "تعذر تشغيل AudioContext في Firefox:",
-            error
-        );
-
-
-        return false;
-    }
-}
-
-
-/* =========================================================
-   إيقاف مصدر Firefox الحالي
-========================================================= */
-
-function stopFirefoxSource() {
-
-    firefoxSourceId++;
-
-
-    const source =
-        firefoxSource;
-
-
-    firefoxSource =
-        null;
-
-
-    firefoxStretchNode =
-        null;
-
-
-    if (!source) {
-        return;
-    }
-
-
-    try {
-
-        source.port.postMessage({
-            type:
-                "stop"
-        });
-
-    } catch (error) {}
-
-
-    try {
-
-        source.onprocessorerror =
-            null;
-
-    } catch (error) {}
-
-
-    try {
-
-        source.port.onmessage =
-            null;
-
-    } catch (error) {}
-
-
-    try {
-
-        source.disconnect();
-
-    } catch (error) {}
-}
-
-
-/* =========================================================
-   تحويل AudioBuffer إلى بيانات
-========================================================= */
-
-function getFirefoxBufferChannels(
-    buffer
-) {
-
-    const channels = [];
-
-
-    const count =
-        Math.max(
-            1,
-            Math.min(
-                buffer.numberOfChannels || 1,
-                2
-            )
-        );
-
-
-    for (
-        let channel = 0;
-        channel < count;
-        channel++
-    ) {
-
-        channels.push(
-            new Float32Array(
-                buffer.getChannelData(
-                    channel
-                )
-            )
-        );
-    }
-
-
-    return channels;
-}
-
-
-/* =========================================================
-   تحميل وفك ضغط ملف الصوت
-========================================================= */
-
-async function getFirefoxAudioBuffer(
-    url
-) {
-
-    if (
-        firefoxBufferCache.has(url)
-    ) {
-
-        return firefoxBufferCache.get(
-            url
-        );
-    }
-
-
-    const context =
-        getFirefoxAudioContext();
-
-
-    if (!context) {
-
-        throw new Error(
-            "Web Audio API غير متوفر."
-        );
-    }
-
-
-    const response =
-        await fetch(url);
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            `تعذر تحميل ملف الصوت: ${response.status}`
-        );
-    }
-
-
-    const arrayBuffer =
-        await response.arrayBuffer();
-
-
-    const audioBuffer =
-        await context.decodeAudioData(
-            arrayBuffer
-        );
-
-
-    firefoxBufferCache.set(
-        url,
-        audioBuffer
-    );
-
-
-    return audioBuffer;
-}
-
-
-/* =========================================================
-   تغيير سرعة Firefox
-========================================================= */
-
-function configureFirefoxSourceSpeed(
-    source,
-    speed
-) {
-
-    if (!source) {
-        return;
-    }
-
-
-    const safeSpeed =
-        Math.min(
-            1.25,
-            Math.max(
-                0.75,
-                Number(speed) || 1
-            )
-        );
-
-
-    try {
-
-        source.port.postMessage({
-
-            type:
-                "speed",
-
-            speed:
-                safeSpeed
-        });
-
-    } catch (error) {
-
-        console.warn(
-            "تعذر تغيير سرعة Firefox:",
-            error
-        );
-    }
-}
-
-
-/* =========================================================
-   تشغيل الصوت حسب المتصفح
-========================================================= */
-
-function playAudioForCurrentBrowser(
-    media
-) {
-
-    if (!media) {
-        return null;
-    }
-
-
-    /*
-        Firefox يستخدم AudioWorklet.
-    */
-
-    if (isFirefox) {
-        return null;
-    }
-
-
-    /*
-        باقي المتصفحات:
-        لا تغيير عليها.
-    */
-
-    try {
-
-        return media.play();
-
-    } catch (error) {
-
-        throw error;
-    }
-}
-
 
 let audioSegmentId = 0;
 
@@ -1602,7 +122,6 @@ function endInternalAudioActionSoon() {
                     internalAudioActionDepth - 1
                 );
 
-
             internalAudioAction =
                 internalAudioActionDepth > 0;
 
@@ -1615,23 +134,14 @@ function endInternalAudioActionSoon() {
 function detachAudioEvents() {
 
     audio.onplay = null;
-
     audio.onplaying = null;
-
     audio.onloadedmetadata = null;
-
     audio.ontimeupdate = null;
-
     audio.onended = null;
-
     audio.onerror = null;
-
     audio.onpause = null;
-
     audio.onemptied = null;
-
     audio.onseeking = null;
-
     audio.onseeked = null;
 }
 
@@ -1641,134 +151,82 @@ function detachAudioEvents() {
 ========================================================= */
 
 const setupScreen =
-    document.getElementById(
-        "setupScreen"
-    );
+    document.getElementById("setupScreen");
 
 const memorizationScreen =
-    document.getElementById(
-        "memorizationScreen"
-    );
+    document.getElementById("memorizationScreen");
 
 const reciterSelect =
-    document.getElementById(
-        "reciterSelect"
-    );
+    document.getElementById("reciterSelect");
 
 const surahSelect =
-    document.getElementById(
-        "surahSelect"
-    );
+    document.getElementById("surahSelect");
 
 const fromAyah =
-    document.getElementById(
-        "fromAyah"
-    );
+    document.getElementById("fromAyah");
 
 const toAyah =
-    document.getElementById(
-        "toAyah"
-    );
+    document.getElementById("toAyah");
 
 const speedRange =
-    document.getElementById(
-        "speedRange"
-    );
+    document.getElementById("speedRange");
 
 const speedValue =
-    document.getElementById(
-        "speedValue"
-    );
+    document.getElementById("speedValue");
 
 const ayahRepeat =
-    document.getElementById(
-        "ayahRepeat"
-    );
+    document.getElementById("ayahRepeat");
 
 const blockRepeat =
-    document.getElementById(
-        "blockRepeat"
-    );
+    document.getElementById("blockRepeat");
 
 const waitSelect =
-    document.getElementById(
-        "waitSelect"
-    );
+    document.getElementById("waitSelect");
 
 const teacherModeField =
-    document.getElementById(
-        "teacherModeField"
-    );
+    document.getElementById("teacherModeField");
 
 const teacherMode =
-    document.getElementById(
-        "teacherMode"
-    );
+    document.getElementById("teacherMode");
 
 const teacherModeDescription =
-    document.getElementById(
-        "teacherModeDescription"
-    );
+    document.getElementById("teacherModeDescription");
 
 const availabilityMessage =
-    document.getElementById(
-        "availabilityMessage"
-    );
+    document.getElementById("availabilityMessage");
 
 const startButton =
-    document.getElementById(
-        "startButton"
-    );
+    document.getElementById("startButton");
 
 const playerSettingsButton =
-    document.getElementById(
-        "playerSettingsButton"
-    );
+    document.getElementById("playerSettingsButton");
 
 const currentSurahName =
-    document.getElementById(
-        "currentSurahName"
-    );
+    document.getElementById("currentSurahName");
 
 const currentAyahText =
-    document.getElementById(
-        "currentAyahText"
-    );
+    document.getElementById("currentAyahText");
 
 const blockRepeatInfo =
-    document.getElementById(
-        "blockRepeatInfo"
-    );
+    document.getElementById("blockRepeatInfo");
 
 const ayahRepeatInfo =
-    document.getElementById(
-        "ayahRepeatInfo"
-    );
+    document.getElementById("ayahRepeatInfo");
 
 const completionMessage =
-    document.getElementById(
-        "completionMessage"
-    );
+    document.getElementById("completionMessage");
 
 const previousAyahButton =
-    document.getElementById(
-        "previousAyahButton"
-    );
+    document.getElementById("previousAyahButton");
 
 const restartBlockButton =
-    document.getElementById(
-        "restartBlockButton"
-    );
+    document.getElementById("restartBlockButton");
 
 const playPauseButton =
-    document.getElementById(
-        "playPauseButton"
-    );
+    document.getElementById("playPauseButton");
 
 const nextAyahButton =
-    document.getElementById(
-        "nextAyahButton"
-    );
+    document.getElementById("nextAyahButton");
 
 
 /* =========================================================
@@ -1777,22 +235,15 @@ const nextAyahButton =
 
 function setMediaSessionNone() {
 
-    if (
-        !("mediaSession" in navigator)
-    ) {
-
+    if (!("mediaSession" in navigator)) {
         return;
     }
 
-
     try {
 
-        navigator.mediaSession.metadata =
-            null;
+        navigator.mediaSession.metadata = null;
 
-
-        navigator.mediaSession.playbackState =
-            "none";
+        navigator.mediaSession.playbackState = "none";
 
     } catch (error) {
 
@@ -1806,13 +257,9 @@ function setMediaSessionNone() {
 
 function setupMediaSessionHandlers() {
 
-    if (
-        !("mediaSession" in navigator)
-    ) {
-
+    if (!("mediaSession" in navigator)) {
         return;
     }
-
 
     try {
 
@@ -1824,15 +271,12 @@ function setupMediaSessionHandlers() {
                     return;
                 }
 
+                if (!state.session.playing) {
 
-                if (
-                    !state.session.playing
-                ) {
+                    playCurrentAyah(true);
 
-                    playCurrentAyah(
-                        true
-                    );
                 }
+
             }
         );
 
@@ -1845,13 +289,12 @@ function setupMediaSessionHandlers() {
                     return;
                 }
 
-
-                if (
-                    state.session.playing
-                ) {
+                if (state.session.playing) {
 
                     pausePlayback();
+
                 }
+
             }
         );
 
@@ -1948,49 +391,29 @@ function handleExternalSeekAttempt() {
         return;
     }
 
-
     playbackToken++;
-
 
     if (waitTimer) {
 
-        clearTimeout(
-            waitTimer
-        );
-
+        clearTimeout(waitTimer);
         waitTimer = null;
     }
 
-
     if (segmentTimer) {
 
-        clearTimeout(
-            segmentTimer
-        );
-
+        clearTimeout(segmentTimer);
         segmentTimer = null;
     }
 
-
     resetAudioElement();
 
-
     segmentIndex = 0;
-
     currentAudioType = "normal";
 
+    state.session.currentAyahRepeat = 1;
+    state.session.playing = false;
 
-    state.session.currentAyahRepeat =
-        1;
-
-
-    state.session.playing =
-        false;
-
-
-    playPauseButton.textContent =
-        "▶️";
-
+    playPauseButton.textContent = "▶️";
 
     setMediaSessionNone();
 }
@@ -2076,10 +499,7 @@ async function loadData() {
 
     } catch (error) {
 
-        console.error(
-            error
-        );
-
+        console.error(error);
 
         showAvailability(
             "تعذر تحميل بيانات التحفيظ حاليًا."
@@ -2102,27 +522,19 @@ function populateReciters() {
 
 
     for (
-        const reciter of
-        state.reciters
+        const reciter of state.reciters
     ) {
 
         const option =
-            document.createElement(
-                "option"
-            );
-
+            document.createElement("option");
 
         option.value =
             reciter.id;
 
-
         option.textContent =
             reciter.name;
 
-
-        reciterSelect.appendChild(
-            option
-        );
+        reciterSelect.appendChild(option);
     }
 }
 
@@ -2142,34 +554,24 @@ function populateSurahs() {
 
     if (!state.selectedReciter) {
 
-        surahSelect.disabled =
-            true;
-
+        surahSelect.disabled = true;
         return;
     }
 
 
     const availableSurahs =
-        state.selectedReciter.surahs ||
-        {};
+        state.selectedReciter.surahs || {};
 
 
     for (
-        const number of
-        Object.keys(
-            availableSurahs
-        )
+        const number of Object.keys(availableSurahs)
     ) {
 
         const surah =
             state.surahs.find(
                 item =>
-                    String(
-                        item.number
-                    ) ===
-                    String(
-                        number
-                    )
+                    String(item.number) ===
+                    String(number)
             );
 
 
@@ -2179,27 +581,19 @@ function populateSurahs() {
 
 
         const option =
-            document.createElement(
-                "option"
-            );
-
+            document.createElement("option");
 
         option.value =
             surah.number;
 
-
         option.textContent =
             `${surah.number}. ${surah.name}`;
 
-
-        surahSelect.appendChild(
-            option
-        );
+        surahSelect.appendChild(option);
     }
 
 
-    surahSelect.disabled =
-        false;
+    surahSelect.disabled = false;
 }
 
 
@@ -2251,16 +645,13 @@ surahSelect.addEventListener(
     () => {
 
         const number =
-            Number(
-                surahSelect.value
-            );
+            Number(surahSelect.value);
 
 
         state.selectedSurah =
             state.surahs.find(
                 surah =>
-                    surah.number ===
-                    number
+                    surah.number === number
             ) || null;
 
 
@@ -2296,10 +687,7 @@ surahSelect.addEventListener(
 
             disableAyahInputs();
 
-
-            startButton.disabled =
-                true;
-
+            startButton.disabled = true;
 
             return;
         }
@@ -2341,14 +729,11 @@ surahSelect.addEventListener(
    معرفة السورة المتوفرة
 ========================================================= */
 
-function getAvailableSurah(
-    number
-) {
+function getAvailableSurah(number) {
 
     if (!state.selectedReciter) {
         return null;
     }
-
 
     return state.selectedReciter.surahs?.[
         String(number)
@@ -2390,15 +775,10 @@ function validateAyahRange() {
 
 
     let from =
-        Number(
-            fromAyah.value
-        );
-
+        Number(fromAyah.value);
 
     let to =
-        Number(
-            toAyah.value
-        );
+        Number(toAyah.value);
 
 
     if (
@@ -2421,38 +801,23 @@ function validateAyahRange() {
     }
 
 
-    if (
-        from >
-        available.to
-    ) {
-
-        from =
-            available.to;
+    if (from > available.to) {
+        from = available.to;
     }
 
 
-    if (
-        to >
-        available.to
-    ) {
-
-        to =
-            available.to;
+    if (to > available.to) {
+        to = available.to;
     }
 
 
     if (to < from) {
-
-        to =
-            from;
+        to = from;
     }
 
 
-    fromAyah.value =
-        from;
-
-    toAyah.value =
-        to;
+    fromAyah.value = from;
+    toAyah.value = to;
 
 
     validateSetup();
@@ -2470,9 +835,7 @@ speedRange.addEventListener(
     () => {
 
         const speed =
-            Number(
-                speedRange.value
-            );
+            Number(speedRange.value);
 
 
         speedValue.textContent =
@@ -2497,8 +860,8 @@ speedRange.addEventListener(
 
             if (isFirefox) {
 
-                configureFirefoxSourceSpeed(
-                    firefoxStretchNode,
+                configureFirefoxNativeAudioSpeed(
+                    audio,
                     state.session.speed
                 );
 
@@ -2554,9 +917,7 @@ function updateTeacherMode() {
         );
 
 
-    teacherMode.checked =
-        false;
-
+    teacherMode.checked = false;
 
     teacherMode.disabled =
         !available;
@@ -2598,9 +959,7 @@ function validateSetup() {
         !state.selectedSurah
     ) {
 
-        startButton.disabled =
-            true;
-
+        startButton.disabled = true;
         return;
     }
 
@@ -2613,23 +972,16 @@ function validateSetup() {
 
     if (!available) {
 
-        startButton.disabled =
-            true;
-
+        startButton.disabled = true;
         return;
     }
 
 
     const from =
-        Number(
-            fromAyah.value
-        );
-
+        Number(fromAyah.value);
 
     const to =
-        Number(
-            toAyah.value
-        );
+        Number(toAyah.value);
 
 
     startButton.disabled = !(
@@ -2662,15 +1014,10 @@ async function startMemorization() {
 
 
     const from =
-        Number(
-            fromAyah.value
-        );
-
+        Number(fromAyah.value);
 
     const to =
-        Number(
-            toAyah.value
-        );
+        Number(toAyah.value);
 
 
     state.session = {
@@ -2691,14 +1038,10 @@ async function startMemorization() {
             from,
 
         ayahRepeat:
-            Number(
-                ayahRepeat.value
-            ),
+            Number(ayahRepeat.value),
 
         blockRepeat:
-            Number(
-                blockRepeat.value
-            ),
+            Number(blockRepeat.value),
 
         currentAyahRepeat:
             1,
@@ -2707,14 +1050,10 @@ async function startMemorization() {
             1,
 
         speed:
-            Number(
-                speedRange.value
-            ),
+            Number(speedRange.value),
 
         wait:
-            Number(
-                waitSelect.value
-            ),
+            Number(waitSelect.value),
 
         teacherMode:
             teacherMode.checked,
@@ -2724,10 +1063,10 @@ async function startMemorization() {
     };
 
 
-    if (isFirefox) {
-
-        await ensureFirefoxWorklet();
-    }
+    /*
+        لا يوجد هنا AudioWorklet في Firefox.
+        Firefox يستخدم HTMLAudio مباشرة.
+    */
 
 
     await loadPausePoints();
@@ -2748,19 +1087,11 @@ async function startMemorization() {
 
 function openMemorizationScreen() {
 
-    setupScreen.classList.add(
-        "hidden"
-    );
+    setupScreen.classList.add("hidden");
 
+    memorizationScreen.classList.remove("hidden");
 
-    memorizationScreen.classList.remove(
-        "hidden"
-    );
-
-
-    completionMessage.classList.add(
-        "hidden"
-    );
+    completionMessage.classList.add("hidden");
 
 
     currentSurahName.textContent =
@@ -2823,7 +1154,6 @@ function renderCurrentAyah() {
         currentAyahText.textContent =
             "سيظهر نص الآية هنا";
 
-
         return;
     }
 
@@ -2857,9 +1187,7 @@ function updateSessionInfo() {
    الانتقال إلى آية أخرى
 ========================================================= */
 
-async function navigateToAyah(
-    targetAyah
-) {
+async function navigateToAyah(targetAyah) {
 
     if (!state.session) {
         return;
@@ -2892,9 +1220,7 @@ async function navigateToAyah(
 
     if (wasPlaying) {
 
-        state.session.playing =
-            true;
-
+        state.session.playing = true;
 
         playPauseButton.textContent =
             "⏸️";
@@ -2906,8 +1232,7 @@ async function navigateToAyah(
 
     if (
         !state.session ||
-        navigationToken !==
-            playbackToken
+        navigationToken !== playbackToken
     ) {
 
         return;
@@ -2923,13 +1248,10 @@ async function navigateToAyah(
 
     } else {
 
-        state.session.playing =
-            false;
-
+        state.session.playing = false;
 
         playPauseButton.textContent =
             "▶️";
-
 
         setMediaSessionNone();
     }
@@ -3007,10 +1329,8 @@ restartBlockButton.addEventListener(
         state.session.currentAyah =
             state.session.fromAyah;
 
-
         state.session.currentAyahRepeat =
             1;
-
 
         state.session.currentBlockRepeat =
             1;
@@ -3050,17 +1370,13 @@ playPauseButton.addEventListener(
         }
 
 
-        if (
-            state.session.playing
-        ) {
+        if (state.session.playing) {
 
             pausePlayback();
 
         } else {
 
-            playCurrentAyah(
-                true
-            );
+            playCurrentAyah(true);
         }
     }
 );
@@ -3101,19 +1417,12 @@ async function loadPausePoints() {
         `${reciter.id}_${surahNumber}_${ayahNumber}`;
 
 
-    if (
-        pausePointsCache.has(
-            cacheKey
-        )
-    ) {
+    if (pausePointsCache.has(cacheKey)) {
 
         pausePoints =
             [
-                ...pausePointsCache.get(
-                    cacheKey
-                )
+                ...pausePointsCache.get(cacheKey)
             ];
-
 
         return;
     }
@@ -3158,20 +1467,14 @@ async function loadPausePoints() {
         const ayahData =
             allPauseData.find(
                 item =>
-                    Number(
-                        item.ayah
-                    ) ===
-                    Number(
-                        ayahNumber
-                    )
+                    Number(item.ayah) ===
+                    Number(ayahNumber)
             );
 
 
         if (
             ayahData &&
-            Array.isArray(
-                ayahData.pauses
-            )
+            Array.isArray(ayahData.pauses)
         ) {
 
             const points =
@@ -3179,17 +1482,11 @@ async function loadPausePoints() {
                     .map(Number)
                     .filter(
                         value =>
-                            Number.isFinite(
-                                value
-                            ) &&
+                            Number.isFinite(value) &&
                             value > 0
                     )
                     .sort(
-                        (
-                            a,
-                            b
-                        ) =>
-                            a - b
+                        (a, b) => a - b
                     );
 
 
@@ -3200,9 +1497,7 @@ async function loadPausePoints() {
 
 
             pausePoints =
-                [
-                    ...points
-                ];
+                [...points];
         }
 
     } catch (error) {
@@ -3211,7 +1506,6 @@ async function loadPausePoints() {
             "تعذر تحميل pauses.json",
             error
         );
-
 
         pausePoints = [];
     }
@@ -3227,38 +1521,23 @@ function resetAudioElement() {
     audioSegmentId++;
 
 
-    if (isFirefox) {
-
-        stopFirefoxSource();
-    }
-
-
     beginInternalAudioAction();
-
 
     detachAudioEvents();
 
 
     try {
-
         audio.pause();
-
     } catch (error) {}
 
 
     try {
-
-        audio.removeAttribute(
-            "src"
-        );
-
+        audio.removeAttribute("src");
     } catch (error) {}
 
 
     try {
-
         audio.load();
-
     } catch (error) {}
 
 
@@ -3274,10 +1553,7 @@ function clearPlaybackResources() {
 
     if (waitTimer) {
 
-        clearTimeout(
-            waitTimer
-        );
-
+        clearTimeout(waitTimer);
 
         waitTimer = null;
     }
@@ -3285,10 +1561,7 @@ function clearPlaybackResources() {
 
     if (segmentTimer) {
 
-        clearTimeout(
-            segmentTimer
-        );
-
+        clearTimeout(segmentTimer);
 
         segmentTimer = null;
     }
@@ -3324,34 +1597,25 @@ function playCurrentAyah(
     clearPlaybackResources();
 
 
-    if (
-        preservePlayingVisual
-    ) {
+    if (preservePlayingVisual) {
 
-        state.session.playing =
-            true;
-
+        state.session.playing = true;
 
         playPauseButton.textContent =
             "⏸️";
 
     } else {
 
-        state.session.playing =
-            false;
-
+        state.session.playing = false;
 
         playPauseButton.textContent =
             "▶️";
     }
 
 
-    segmentIndex =
-        0;
+    segmentIndex = 0;
 
-
-    currentAudioType =
-        "normal";
+    currentAudioType = "normal";
 
 
     startCurrentSegment(
@@ -3365,9 +1629,7 @@ function playCurrentAyah(
    حدود الجزء
 ========================================================= */
 
-function getSegmentBounds(
-    duration
-) {
+function getSegmentBounds(duration) {
 
     const totalSegments =
         pausePoints.length + 1;
@@ -3402,16 +1664,10 @@ function getSegmentBounds(
     return {
 
         start:
-            Math.max(
-                0,
-                start
-            ),
+            Math.max(0, start),
 
         end:
-            Math.min(
-                duration,
-                end
-            )
+            Math.min(duration, end)
     };
 }
 
@@ -3420,28 +1676,87 @@ function getSegmentBounds(
    تنظيف نقاط الوقف
 ========================================================= */
 
-function sanitizePausePoints(
-    duration
-) {
+function sanitizePausePoints(duration) {
 
     pausePoints =
         pausePoints
             .map(Number)
             .filter(
                 point =>
-                    Number.isFinite(
-                        point
-                    ) &&
+                    Number.isFinite(point) &&
                     point > 0 &&
                     point < duration
             )
             .sort(
-                (
-                    a,
-                    b
-                ) =>
-                    a - b
+                (a, b) => a - b
             );
+}
+
+
+/* =========================================================
+   سرعة Firefox
+   Firefox فقط
+========================================================= */
+
+function configureFirefoxNativeAudioSpeed(
+    media,
+    speed
+) {
+
+    const safeSpeed =
+        Math.min(
+            1.25,
+            Math.max(
+                0.75,
+                Number(speed) || 1
+            )
+        );
+
+
+    /*
+        Firefox يستخدم المعالجة الأصلية
+        للحفاظ على طبقة الصوت.
+    */
+
+    try {
+
+        media.preservesPitch =
+            true;
+
+    } catch (error) {}
+
+
+    try {
+
+        media.mozPreservesPitch =
+            true;
+
+    } catch (error) {}
+
+
+    try {
+
+        media.defaultPlaybackRate =
+            safeSpeed;
+
+    } catch (error) {}
+
+
+    try {
+
+        media.playbackRate =
+            safeSpeed;
+
+    } catch (error) {
+
+        console.warn(
+            "تعذر ضبط سرعة Firefox:",
+            error
+        );
+    }
+
+
+    return safeSpeed;
 }
 
 
@@ -3525,12 +1840,32 @@ function configureAudioSpeed(
 
 
 /* =========================================================
+   تشغيل الصوت حسب المتصفح
+========================================================= */
+
+function playAudioForCurrentBrowser(media) {
+
+    if (!media) {
+        return null;
+    }
+
+
+    try {
+
+        return media.play();
+
+    } catch (error) {
+
+        throw error;
+    }
+}
+
+
+/* =========================================================
    إيقاف صوت داخلي
 ========================================================= */
 
-function pauseAudioInternally(
-    media
-) {
+function pauseAudioInternally(media) {
 
     if (!media) {
         return;
@@ -3544,8 +1879,7 @@ function pauseAudioInternally(
         media.onpause;
 
 
-    media.onpause =
-        null;
+    media.onpause = null;
 
 
     try {
@@ -3609,20 +1943,14 @@ function handleExternalAudioStop() {
 
     if (waitTimer) {
 
-        clearTimeout(
-            waitTimer
-        );
-
+        clearTimeout(waitTimer);
         waitTimer = null;
     }
 
 
     if (segmentTimer) {
 
-        clearTimeout(
-            segmentTimer
-        );
-
+        clearTimeout(segmentTimer);
         segmentTimer = null;
     }
 
@@ -3630,578 +1958,24 @@ function handleExternalAudioStop() {
     resetAudioElement();
 
 
-    segmentIndex =
-        0;
+    segmentIndex = 0;
 
+    currentAudioType = "normal";
 
-    currentAudioType =
-        "normal";
+    state.session.currentAyahRepeat = 1;
 
-
-    state.session.currentAyahRepeat =
-        1;
-
-
-    state.session.playing =
-        false;
-
+    state.session.playing = false;
 
     playPauseButton.textContent =
         "▶️";
-
 
     setMediaSessionNone();
 }
 
 
 /* =========================================================
-   Firefox WSOLA
-========================================================= */
-
-async function startFirefoxWebAudioSegment(
-    token,
-    userInitiated = false
-) {
-
-    if (
-        !state.session ||
-        token !== playbackToken
-    ) {
-
-        return;
-    }
-
-
-    const reciter =
-        state.session.reciter;
-
-
-    const surahNumber =
-        state.session.surah.number;
-
-
-    const ayahNumber =
-        state.session.currentAyah;
-
-
-    const url =
-        `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
-
-
-    const thisSourceId =
-        ++firefoxSourceId;
-
-
-    try {
-
-        const context =
-            getFirefoxAudioContext();
-
-
-        if (!context) {
-
-            throw new Error(
-                "Web Audio API غير متوفر في Firefox."
-            );
-        }
-
-
-        const resumed =
-            await resumeFirefoxAudioContext();
-
-
-        if (!resumed) {
-
-            throw new Error(
-                "تعذر تشغيل AudioContext."
-            );
-        }
-
-
-        if (
-            !state.session ||
-            token !== playbackToken ||
-            thisSourceId !== firefoxSourceId
-        ) {
-
-            return;
-        }
-
-
-        const workletReady =
-            await ensureFirefoxWorklet();
-
-
-        if (!workletReady) {
-
-            throw new Error(
-                "تعذر تجهيز AudioWorklet في Firefox."
-            );
-        }
-
-
-        const buffer =
-            await getFirefoxAudioBuffer(
-                url
-            );
-
-
-        if (
-            !state.session ||
-            token !== playbackToken ||
-            thisSourceId !== firefoxSourceId
-        ) {
-
-            return;
-        }
-
-
-        const duration =
-            Number(
-                buffer.duration
-            );
-
-
-        if (
-            !Number.isFinite(
-                duration
-            ) ||
-            duration <= 0
-        ) {
-
-            throw new Error(
-                "مدة ملف الصوت غير صالحة."
-            );
-        }
-
-
-        sanitizePausePoints(
-            duration
-        );
-
-
-        const bounds =
-            getSegmentBounds(
-                duration
-            );
-
-
-        if (!bounds) {
-
-            handleCurrentFirefoxSegmentFinished(
-                token,
-                null,
-                0
-            );
-
-
-            return;
-        }
-
-
-        const start =
-            bounds.start;
-
-
-        const end =
-            bounds.end;
-
-
-        if (
-            !Number.isFinite(start) ||
-            !Number.isFinite(end) ||
-            end <= start
-        ) {
-
-            handleCurrentFirefoxSegmentFinished(
-                token,
-                null,
-                0
-            );
-
-
-            return;
-        }
-
-
-        /* =================================================
-           إنشاء Worklet
-        ================================================= */
-
-        const node =
-            new AudioWorkletNode(
-                context,
-                "tahfeez-time-stretch",
-                {
-                    numberOfInputs:
-                        0,
-
-                    numberOfOutputs:
-                        1,
-
-                    outputChannelCount:
-                        [2]
-                }
-            );
-
-
-        node.connect(
-            firefoxGainNode
-        );
-
-
-        firefoxStretchNode =
-            node;
-
-
-        firefoxSource =
-            node;
-
-
-        /* =================================================
-           تجهيز البيانات
-        ================================================= */
-
-        const channels =
-            getFirefoxBufferChannels(
-                buffer
-            );
-
-
-        const channelArrays =
-            channels.map(
-                channel =>
-                    new Float32Array(
-                        channel
-                    )
-            );
-
-
-        node.port.postMessage(
-            {
-                type:
-                    "buffer",
-
-                channels:
-                    channelArrays
-            },
-            channelArrays.map(
-                channel =>
-                    channel.buffer
-            )
-        );
-
-
-        const actualSpeed =
-            Math.min(
-                1.25,
-                Math.max(
-                    0.75,
-                    Number(
-                        state.session.speed
-                    ) || 1
-                )
-            );
-
-
-        const startFrame =
-            Math.floor(
-                start *
-                context.sampleRate
-            );
-
-
-        const endFrame =
-            Math.floor(
-                end *
-                context.sampleRate
-            );
-
-
-        let finished =
-            false;
-
-
-        const finishOnce =
-            () => {
-
-                if (finished) {
-                    return;
-                }
-
-
-                finished =
-                    true;
-
-
-                if (segmentTimer) {
-
-                    clearTimeout(
-                        segmentTimer
-                    );
-
-
-                    segmentTimer = null;
-                }
-
-
-                if (
-                    !state.session ||
-                    token !== playbackToken ||
-                    thisSourceId !== firefoxSourceId
-                ) {
-
-                    return;
-                }
-
-
-                if (
-                    firefoxSource === node
-                ) {
-
-                    firefoxSource =
-                        null;
-
-
-                    firefoxStretchNode =
-                        null;
-                }
-
-
-                try {
-
-                    node.disconnect();
-
-                } catch (error) {}
-
-
-                handleCurrentFirefoxSegmentFinished(
-                    token,
-                    node,
-                    end - start
-                );
-            };
-
-
-        node.port.onmessage =
-            event => {
-
-                if (
-                    event.data &&
-                    event.data.type ===
-                        "ended"
-                ) {
-
-                    finishOnce();
-                }
-            };
-
-
-        node.onprocessorerror =
-            error => {
-
-                console.error(
-                    "Firefox AudioWorklet processor error:",
-                    error
-                );
-
-
-                finishOnce();
-            };
-
-
-        /* =================================================
-           بدء الجزء
-        ================================================= */
-
-        node.port.postMessage({
-
-            type:
-                "start",
-
-            startFrame:
-                startFrame,
-
-            endFrame:
-                endFrame,
-
-            speed:
-                actualSpeed
-        });
-
-
-        /*
-            الزمن المتوقع.
-
-            هذا فقط لتأمين نهاية الجزء
-            في حالة عدم وصول رسالة ended.
-
-            لا يغير سرعة الصوت.
-        */
-
-        const wallTime =
-            (
-                (end - start) /
-                actualSpeed
-            ) * 1000;
-
-
-        if (segmentTimer) {
-
-            clearTimeout(
-                segmentTimer
-            );
-        }
-
-
-        segmentTimer =
-            setTimeout(
-                finishOnce,
-                Math.max(
-                    200,
-                    wallTime + 1500
-                )
-            );
-
-
-        state.session.playing =
-            true;
-
-
-        playPauseButton.textContent =
-            "⏸️";
-
-
-        if (
-            "mediaSession" in navigator
-        ) {
-
-            try {
-
-                navigator.mediaSession.playbackState =
-                    "playing";
-
-            } catch (error) {}
-        }
-
-    } catch (error) {
-
-        if (
-            !state.session ||
-            token !== playbackToken
-        ) {
-
-            return;
-        }
-
-
-        console.error(
-            "Firefox AudioWorklet error:",
-            error
-        );
-
-
-        if (
-            thisSourceId ===
-            firefoxSourceId
-        ) {
-
-            firefoxSource =
-                null;
-
-
-            firefoxStretchNode =
-                null;
-        }
-
-
-        state.session.playing =
-            false;
-
-
-        playPauseButton.textContent =
-            "▶️";
-
-
-        setMediaSessionNone();
-
-
-        showAvailability(
-            "تعذر تشغيل ملف الصوت في Firefox."
-        );
-    }
-}
-
-
-/* =========================================================
-   انتهاء جزء Firefox
-========================================================= */
-
-function handleCurrentFirefoxSegmentFinished(
-    token,
-    finishedSource,
-    segmentDuration
-) {
-
-    if (
-        !state.session ||
-        token !== playbackToken
-    ) {
-
-        return;
-    }
-
-
-    if (
-        finishedSource &&
-        firefoxSource ===
-            finishedSource
-    ) {
-
-        firefoxSource =
-            null;
-
-
-        firefoxStretchNode =
-            null;
-    }
-
-
-    if (
-        state.session.teacherMode &&
-        currentAudioType === "normal"
-    ) {
-
-        currentAudioType =
-            "teacher";
-
-
-        startCurrentSegment(
-            token,
-            false
-        );
-
-
-        return;
-    }
-
-
-    currentAudioType =
-        "normal";
-
-
-    segmentIndex++;
-
-
-    waitAfterSegment(
-        segmentDuration,
-        token
-    );
-}
-
-
-/* =========================================================
    تشغيل الجزء الحالي
+   Firefox + باقي المتصفحات
 ========================================================= */
 
 function startCurrentSegment(
@@ -4217,26 +1991,6 @@ function startCurrentSegment(
         return;
     }
 
-
-    /* =====================================================
-       FIREFOX فقط
-    ===================================================== */
-
-    if (isFirefox) {
-
-        startFirefoxWebAudioSegment(
-            token,
-            userInitiated
-        );
-
-
-        return;
-    }
-
-
-    /* =====================================================
-       باقي المتصفحات
-    ===================================================== */
 
     const reciter =
         state.session.reciter;
@@ -4264,30 +2018,21 @@ function startCurrentSegment(
 
     beginInternalAudioAction();
 
-
     detachAudioEvents();
 
 
     try {
-
         currentAudio.pause();
-
     } catch (error) {}
 
 
     try {
-
-        currentAudio.removeAttribute(
-            "src"
-        );
-
+        currentAudio.removeAttribute("src");
     } catch (error) {}
 
 
     try {
-
         currentAudio.load();
-
     } catch (error) {}
 
 
@@ -4300,36 +2045,48 @@ function startCurrentSegment(
             1.25,
             Math.max(
                 0.75,
-                Number(
-                    state.session.speed
-                ) || 1
+                Number(state.session.speed) || 1
             )
         );
 
 
-    configureAudioSpeed(
-        currentAudio,
-        actualSpeed
-    );
+    /*
+        Firefox:
+        HTMLAudio الأصلي + pitch preservation.
+
+        باقي المتصفحات:
+        نفس الدالة القديمة.
+    */
+
+    if (isFirefox) {
+
+        configureFirefoxNativeAudioSpeed(
+            currentAudio,
+            actualSpeed
+        );
+
+    } else {
+
+        configureAudioSpeed(
+            currentAudio,
+            actualSpeed
+        );
+    }
 
 
     endInternalAudioActionSoon();
 
 
-    let finished =
-        false;
+    let finished = false;
 
 
     function isCurrentSegment() {
 
         return (
-            Boolean(
-                state.session
-            ) &&
+            Boolean(state.session) &&
             token === playbackToken &&
             currentAudio === audio &&
-            thisSegmentId ===
-                audioSegmentId
+            thisSegmentId === audioSegmentId
         );
     }
 
@@ -4341,16 +2098,12 @@ function startCurrentSegment(
         }
 
 
-        finished =
-            true;
+        finished = true;
 
 
         if (segmentTimer) {
 
-            clearTimeout(
-                segmentTimer
-            );
-
+            clearTimeout(segmentTimer);
 
             segmentTimer = null;
         }
@@ -4364,14 +2117,11 @@ function startCurrentSegment(
         beginInternalAudioAction();
 
 
-        currentAudio.onpause =
-            null;
+        currentAudio.onpause = null;
 
 
         try {
-
             currentAudio.pause();
-
         } catch (error) {}
 
 
@@ -4393,17 +2143,13 @@ function startCurrentSegment(
             }
 
 
-            state.session.playing =
-                true;
-
+            state.session.playing = true;
 
             playPauseButton.textContent =
                 "⏸️";
 
 
-            if (
-                "mediaSession" in navigator
-            ) {
+            if ("mediaSession" in navigator) {
 
                 try {
 
@@ -4423,17 +2169,13 @@ function startCurrentSegment(
             }
 
 
-            state.session.playing =
-                true;
-
+            state.session.playing = true;
 
             playPauseButton.textContent =
                 "⏸️";
 
 
-            if (
-                "mediaSession" in navigator
-            ) {
+            if ("mediaSession" in navigator) {
 
                 try {
 
@@ -4454,15 +2196,11 @@ function startCurrentSegment(
 
 
             const duration =
-                Number(
-                    currentAudio.duration
-                );
+                Number(currentAudio.duration);
 
 
             if (
-                !Number.isFinite(
-                    duration
-                ) ||
+                !Number.isFinite(duration) ||
                 duration <= 0
             ) {
 
@@ -4472,15 +2210,11 @@ function startCurrentSegment(
             }
 
 
-            sanitizePausePoints(
-                duration
-            );
+            sanitizePausePoints(duration);
 
 
             const bounds =
-                getSegmentBounds(
-                    duration
-                );
+                getSegmentBounds(duration);
 
 
             if (!bounds) {
@@ -4518,8 +2252,7 @@ function startCurrentSegment(
                 ) > 0.02
             ) {
 
-                internalSeekAction =
-                    true;
+                internalSeekAction = true;
 
 
                 try {
@@ -4529,9 +2262,7 @@ function startCurrentSegment(
 
                 } catch (error) {
 
-                    internalSeekAction =
-                        false;
-
+                    internalSeekAction = false;
 
                     finishOnce();
 
@@ -4551,10 +2282,20 @@ function startCurrentSegment(
             }
 
 
-            configureAudioSpeed(
-                currentAudio,
-                actualSpeed
-            );
+            if (isFirefox) {
+
+                configureFirefoxNativeAudioSpeed(
+                    currentAudio,
+                    actualSpeed
+                );
+
+            } else {
+
+                configureAudioSpeed(
+                    currentAudio,
+                    actualSpeed
+                );
+            }
 
 
             const segmentDuration =
@@ -4589,8 +2330,7 @@ function startCurrentSegment(
             if (
                 userInitiated &&
                 segmentIndex === 0 &&
-                currentAudioType ===
-                    "normal"
+                currentAudioType === "normal"
             ) {
 
                 return;
@@ -4623,16 +2363,12 @@ function startCurrentSegment(
                 }
 
 
-                state.session.playing =
-                    false;
-
+                state.session.playing = false;
 
                 playPauseButton.textContent =
                     "▶️";
 
-
                 setMediaSessionNone();
-
 
                 return;
             }
@@ -4698,15 +2434,11 @@ function startCurrentSegment(
 
 
             const duration =
-                Number(
-                    currentAudio.duration
-                );
+                Number(currentAudio.duration);
 
 
             if (
-                !Number.isFinite(
-                    duration
-                ) ||
+                !Number.isFinite(duration) ||
                 duration <= 0
             ) {
 
@@ -4715,9 +2447,7 @@ function startCurrentSegment(
 
 
             const bounds =
-                getSegmentBounds(
-                    duration
-                );
+                getSegmentBounds(duration);
 
 
             if (!bounds) {
@@ -4807,18 +2537,14 @@ function startCurrentSegment(
                     segmentTimer
                 );
 
-
                 segmentTimer = null;
             }
 
 
-            state.session.playing =
-                false;
-
+            state.session.playing = false;
 
             playPauseButton.textContent =
                 "▶️";
-
 
             setMediaSessionNone();
 
@@ -4835,11 +2561,18 @@ function startCurrentSegment(
         };
 
 
+    /*
+        التشغيل المباشر بعد ضغط المستخدم.
+
+        مهم جدًا في Firefox:
+        play() هنا يحدث نتيجة ضغط المستخدم
+        فلا ننتظر metadata حتى نبدأ.
+    */
+
     if (
         userInitiated &&
         segmentIndex === 0 &&
-        currentAudioType ===
-            "normal"
+        currentAudioType === "normal"
     ) {
 
         let immediatePlayPromise;
@@ -4858,13 +2591,10 @@ function startCurrentSegment(
             );
 
 
-            state.session.playing =
-                false;
-
+            state.session.playing = false;
 
             playPauseButton.textContent =
                 "▶️";
-
 
             setMediaSessionNone();
 
@@ -4983,23 +2713,16 @@ function handleCurrentSegmentFinished(
 
 
     const duration =
-        Number(
-            finishedAudio.duration
-        );
+        Number(finishedAudio.duration);
 
 
     const bounds =
-        getSegmentBounds(
-            duration
-        );
+        getSegmentBounds(duration);
 
 
     if (!bounds) {
 
-        finishAyah(
-            token
-        );
-
+        finishAyah(token);
 
         return;
     }
@@ -5008,8 +2731,7 @@ function handleCurrentSegmentFinished(
     const segmentDuration =
         Math.max(
             0,
-            bounds.end -
-            bounds.start
+            bounds.end - bounds.start
         );
 
 
@@ -5065,23 +2787,16 @@ function waitAfterSegment(
 
 
     const multiplier =
-        Number(
-            state.session.wait
-        );
+        Number(state.session.wait);
 
 
     if (
-        !Number.isFinite(
-            multiplier
-        ) ||
+        !Number.isFinite(multiplier) ||
         multiplier <= 0 ||
         segmentDuration <= 0
     ) {
 
-        continueAfterWait(
-            token
-        );
-
+        continueAfterWait(token);
 
         return;
     }
@@ -5093,9 +2808,7 @@ function waitAfterSegment(
         1000;
 
 
-    state.session.playing =
-        true;
-
+    state.session.playing = true;
 
     playPauseButton.textContent =
         "⏸️";
@@ -5106,12 +2819,7 @@ function waitAfterSegment(
 
     if (waitTimer) {
 
-        clearTimeout(
-            waitTimer
-        );
-
-
-        waitTimer = null;
+        clearTimeout(waitTimer);
     }
 
 
@@ -5131,9 +2839,7 @@ function waitAfterSegment(
                 }
 
 
-                continueAfterWait(
-                    token
-                );
+                continueAfterWait(token);
 
             },
             waitTime
@@ -5145,9 +2851,7 @@ function waitAfterSegment(
    بعد الانتظار
 ========================================================= */
 
-function continueAfterWait(
-    token
-) {
+function continueAfterWait(token) {
 
     if (
         !state.session ||
@@ -5181,9 +2885,7 @@ function continueAfterWait(
     }
 
 
-    finishAyah(
-        token
-    );
+    finishAyah(token);
 }
 
 
@@ -5191,9 +2893,7 @@ function continueAfterWait(
    انتهاء الآية
 ========================================================= */
 
-function finishAyah(
-    token
-) {
+function finishAyah(token) {
 
     if (
         !state.session ||
@@ -5242,18 +2942,13 @@ function finishAyah(
         updateSessionInfo();
 
 
-        state.session.playing =
-            true;
-
+        state.session.playing = true;
 
         playPauseButton.textContent =
             "⏸️";
 
 
-        prepareNextAyahAndPlay(
-            token
-        );
-
+        prepareNextAyahAndPlay(token);
 
         return;
     }
@@ -5280,18 +2975,13 @@ function finishAyah(
         updateSessionInfo();
 
 
-        state.session.playing =
-            true;
-
+        state.session.playing = true;
 
         playPauseButton.textContent =
             "⏸️";
 
 
-        prepareNextAyahAndPlay(
-            token
-        );
-
+        prepareNextAyahAndPlay(token);
 
         return;
     }
@@ -5305,9 +2995,7 @@ function finishAyah(
    تجهيز الآية التالية
 ========================================================= */
 
-async function prepareNextAyahAndPlay(
-    token
-) {
+async function prepareNextAyahAndPlay(token) {
 
     if (
         !state.session ||
@@ -5318,9 +3006,7 @@ async function prepareNextAyahAndPlay(
     }
 
 
-    state.session.playing =
-        true;
-
+    state.session.playing = true;
 
     playPauseButton.textContent =
         "⏸️";
@@ -5361,8 +3047,7 @@ function finishMemorization() {
 
     if (state.session) {
 
-        state.session.playing =
-            false;
+        state.session.playing = false;
     }
 
 
@@ -5387,10 +3072,7 @@ function pausePlayback() {
 
     if (waitTimer) {
 
-        clearTimeout(
-            waitTimer
-        );
-
+        clearTimeout(waitTimer);
 
         waitTimer = null;
     }
@@ -5398,10 +3080,7 @@ function pausePlayback() {
 
     if (segmentTimer) {
 
-        clearTimeout(
-            segmentTimer
-        );
-
+        clearTimeout(segmentTimer);
 
         segmentTimer = null;
     }
@@ -5413,21 +3092,14 @@ function pausePlayback() {
     resetAudioElement();
 
 
-    segmentIndex =
-        0;
+    segmentIndex = 0;
 
+    currentAudioType = "normal";
 
-    currentAudioType =
-        "normal";
-
-
-    state.session.playing =
-        false;
-
+    state.session.playing = false;
 
     playPauseButton.textContent =
         "▶️";
-
 
     setMediaSessionNone();
 }
@@ -5445,18 +3117,14 @@ function stopPlayback() {
     clearPlaybackResources();
 
 
-    segmentIndex =
-        0;
+    segmentIndex = 0;
 
-
-    currentAudioType =
-        "normal";
+    currentAudioType = "normal";
 
 
     if (state.session) {
 
-        state.session.playing =
-            false;
+        state.session.playing = false;
     }
 
 
@@ -5530,9 +3198,7 @@ function saveSettings() {
 
     localStorage.setItem(
         "tahfeez-settings",
-        JSON.stringify(
-            settings
-        )
+        JSON.stringify(settings)
     );
 }
 
@@ -5557,9 +3223,7 @@ function restoreSettings() {
     try {
 
         const settings =
-            JSON.parse(
-                saved
-            );
+            JSON.parse(saved);
 
 
         if (settings.reciter) {
@@ -5592,12 +3256,8 @@ function restoreSettings() {
             state.selectedSurah =
                 state.surahs.find(
                     surah =>
-                        String(
-                            surah.number
-                        ) ===
-                        String(
-                            settings.surah
-                        )
+                        String(surah.number) ===
+                        String(settings.surah)
                 ) || null;
         }
 
@@ -5618,14 +3278,11 @@ function restoreSettings() {
                 fromAyah.min =
                     available.from;
 
-
                 fromAyah.max =
                     available.to;
 
-
                 toAyah.min =
                     available.from;
-
 
                 toAyah.max =
                     available.to;
@@ -5634,7 +3291,6 @@ function restoreSettings() {
                 fromAyah.value =
                     settings.fromAyah ||
                     available.from;
-
 
                 toAyah.value =
                     settings.toAyah ||
@@ -5699,13 +3355,11 @@ function restoreSettings() {
 
 
         if (
-            settings.teacherMode ===
-                true &&
+            settings.teacherMode === true &&
             state.selectedReciter?.teacherMode
         ) {
 
-            teacherMode.checked =
-                true;
+            teacherMode.checked = true;
         }
 
 
@@ -5728,13 +3382,9 @@ function restoreSettings() {
 
 function resetAyahInputs() {
 
-    fromAyah.value =
-        1;
+    fromAyah.value = 1;
 
-
-    toAyah.value =
-        1;
-
+    toAyah.value = 1;
 
     disableAyahInputs();
 }
@@ -5742,29 +3392,21 @@ function resetAyahInputs() {
 
 function disableAyahInputs() {
 
-    fromAyah.disabled =
-        true;
+    fromAyah.disabled = true;
 
-
-    toAyah.disabled =
-        true;
+    toAyah.disabled = true;
 }
 
 
 function enableAyahInputs() {
 
-    fromAyah.disabled =
-        false;
+    fromAyah.disabled = false;
 
-
-    toAyah.disabled =
-        false;
+    toAyah.disabled = false;
 }
 
 
-function showAvailability(
-    message
-) {
+function showAvailability(message) {
 
     availabilityMessage.textContent =
         message;
