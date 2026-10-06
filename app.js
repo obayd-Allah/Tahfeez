@@ -11,6 +11,74 @@ const state = {
 
 
 /* =========================================================
+   رقم النسخة المؤقت
+   غيّر هذا الرقم مع كل تحديث للكود على GitHub
+========================================================= */
+
+const CODE_VERSION = "CODE 07";
+
+
+/* =========================================================
+   مربع اختبار تحميل النسخة
+   سيُحذف لاحقًا
+========================================================= */
+
+(function createTemporaryVersionBox() {
+
+    const box =
+        document.createElement("div");
+
+    box.textContent =
+        CODE_VERSION;
+
+    box.id =
+        "temporaryCodeVersion";
+
+    box.style.position =
+        "fixed";
+
+    box.style.top =
+        "8px";
+
+    box.style.left =
+        "8px";
+
+    box.style.zIndex =
+        "999999";
+
+    box.style.padding =
+        "4px 8px";
+
+    box.style.borderRadius =
+        "8px";
+
+    box.style.background =
+        "#222";
+
+    box.style.color =
+        "#fff";
+
+    box.style.fontSize =
+        "11px";
+
+    box.style.fontFamily =
+        "Arial, sans-serif";
+
+    box.style.fontWeight =
+        "bold";
+
+    box.style.opacity =
+        "0.85";
+
+    box.style.pointerEvents =
+        "none";
+
+    document.body.appendChild(box);
+
+})();
+
+
+/* =========================================================
    نظام الصوت
 ========================================================= */
 
@@ -1307,6 +1375,115 @@ function updateSessionInfo() {
 
 
 /* =========================================================
+   الانتقال إلى آية أخرى
+   إذا كان التشغيل يعمل:
+   الآية الجديدة تبدأ تلقائيًا.
+
+   إذا كان متوقفًا:
+   ننتقل فقط دون تشغيل.
+
+   مهم:
+   نحتفظ بحالة زر التشغيل أثناء الانتقال،
+   فلا يظهر ▶️ للحظة إذا كان المستخدم يشغل الصوت.
+========================================================= */
+
+async function navigateToAyah(targetAyah) {
+
+    if (!state.session) {
+        return;
+    }
+
+
+    const wasPlaying =
+        state.session.playing;
+
+
+    stopPlayback();
+
+
+    state.session.currentAyah =
+        targetAyah;
+
+
+    state.session.currentAyahRepeat =
+        1;
+
+
+    renderCurrentAyah();
+
+    updateSessionInfo();
+
+
+    /*
+        stopPlayback() غيّر playbackToken.
+        نحتفظ بالرقم الحالي لحماية العملية
+        من ضغطات انتقال أخرى أثناء التحميل.
+    */
+
+    const navigationToken =
+        playbackToken;
+
+
+    /*
+        إذا كان الصوت يعمل قبل الانتقال،
+        نحافظ بصريًا على ⏸️ أثناء تحميل الآية.
+    */
+
+    if (wasPlaying) {
+
+        state.session.playing =
+            true;
+
+        playPauseButton.textContent =
+            "⏸️";
+    }
+
+
+    await loadPausePoints();
+
+
+    if (
+        !state.session ||
+        navigationToken !== playbackToken
+    ) {
+
+        return;
+    }
+
+
+    if (wasPlaying) {
+
+        /*
+            playCurrentAyah(false, true)
+
+            true = نحافظ على حالة زر ⏸️
+            أثناء بدء الآية الجديدة.
+        */
+
+        playCurrentAyah(
+            false,
+            true
+        );
+
+    } else {
+
+        /*
+            عند التوقف:
+            لا نشغل الصوت.
+        */
+
+        state.session.playing =
+            false;
+
+        playPauseButton.textContent =
+            "▶️";
+
+        setMediaSessionNone();
+    }
+}
+
+
+/* =========================================================
    السابق
 ========================================================= */
 
@@ -1324,21 +1501,9 @@ previousAyahButton.addEventListener(
             state.session.fromAyah
         ) {
 
-            stopPlayback();
-
-
-            state.session.currentAyah--;
-
-            state.session.currentAyahRepeat =
-                1;
-
-
-            loadPausePoints();
-
-
-            renderCurrentAyah();
-
-            updateSessionInfo();
+            navigateToAyah(
+                state.session.currentAyah - 1
+            );
         }
     }
 );
@@ -1362,21 +1527,9 @@ nextAyahButton.addEventListener(
             state.session.toAyah
         ) {
 
-            stopPlayback();
-
-
-            state.session.currentAyah++;
-
-            state.session.currentAyahRepeat =
-                1;
-
-
-            loadPausePoints();
-
-
-            renderCurrentAyah();
-
-            updateSessionInfo();
+            navigateToAyah(
+                state.session.currentAyah + 1
+            );
         }
     }
 );
@@ -1681,8 +1834,19 @@ function clearPlaybackResources() {
    تشغيل الآية
 ========================================================= */
 
+/*
+    userInitiated:
+        المستخدم ضغط زر التشغيل.
+
+    preservePlayingVisual:
+        الانتقال التلقائي إلى آية جديدة أثناء التشغيل.
+
+        في هذه الحالة لا نعرض ▶️ للحظة،
+        بل نحافظ على ⏸️.
+*/
 function playCurrentAyah(
-    userInitiated = false
+    userInitiated = false,
+    preservePlayingVisual = false
 ) {
 
     if (!state.session) {
@@ -1699,12 +1863,30 @@ function playCurrentAyah(
     clearPlaybackResources();
 
 
-    state.session.playing =
-        false;
+    /*
+        إذا كانت هذه بداية تشغيل حقيقية من المستخدم،
+        نبدأ من حالة التوقف.
 
+        أما إذا كنا ننتقل تلقائيًا إلى آية جديدة،
+        فنحافظ على حالة التشغيل بصريًا.
+    */
 
-    playPauseButton.textContent =
-        "▶️";
+    if (preservePlayingVisual) {
+
+        state.session.playing =
+            true;
+
+        playPauseButton.textContent =
+            "⏸️";
+
+    } else {
+
+        state.session.playing =
+            false;
+
+        playPauseButton.textContent =
+            "▶️";
+    }
 
 
     segmentIndex =
@@ -3180,6 +3362,12 @@ function waitAfterSegment(
         true;
 
 
+    /*
+        مهم:
+        لا نغيّر الزر إلى ▶️ هنا.
+        أثناء الانتظار ما زلنا في وضع التشغيل.
+    */
+
     playPauseButton.textContent =
         "⏸️";
 
@@ -3294,7 +3482,15 @@ function finishAyah(token) {
         updateSessionInfo();
 
 
-        playCurrentAyah(false);
+        /*
+            ما زلنا في حالة تشغيل،
+            لذلك playCurrentAyah يحافظ على ⏸️.
+        */
+
+        playCurrentAyah(
+            false,
+            true
+        );
 
 
         return;
@@ -3320,6 +3516,18 @@ function finishAyah(token) {
         renderCurrentAyah();
 
         updateSessionInfo();
+
+
+        /*
+            لا نغير زر التشغيل إلى ▶️.
+            الجلسة ما زالت تعمل.
+        */
+
+        state.session.playing =
+            true;
+
+        playPauseButton.textContent =
+            "⏸️";
 
 
         prepareNextAyahAndPlay(
@@ -3358,6 +3566,17 @@ function finishAyah(token) {
         updateSessionInfo();
 
 
+        /*
+            ما زال التشغيل مستمرًا.
+        */
+
+        state.session.playing =
+            true;
+
+        playPauseButton.textContent =
+            "⏸️";
+
+
         prepareNextAyahAndPlay(
             token
         );
@@ -3386,6 +3605,18 @@ async function prepareNextAyahAndPlay(token) {
     }
 
 
+    /*
+        نحافظ على شكل الزر أثناء تحميل
+        نقاط الوقف للآية الجديدة.
+    */
+
+    state.session.playing =
+        true;
+
+    playPauseButton.textContent =
+        "⏸️";
+
+
     await loadPausePoints();
 
 
@@ -3398,7 +3629,10 @@ async function prepareNextAyahAndPlay(token) {
     }
 
 
-    playCurrentAyah(false);
+    playCurrentAyah(
+        false,
+        true
+    );
 }
 
 
