@@ -14,7 +14,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 11";
+const CODE_VERSION = "CODE 12";
 
 
 /* =========================================================
@@ -71,6 +71,327 @@ const isFirefox =
 
 
 /* =========================================================
+   Web Audio - Firefox فقط
+========================================================= */
+
+let firefoxAudioContext = null;
+
+let firefoxGainNode = null;
+
+let firefoxSource = null;
+
+let firefoxSourceId = 0;
+
+const firefoxBufferCache = new Map();
+
+
+/* =========================================================
+   إنشاء AudioContext لـ Firefox
+========================================================= */
+
+function getFirefoxAudioContext() {
+
+    if (!isFirefox) {
+        return null;
+    }
+
+
+    if (firefoxAudioContext) {
+        return firefoxAudioContext;
+    }
+
+
+    try {
+
+        const AudioContextClass =
+            window.AudioContext ||
+            window.webkitAudioContext;
+
+
+        if (!AudioContextClass) {
+            throw new Error(
+                "Web Audio API غير متوفر في Firefox."
+            );
+        }
+
+
+        firefoxAudioContext =
+            new AudioContextClass();
+
+
+        firefoxGainNode =
+            firefoxAudioContext.createGain();
+
+
+        firefoxGainNode.gain.value =
+            1;
+
+
+        firefoxGainNode.connect(
+            firefoxAudioContext.destination
+        );
+
+
+        return firefoxAudioContext;
+
+    } catch (error) {
+
+        console.error(
+            "تعذر إنشاء Web Audio في Firefox:",
+            error
+        );
+
+
+        firefoxAudioContext =
+            null;
+
+        firefoxGainNode =
+            null;
+
+
+        return null;
+    }
+}
+
+
+/* =========================================================
+   تشغيل / استئناف AudioContext
+========================================================= */
+
+async function resumeFirefoxAudioContext() {
+
+    if (!isFirefox) {
+        return true;
+    }
+
+
+    const context =
+        getFirefoxAudioContext();
+
+
+    if (!context) {
+        return false;
+    }
+
+
+    try {
+
+        if (context.state !== "running") {
+
+            await context.resume();
+        }
+
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            "تعذر تشغيل AudioContext في Firefox:",
+            error
+        );
+
+
+        return false;
+    }
+}
+
+
+/* =========================================================
+   إيقاف مصدر Firefox الحالي
+========================================================= */
+
+function stopFirefoxSource() {
+
+    firefoxSourceId++;
+
+
+    const source =
+        firefoxSource;
+
+
+    firefoxSource =
+        null;
+
+
+    if (!source) {
+        return;
+    }
+
+
+    try {
+        source.onended = null;
+    } catch (error) {}
+
+
+    try {
+        source.stop();
+    } catch (error) {}
+
+
+    try {
+        source.disconnect();
+    } catch (error) {}
+}
+
+
+/* =========================================================
+   حساب detune اللازم للحفاظ على النبرة
+========================================================= */
+
+function getFirefoxPitchCompensation(speed) {
+
+    const safeSpeed =
+        Math.min(
+            1.25,
+            Math.max(
+                0.75,
+                Number(speed) || 1
+            )
+        );
+
+
+    if (safeSpeed === 1) {
+        return 0;
+    }
+
+
+    /*
+        playbackRate يغيّر السرعة والنبرة معًا.
+
+        نستخدم detune معاكسًا حتى يكون
+        المعدل النهائي للنبرة قريبًا من 1×.
+
+        finalRate =
+            playbackRate *
+            2^(detune / 1200)
+
+        لذلك:
+
+        detune =
+            -1200 * log2(playbackRate)
+    */
+
+    return (
+        -1200 *
+        Math.log2(safeSpeed)
+    );
+}
+
+
+/* =========================================================
+   تحميل وفك ضغط ملف صوت Firefox
+========================================================= */
+
+async function getFirefoxAudioBuffer(url) {
+
+    if (
+        firefoxBufferCache.has(url)
+    ) {
+
+        return firefoxBufferCache.get(url);
+    }
+
+
+    const context =
+        getFirefoxAudioContext();
+
+
+    if (!context) {
+        throw new Error(
+            "Web Audio API غير متوفر."
+        );
+    }
+
+
+    const response =
+        await fetch(url);
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            `تعذر تحميل ملف الصوت: ${response.status}`
+        );
+    }
+
+
+    const arrayBuffer =
+        await response.arrayBuffer();
+
+
+    const audioBuffer =
+        await context.decodeAudioData(
+            arrayBuffer
+        );
+
+
+    firefoxBufferCache.set(
+        url,
+        audioBuffer
+    );
+
+
+    return audioBuffer;
+}
+
+
+/* =========================================================
+   تغيير سرعة مصدر Firefox الحالي
+========================================================= */
+
+function configureFirefoxSourceSpeed(
+    source,
+    speed
+) {
+
+    if (!source) {
+        return;
+    }
+
+
+    const safeSpeed =
+        Math.min(
+            1.25,
+            Math.max(
+                0.75,
+                Number(speed) || 1
+            )
+        );
+
+
+    try {
+
+        source.playbackRate.value =
+            safeSpeed;
+
+    } catch (error) {
+
+        console.warn(
+            "تعذر تغيير سرعة Firefox Web Audio:",
+            error
+        );
+    }
+
+
+    try {
+
+        source.detune.value =
+            getFirefoxPitchCompensation(
+                safeSpeed
+            );
+
+    } catch (error) {
+
+        console.warn(
+            "تعذر تعويض نبرة Firefox:",
+            error
+        );
+    }
+}
+
+
+/* =========================================================
    تشغيل الصوت حسب المتصفح
 ========================================================= */
 
@@ -82,79 +403,29 @@ function playAudioForCurrentBrowser(media) {
 
 
     /*
-        باقي المتصفحات:
-        لا تغيير عليها إطلاقًا.
+        Firefox Web Audio يتم تشغيله
+        من startCurrentSegment.
+
+        هذه الدالة تبقى لمسار HTMLAudio
+        في الحالات الأخرى.
     */
 
-    if (!isFirefox) {
+    if (isFirefox) {
 
-        try {
-            return media.play();
-        } catch (error) {
-            throw error;
-        }
+        return null;
     }
 
 
     /*
-        Firefox فقط
+        باقي المتصفحات:
+        لا تغيير عليها إطلاقًا.
     */
 
     try {
-        media.muted = true;
-    } catch (error) {}
-
-
-    let playPromise;
-
-
-    try {
-
-        playPromise =
-            media.play();
-
+        return media.play();
     } catch (error) {
-
-        try {
-            media.muted = false;
-        } catch (muteError) {}
-
         throw error;
     }
-
-
-    if (
-        playPromise &&
-        typeof playPromise.then === "function"
-    ) {
-
-        playPromise.then(
-            () => {
-
-                if (media === audio) {
-
-                    try {
-                        media.muted = false;
-                    } catch (error) {}
-                }
-            }
-        ).catch(
-            error => {
-
-                try {
-                    media.muted = false;
-                } catch (muteError) {}
-
-                console.error(
-                    "Firefox play error:",
-                    error
-                );
-            }
-        );
-    }
-
-
-    return playPromise;
 }
 
 
@@ -986,10 +1257,27 @@ speedRange.addEventListener(
                 );
 
 
-            configureAudioSpeed(
-                audio,
-                state.session.speed
-            );
+            /*
+                Firefox:
+                لا نستخدم HTMLAudio playbackRate.
+
+                نغيّر مصدر Web Audio الحالي مباشرة.
+            */
+
+            if (isFirefox) {
+
+                configureFirefoxSourceSpeed(
+                    firefoxSource,
+                    state.session.speed
+                );
+
+            } else {
+
+                configureAudioSpeed(
+                    audio,
+                    state.session.speed
+                );
+            }
         }
 
 
@@ -1656,6 +1944,29 @@ function resetAudioElement() {
     audioSegmentId++;
 
 
+    if (isFirefox) {
+
+        stopFirefoxSource();
+
+        try {
+
+            if (
+                firefoxAudioContext &&
+                firefoxAudioContext.state ===
+                "running"
+            ) {
+
+                /*
+                    لا نغلق AudioContext هنا.
+                    نحتفظ به حتى يمكن إعادة التشغيل
+                    بسرعة ودون إنشاء Context جديد.
+                */
+            }
+
+        } catch (error) {}
+    }
+
+
     beginInternalAudioAction();
 
 
@@ -1665,14 +1976,6 @@ function resetAudioElement() {
     try {
         audio.pause();
     } catch (error) {}
-
-
-    if (isFirefox) {
-
-        try {
-            audio.muted = false;
-        } catch (error) {}
-    }
 
 
     try {
@@ -1850,8 +2153,8 @@ function sanitizePausePoints(duration) {
 
 
 /* =========================================================
-   CODE 11
-   إعداد السرعة
+   إعداد السرعة - HTMLAudio
+   باقي المتصفحات فقط
 ========================================================= */
 
 function configureAudioSpeed(
@@ -1870,71 +2173,18 @@ function configureAudioSpeed(
 
 
     /*
-        =====================================================
-        FIREFOX فقط
-        =====================================================
-
-        في CODE 10 كان تعطيل preservesPitch
-        يقلل التقطيع، لكنه يغيّر نبرة الصوت.
-
-        CODE 11:
-        نعيد الحفاظ على طبقة الصوت.
-
-        ولا نستخدم defaultPlaybackRate
-        في Firefox.
-
-        السرعة نفسها تُضبط عبر playbackRate.
+        Firefox لا يدخل هنا في CODE 12.
     */
 
+
     if (isFirefox) {
-
-        try {
-
-            media.preservesPitch =
-                true;
-
-        } catch (error) {}
-
-
-        try {
-
-            media.mozPreservesPitch =
-                true;
-
-        } catch (error) {}
-
-
-        try {
-
-            media.webkitPreservesPitch =
-                true;
-
-        } catch (error) {}
-
-
-        try {
-
-            media.playbackRate =
-                safeSpeed;
-
-        } catch (error) {
-
-            console.warn(
-                "تعذر ضبط سرعة التشغيل في Firefox:",
-                error
-            );
-        }
-
-
         return safeSpeed;
     }
 
 
     /*
-        =====================================================
-        باقي المتصفحات
-        بدون أي تغيير عن CODE 08
-    =====================================================
+        باقي المتصفحات:
+        نفس الكود السابق.
     */
 
     try {
@@ -2112,10 +2362,10 @@ function handleExternalAudioStop() {
 
 
 /* =========================================================
-   تشغيل الجزء الحالي
+   تشغيل الجزء الحالي - Firefox Web Audio
 ========================================================= */
 
-function startCurrentSegment(
+async function startFirefoxWebAudioSegment(
     token,
     userInitiated = false
 ) {
@@ -2145,24 +2395,491 @@ function startCurrentSegment(
         `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
 
 
+    const thisSourceId =
+        ++firefoxSourceId;
+
+
+    try {
+
+        const context =
+            getFirefoxAudioContext();
+
+
+        if (!context) {
+
+            throw new Error(
+                "Web Audio API غير متوفر في Firefox."
+            );
+        }
+
+
+        /*
+            عند الضغط على زر التشغيل يكون
+            الـ AudioContext مسموحًا له بالعمل.
+        */
+
+        const resumed =
+            await resumeFirefoxAudioContext();
+
+
+        if (!resumed) {
+
+            throw new Error(
+                "تعذر تشغيل AudioContext."
+            );
+        }
+
+
+        if (
+            !state.session ||
+            token !== playbackToken ||
+            thisSourceId !== firefoxSourceId
+        ) {
+
+            return;
+        }
+
+
+        const buffer =
+            await getFirefoxAudioBuffer(
+                url
+            );
+
+
+        if (
+            !state.session ||
+            token !== playbackToken ||
+            thisSourceId !== firefoxSourceId
+        ) {
+
+            return;
+        }
+
+
+        const duration =
+            Number(buffer.duration);
+
+
+        if (
+            !Number.isFinite(duration) ||
+            duration <= 0
+        ) {
+
+            throw new Error(
+                "مدة ملف الصوت غير صالحة."
+            );
+        }
+
+
+        sanitizePausePoints(
+            duration
+        );
+
+
+        const bounds =
+            getSegmentBounds(
+                duration
+            );
+
+
+        if (!bounds) {
+
+            handleCurrentFirefoxSegmentFinished(
+                token,
+                null,
+                0
+            );
+
+            return;
+        }
+
+
+        const start =
+            bounds.start;
+
+
+        const end =
+            bounds.end;
+
+
+        if (
+            !Number.isFinite(start) ||
+            !Number.isFinite(end) ||
+            end <= start
+        ) {
+
+            handleCurrentFirefoxSegmentFinished(
+                token,
+                null,
+                0
+            );
+
+            return;
+        }
+
+
+        /*
+            مصدر جديد لكل جزء.
+
+            هذا مهم لأن AudioBufferSourceNode
+            لا يُعاد استخدامه بعد start().
+        */
+
+        const source =
+            context.createBufferSource();
+
+
+        source.buffer =
+            buffer;
+
+
+        source.connect(
+            firefoxGainNode
+        );
+
+
+        const actualSpeed =
+            Math.min(
+                1.25,
+                Math.max(
+                    0.75,
+                    Number(state.session.speed) || 1
+                )
+            );
+
+
+        /*
+            السرعة الحقيقية.
+        */
+
+        source.playbackRate.value =
+            actualSpeed;
+
+
+        /*
+            تعويض النبرة.
+
+            عند 1.25× مثلًا:
+            playbackRate = 1.25
+
+            وdetune سالب بالقيمة المقابلة،
+            فيبقى الصوت قريبًا من نبرته الأصلية.
+        */
+
+        source.detune.value =
+            getFirefoxPitchCompensation(
+                actualSpeed
+            );
+
+
+        firefoxSource =
+            source;
+
+
+        let finished =
+            false;
+
+
+        const finishOnce =
+            () => {
+
+                if (finished) {
+                    return;
+                }
+
+
+                finished =
+                    true;
+
+
+                if (segmentTimer) {
+
+                    clearTimeout(
+                        segmentTimer
+                    );
+
+                    segmentTimer = null;
+                }
+
+
+                if (
+                    !state.session ||
+                    token !== playbackToken ||
+                    thisSourceId !== firefoxSourceId
+                ) {
+
+                    return;
+                }
+
+
+                if (
+                    firefoxSource === source
+                ) {
+
+                    firefoxSource =
+                        null;
+                }
+
+
+                try {
+                    source.disconnect();
+                } catch (error) {}
+
+
+                handleCurrentFirefoxSegmentFinished(
+                    token,
+                    source,
+                    end - start
+                );
+            };
+
+
+        source.onended =
+            finishOnce;
+
+
+        /*
+            نبدأ من نقطة الوقف الحقيقية.
+        */
+
+        source.start(
+            0,
+            start,
+            end - start
+        );
+
+
+        /*
+            مدة الجزء الفعلية في الزمن الحقيقي.
+        */
+
+        const wallTime =
+            (
+                (end - start) /
+                actualSpeed
+            ) * 1000;
+
+
+        if (segmentTimer) {
+
+            clearTimeout(
+                segmentTimer
+            );
+        }
+
+
+        segmentTimer =
+            setTimeout(
+                finishOnce,
+                Math.max(
+                    50,
+                    wallTime + 150
+                )
+            );
+
+
+        state.session.playing =
+            true;
+
+
+        playPauseButton.textContent =
+            "⏸️";
+
+
+        if (
+            "mediaSession" in navigator
+        ) {
+
+            try {
+
+                navigator.mediaSession.playbackState =
+                    "playing";
+
+            } catch (error) {}
+        }
+
+
+    } catch (error) {
+
+        if (
+            !state.session ||
+            token !== playbackToken
+        ) {
+
+            return;
+        }
+
+
+        console.error(
+            "Firefox Web Audio error:",
+            error
+        );
+
+
+        if (
+            thisSourceId === firefoxSourceId
+        ) {
+
+            firefoxSource =
+                null;
+        }
+
+
+        state.session.playing =
+            false;
+
+
+        playPauseButton.textContent =
+            "▶️";
+
+
+        setMediaSessionNone();
+
+
+        showAvailability(
+            "تعذر تشغيل ملف الصوت في Firefox."
+        );
+    }
+}
+
+
+/* =========================================================
+   انتهاء جزء Firefox
+========================================================= */
+
+function handleCurrentFirefoxSegmentFinished(
+    token,
+    finishedSource,
+    segmentDuration
+) {
+
+    if (
+        !state.session ||
+        token !== playbackToken
+    ) {
+
+        return;
+    }
+
+
+    if (
+        finishedSource &&
+        firefoxSource === finishedSource
+    ) {
+
+        firefoxSource =
+            null;
+    }
+
+
+    /*
+        Teacher Mode:
+        normal → teacher
+    */
+
+    if (
+        state.session.teacherMode &&
+        currentAudioType === "normal"
+    ) {
+
+        currentAudioType =
+            "teacher";
+
+
+        startCurrentSegment(
+            token,
+            false
+        );
+
+
+        return;
+    }
+
+
+    currentAudioType =
+        "normal";
+
+
+    segmentIndex++;
+
+
+    waitAfterSegment(
+        segmentDuration,
+        token
+    );
+}
+
+
+/* =========================================================
+   تشغيل الجزء الحالي
+========================================================= */
+
+function startCurrentSegment(
+    token,
+    userInitiated = false
+) {
+
+    if (
+        !state.session ||
+        token !== playbackToken
+    ) {
+
+        return;
+    }
+
+
+    /*
+        =====================================================
+        FIREFOX فقط
+        =====================================================
+
+        Firefox في CODE 12 لا يستخدم
+        HTMLAudioElement.playbackRate.
+
+        يستخدم Web Audio + playbackRate + detune.
+    */
+
+    if (isFirefox) {
+
+        startFirefoxWebAudioSegment(
+            token,
+            userInitiated
+        );
+
+
+        return;
+    }
+
+
+    /*
+        =====================================================
+        باقي المتصفحات
+        =====================================================
+    */
+
+
+    const reciter =
+        state.session.reciter;
+
+
+    const surahNumber =
+        state.session.surah.number;
+
+
+    const ayahNumber =
+        state.session.currentAyah;
+
+
+    const url =
+        `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
+
+
     const thisSegmentId =
         ++audioSegmentId;
 
 
     const currentAudio =
         audio;
-
-
-    let firefoxWaitingForSeek =
-        false;
-
-
-    let firefoxPlayAfterSeek =
-        false;
-
-
-    let firefoxSpeedApplyScheduled =
-        false;
 
 
     beginInternalAudioAction();
@@ -2174,14 +2891,6 @@ function startCurrentSegment(
     try {
         currentAudio.pause();
     } catch (error) {}
-
-
-    if (isFirefox) {
-
-        try {
-            currentAudio.muted = false;
-        } catch (error) {}
-    }
 
 
     try {
@@ -2198,21 +2907,6 @@ function startCurrentSegment(
         url;
 
 
-    /*
-        =====================================================
-        السرعة
-        =====================================================
-
-        Firefox:
-        نبدأ دائمًا بسرعة 1×.
-
-        بعد onplaying فقط:
-        نضع السرعة المطلوبة.
-
-        باقي المتصفحات:
-        نفس النظام السابق.
-    */
-
     const actualSpeed =
         Math.min(
             1.25,
@@ -2223,47 +2917,10 @@ function startCurrentSegment(
         );
 
 
-    if (isFirefox) {
-
-        try {
-
-            currentAudio.preservesPitch =
-                true;
-
-        } catch (error) {}
-
-
-        try {
-
-            currentAudio.mozPreservesPitch =
-                true;
-
-        } catch (error) {}
-
-
-        try {
-
-            currentAudio.webkitPreservesPitch =
-                true;
-
-        } catch (error) {}
-
-
-        try {
-
-            currentAudio.playbackRate =
-                1;
-
-        } catch (error) {}
-
-
-    } else {
-
-        configureAudioSpeed(
-            currentAudio,
-            actualSpeed
-        );
-    }
+    configureAudioSpeed(
+        currentAudio,
+        actualSpeed
+    );
 
 
     endInternalAudioActionSoon();
@@ -2332,10 +2989,6 @@ function startCurrentSegment(
     }
 
 
-    /* =====================================================
-       onplay
-    ===================================================== */
-
     currentAudio.onplay =
         () => {
 
@@ -2366,109 +3019,12 @@ function startCurrentSegment(
         };
 
 
-    /* =====================================================
-       onplaying
-    ===================================================== */
-
     currentAudio.onplaying =
         () => {
 
             if (!isCurrentSegment()) {
                 return;
             }
-
-
-            /*
-                =================================================
-                FIREFOX فقط
-                =================================================
-
-                لا نغيّر السرعة مباشرة لحظة onplaying.
-
-                ننتظر دورة واحدة من event loop حتى يكون
-                Firefox قد بدأ تشغيل الصوت فعلًا، ثم نضع
-                السرعة المطلوبة.
-
-                مع الحفاظ على طبقة الصوت.
-            */
-
-            if (
-                isFirefox &&
-                !firefoxSpeedApplyScheduled
-            ) {
-
-                firefoxSpeedApplyScheduled =
-                    true;
-
-
-                const applyFirefoxSpeed =
-                    () => {
-
-                        if (
-                            !isCurrentSegment()
-                        ) {
-
-                            return;
-                        }
-
-
-                        try {
-
-                            currentAudio.preservesPitch =
-                                true;
-
-                        } catch (error) {}
-
-
-                        try {
-
-                            currentAudio.mozPreservesPitch =
-                                true;
-
-                        } catch (error) {}
-
-
-                        try {
-
-                            currentAudio.webkitPreservesPitch =
-                                true;
-
-                        } catch (error) {}
-
-
-                        configureAudioSpeed(
-                            currentAudio,
-                            state.session.speed
-                        );
-                    };
-
-
-                if (
-                    typeof requestAnimationFrame ===
-                    "function"
-                ) {
-
-                    requestAnimationFrame(
-                        applyFirefoxSpeed
-                    );
-
-                } else {
-
-                    setTimeout(
-                        applyFirefoxSpeed,
-                        0
-                    );
-                }
-            }
-
-
-            try {
-
-                if (isFirefox) {
-                    currentAudio.muted = false;
-                }
-
-            } catch (error) {}
 
 
             state.session.playing =
@@ -2492,10 +3048,6 @@ function startCurrentSegment(
             }
         };
 
-
-    /* =====================================================
-       loadedmetadata
-    ===================================================== */
 
     currentAudio.onloadedmetadata =
         () => {
@@ -2561,10 +3113,6 @@ function startCurrentSegment(
             }
 
 
-            /* =================================================
-               SEEK
-            ================================================= */
-
             if (
                 Math.abs(
                     currentAudio.currentTime -
@@ -2592,154 +3140,22 @@ function startCurrentSegment(
                 }
 
 
-                if (isFirefox) {
+                setTimeout(
+                    () => {
 
-                    firefoxWaitingForSeek =
-                        true;
+                        internalSeekAction =
+                            false;
 
-                    firefoxPlayAfterSeek =
-                        true;
-
-
-                    currentAudio.onseeked =
-                        () => {
-
-                            if (
-                                !isCurrentSegment()
-                            ) {
-
-                                return;
-                            }
-
-
-                            if (
-                                !firefoxWaitingForSeek
-                            ) {
-
-                                return;
-                            }
-
-
-                            firefoxWaitingForSeek =
-                                false;
-
-
-                            internalSeekAction =
-                                false;
-
-
-                            if (
-                                !firefoxPlayAfterSeek
-                            ) {
-
-                                return;
-                            }
-
-
-                            firefoxPlayAfterSeek =
-                                false;
-
-
-                            if (
-                                currentAudio.paused
-                            ) {
-
-                                try {
-
-                                    const promise =
-                                        playAudioForCurrentBrowser(
-                                            currentAudio
-                                        );
-
-
-                                    if (
-                                        promise &&
-                                        typeof promise.catch ===
-                                        "function"
-                                    ) {
-
-                                        promise.catch(
-                                            error => {
-
-                                                console.error(
-                                                    "Firefox: تعذر التشغيل بعد seek:",
-                                                    error
-                                                );
-
-
-                                                if (
-                                                    !isCurrentSegment()
-                                                ) {
-
-                                                    return;
-                                                }
-
-
-                                                state.session.playing =
-                                                    false;
-
-
-                                                playPauseButton.textContent =
-                                                    "▶️";
-
-
-                                                setMediaSessionNone();
-                                            }
-                                        );
-                                    }
-
-                                } catch (error) {
-
-                                    console.error(
-                                        "Firefox: تعذر التشغيل بعد seek:",
-                                        error
-                                    );
-
-
-                                    state.session.playing =
-                                        false;
-
-
-                                    playPauseButton.textContent =
-                                        "▶️";
-
-
-                                    setMediaSessionNone();
-                                }
-                            }
-                        };
-
-
-                } else {
-
-                    setTimeout(
-                        () => {
-
-                            internalSeekAction =
-                                false;
-
-                        },
-                        0
-                    );
-                }
-            }
-
-
-            /*
-                Firefox:
-                لا نضع السرعة هنا.
-
-                باقي المتصفحات:
-                نفس الكود القديم.
-            */
-
-            if (!isFirefox) {
-
-                configureAudioSpeed(
-                    currentAudio,
-                    actualSpeed
+                    },
+                    0
                 );
             }
+
+
+            configureAudioSpeed(
+                currentAudio,
+                actualSpeed
+            );
 
 
             const segmentDuration =
@@ -2772,15 +3188,6 @@ function startCurrentSegment(
 
 
             if (
-                isFirefox &&
-                firefoxWaitingForSeek
-            ) {
-
-                return;
-            }
-
-
-            if (
                 userInitiated &&
                 segmentIndex === 0 &&
                 currentAudioType === "normal"
@@ -2801,9 +3208,7 @@ function startCurrentSegment(
             try {
 
                 playPromise =
-                    playAudioForCurrentBrowser(
-                        currentAudio
-                    );
+                    currentAudio.play();
 
             } catch (error) {
 
@@ -2853,14 +3258,6 @@ function startCurrentSegment(
                         }
 
 
-                        if (isFirefox) {
-
-                            try {
-                                currentAudio.muted = false;
-                            } catch (muteError) {}
-                        }
-
-
                         state.session.playing =
                             false;
 
@@ -2887,10 +3284,6 @@ function startCurrentSegment(
             }
         };
 
-
-    /* =====================================================
-       ontimeupdate
-    ===================================================== */
 
     currentAudio.ontimeupdate =
         () => {
@@ -2940,10 +3333,6 @@ function startCurrentSegment(
         };
 
 
-    /* =====================================================
-       seeking
-    ===================================================== */
-
     currentAudio.onseeking =
         () => {
 
@@ -2966,10 +3355,6 @@ function startCurrentSegment(
         };
 
 
-    /* =====================================================
-       ended
-    ===================================================== */
-
     currentAudio.onended =
         () => {
 
@@ -2985,10 +3370,6 @@ function startCurrentSegment(
             finishOnce();
         };
 
-
-    /* =====================================================
-       pause
-    ===================================================== */
 
     currentAudio.onpause =
         () => {
@@ -3010,14 +3391,6 @@ function startCurrentSegment(
         };
 
 
-    currentAudio.onemptied =
-        null;
-
-
-    /* =====================================================
-       error
-    ===================================================== */
-
     currentAudio.onerror =
         () => {
 
@@ -3033,14 +3406,6 @@ function startCurrentSegment(
                 );
 
                 segmentTimer = null;
-            }
-
-
-            if (isFirefox) {
-
-                try {
-                    currentAudio.muted = false;
-                } catch (error) {}
             }
 
 
@@ -3067,10 +3432,6 @@ function startCurrentSegment(
         };
 
 
-    /* =====================================================
-       التشغيل المباشر
-    ===================================================== */
-
     if (
         userInitiated &&
         segmentIndex === 0 &&
@@ -3083,9 +3444,7 @@ function startCurrentSegment(
         try {
 
             immediatePlayPromise =
-                playAudioForCurrentBrowser(
-                    currentAudio
-                );
+                currentAudio.play();
 
         } catch (error) {
 
@@ -3093,19 +3452,6 @@ function startCurrentSegment(
                 "تعذر بدء الصوت:",
                 error
             );
-
-
-            if (!isCurrentSegment()) {
-                return;
-            }
-
-
-            if (isFirefox) {
-
-                try {
-                    currentAudio.muted = false;
-                } catch (muteError) {}
-            }
 
 
             state.session.playing =
@@ -3143,14 +3489,6 @@ function startCurrentSegment(
                         }
 
 
-                        if (isFirefox) {
-
-                            try {
-                                currentAudio.muted = false;
-                            } catch (error) {}
-                        }
-
-
                         state.session.playing =
                             true;
 
@@ -3183,14 +3521,6 @@ function startCurrentSegment(
 
                         if (!isCurrentSegment()) {
                             return;
-                        }
-
-
-                        if (isFirefox) {
-
-                            try {
-                                currentAudio.muted = false;
-                            } catch (muteError) {}
                         }
 
 
