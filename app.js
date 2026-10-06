@@ -14,15 +14,6 @@ const state = {
    نظام الصوت
 ========================================================= */
 
-/*
-    نستخدم عنصر Audio واحد فقط طوال جلسة التحفيظ.
-
-    مهم:
-    لا ننشئ Audio جديدًا عند كل pause point.
-
-    Firefox وبعض المتصفحات الأخرى قد تعتبر Audio الجديد
-    تشغيلًا جديدًا يحتاج إلى تفاعل المستخدم.
-*/
 const audio = new Audio();
 
 audio.preload = "auto";
@@ -31,6 +22,125 @@ audio.controls = false;
 try {
     audio.disableRemotePlayback = true;
 } catch (error) {}
+
+
+/* =========================================================
+   FIREFOX FIX
+========================================================= */
+
+/*
+    نحدد Firefox فقط.
+
+    باقي المتصفحات لن تدخل هذا المسار إطلاقًا.
+*/
+const isFirefox =
+    /firefox/i.test(navigator.userAgent);
+
+
+/*
+    تشغيل خاص بـ Firefox.
+
+    Firefox قد يرفض play() إذا حدث بعد pause/انتظار
+    ولم يعد مرتبطًا مباشرة بضغطة المستخدم.
+
+    لذلك:
+    1. نجعل الصوت muted.
+    2. نستدعي play().
+    3. بعد نجاح التشغيل نعيد الصوت مسموعًا.
+
+    هذا المسار لا يستخدم في Chrome / Edge / غيرهما.
+*/
+function playAudioForCurrentBrowser(media) {
+
+    if (!media) {
+        return null;
+    }
+
+
+    if (!isFirefox) {
+
+        /*
+            المسار الأصلي لباقي المتصفحات.
+        */
+
+        try {
+            return media.play();
+        } catch (error) {
+            throw error;
+        }
+    }
+
+
+    /*
+        =====================================================
+        FIREFOX ONLY
+        =====================================================
+    */
+
+    try {
+
+        media.muted = true;
+
+    } catch (error) {}
+
+
+    let playPromise;
+
+    try {
+
+        playPromise =
+            media.play();
+
+    } catch (error) {
+
+        try {
+            media.muted = false;
+        } catch (muteError) {}
+
+        throw error;
+    }
+
+
+    /*
+        عند نجاح التشغيل:
+        نعيد الصوت مسموعًا.
+    */
+
+    if (
+        playPromise &&
+        typeof playPromise.then === "function"
+    ) {
+
+        playPromise.then(
+            () => {
+
+                /*
+                    لا نغير muted إذا كان هناك
+                    مقطع جديد أصبح هو الحالي.
+                */
+
+                if (media === audio) {
+
+                    try {
+                        media.muted = false;
+                    } catch (error) {}
+                }
+            }
+        ).catch(
+            error => {
+
+                try {
+                    media.muted = false;
+                } catch (muteError) {}
+
+                throw error;
+            }
+        );
+    }
+
+
+    return playPromise;
+}
 
 
 /*
@@ -53,9 +163,6 @@ let internalAudioAction = false;
 
 /*
     عداد لحماية العمليات الداخلية المتداخلة.
-
-    أفضل من الاعتماد على true/false فقط،
-    لأن تغيير src قد ينتج أكثر من حدث.
 */
 let internalAudioActionDepth = 0;
 
@@ -118,8 +225,6 @@ function endInternalAudioActionSoon() {
 
 /*
     إزالة جميع أحداث عنصر الصوت.
-
-    نستخدمها قبل تغيير src أو تنظيف العنصر.
 */
 function detachAudioEvents() {
 
@@ -245,9 +350,6 @@ function setMediaSessionNone() {
 }
 
 
-/*
-    أوامر شريط النظام.
-*/
 function setupMediaSessionHandlers() {
 
     if (!("mediaSession" in navigator)) {
@@ -298,13 +400,7 @@ function setupMediaSessionHandlers() {
                 }
             );
 
-        } catch (error) {
-
-            console.warn(
-                "زر stop غير مدعوم:",
-                error
-            );
-        }
+        } catch (error) {}
 
 
         try {
@@ -861,13 +957,6 @@ speedRange.addEventListener(
             `${speed.toFixed(2)}×`;
 
 
-        /*
-            إذا كان الصوت يعمل،
-            نغير السرعة مباشرة على نفس العنصر.
-
-            لا نعيد تحميل الملف.
-        */
-
         if (
             state.session &&
             state.session.playing &&
@@ -1353,15 +1442,6 @@ playPauseButton.addEventListener(
 
         } else {
 
-            /*
-                مهم:
-
-                لا يوجد await هنا.
-
-                حتى يصل أول play()
-                مباشرة من ضغطة المستخدم.
-            */
-
             playCurrentAyah(true);
         }
     }
@@ -1511,25 +1591,11 @@ async function loadPausePoints() {
 
 function resetAudioElement() {
 
-    /*
-        نزيد رقم المقطع حتى تصبح أي أحداث قديمة
-        غير صالحة.
-    */
-
     audioSegmentId++;
 
 
     beginInternalAudioAction();
 
-
-    /*
-        نفصل الأحداث أولًا.
-
-        هذا مهم جدًا.
-
-        لأن pause() و load() قد يطلقان أحداثًا
-        بعد استدعائهما.
-    */
 
     detachAudioEvents();
 
@@ -1539,6 +1605,21 @@ function resetAudioElement() {
         audio.pause();
 
     } catch (error) {}
+
+
+    /*
+        FIREFOX FIX
+
+        إذا كان الصوت مكتومًا بسبب محاولة play()
+        فنعيده للوضع الطبيعي عند إعادة ضبط العنصر.
+    */
+
+    if (isFirefox) {
+
+        try {
+            audio.muted = false;
+        } catch (error) {}
+    }
 
 
     try {
@@ -1791,10 +1872,6 @@ function pauseAudioInternally(media) {
     beginInternalAudioAction();
 
 
-    /*
-        نفصل حدث pause مؤقتًا قبل pause().
-    */
-
     const oldPauseHandler =
         media.onpause;
 
@@ -1809,13 +1886,6 @@ function pauseAudioInternally(media) {
     } catch (error) {}
 
 
-    /*
-        نعيد handler القديم بعد انتهاء الحدث الحالي.
-
-        لكن في حالة تغيير المقطع،
-        قد يكون handler القديم لم يعد صالحًا أصلًا.
-    */
-
     setTimeout(
         () => {
 
@@ -1826,10 +1896,8 @@ function pauseAudioInternally(media) {
             ) {
 
                 /*
-                    لا نعيد الحدث القديم هنا.
-
                     startCurrentSegment()
-                    سيضع handler الخاص بالمقطع الجديد.
+                    سيضع handler الجديد.
                 */
 
             } else {
@@ -1952,12 +2020,6 @@ function startCurrentSegment(
         `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
 
 
-    /*
-        رقم جديد لهذا الجزء.
-
-        أي event من جزء أقدم سيتم تجاهله.
-    */
-
     const thisSegmentId =
         ++audioSegmentId;
 
@@ -1966,18 +2028,12 @@ function startCurrentSegment(
         audio;
 
 
-    /*
-        =====================================================
-        تغيير المصدر بأمان
-        =====================================================
-    */
+    /* =====================================================
+       تغيير المصدر بأمان
+    ===================================================== */
 
     beginInternalAudioAction();
 
-
-    /*
-        نفصل الأحداث القديمة قبل pause/load.
-    */
 
     detachAudioEvents();
 
@@ -1987,6 +2043,20 @@ function startCurrentSegment(
         currentAudio.pause();
 
     } catch (error) {}
+
+
+    /*
+        FIREFOX FIX
+
+        نتأكد أن أي muted سابق لا يبقى مع المقطع الجديد.
+    */
+
+    if (isFirefox) {
+
+        try {
+            currentAudio.muted = false;
+        } catch (error) {}
+    }
 
 
     try {
@@ -2005,17 +2075,9 @@ function startCurrentSegment(
     } catch (error) {}
 
 
-    /*
-        نضع المصدر الجديد.
-    */
-
     currentAudio.src =
         url;
 
-
-    /*
-        نجهز السرعة قبل التشغيل.
-    */
 
     const actualSpeed =
         configureAudioSpeed(
@@ -2024,20 +2086,12 @@ function startCurrentSegment(
         );
 
 
-    /*
-        لا نترك الحماية للأبد.
-    */
-
     endInternalAudioActionSoon();
 
 
     let finished =
         false;
 
-
-    /* -----------------------------------------------------
-       هل هذا الجزء ما زال هو الجزء الحالي؟
-    ----------------------------------------------------- */
 
     function isCurrentSegment() {
 
@@ -2049,10 +2103,6 @@ function startCurrentSegment(
         );
     }
 
-
-    /* -----------------------------------------------------
-       إنهاء الجزء مرة واحدة
-    ----------------------------------------------------- */
 
     function finishOnce() {
 
@@ -2079,13 +2129,6 @@ function startCurrentSegment(
             return;
         }
 
-
-        /*
-            إيقاف داخلي فقط.
-
-            لا نريد أن يعتبر onpause
-            هذا إيقافًا من المستخدم.
-        */
 
         beginInternalAudioAction();
 
@@ -2156,6 +2199,21 @@ function startCurrentSegment(
             }
 
 
+            /*
+                FIREFOX FIX
+
+                إذا كان Firefox بدأ التشغيل مكتومًا،
+                نعيد الصوت مسموعًا بمجرد وصول playing.
+            */
+
+            if (isFirefox) {
+
+                try {
+                    currentAudio.muted = false;
+                } catch (error) {}
+            }
+
+
             state.session.playing =
                 true;
 
@@ -2207,11 +2265,6 @@ function startCurrentSegment(
             }
 
 
-            /*
-                تنظيف نقاط الوقف
-                حسب مدة الملف الحالي.
-            */
-
             sanitizePausePoints(
                 duration
             );
@@ -2250,12 +2303,6 @@ function startCurrentSegment(
                 return;
             }
 
-
-            /*
-                مقطع بعد pause point.
-
-                ننتقل داخليًا إلى بداية المقطع.
-            */
 
             if (
                 Math.abs(
@@ -2334,8 +2381,6 @@ function startCurrentSegment(
             /*
                 الجزء الأول بدأ بالفعل من play()
                 المباشر في ضغطة المستخدم.
-
-                لا نعيد play هنا.
             */
 
             if (
@@ -2363,8 +2408,22 @@ function startCurrentSegment(
 
             try {
 
+                /*
+                    =================================================
+                    FIREFOX FIX
+                    =================================================
+
+                    Firefox:
+                    muted -> play -> unmute عند playing
+
+                    باقي المتصفحات:
+                    play() العادي كما كان.
+                */
+
                 playPromise =
-                    currentAudio.play();
+                    playAudioForCurrentBrowser(
+                        currentAudio
+                    );
 
             } catch (error) {
 
@@ -2410,6 +2469,20 @@ function startCurrentSegment(
 
                         if (!isCurrentSegment()) {
                             return;
+                        }
+
+
+                        /*
+                            FIREFOX FIX
+
+                            تنظيف muted إذا فشل التشغيل.
+                        */
+
+                        if (isFirefox) {
+
+                            try {
+                                currentAudio.muted = false;
+                            } catch (muteError) {}
                         }
 
 
@@ -2545,11 +2618,6 @@ function startCurrentSegment(
     currentAudio.onpause =
         () => {
 
-            /*
-                إذا كان pause بسبب التطبيق،
-                نتجاهله.
-            */
-
             if (internalAudioAction) {
                 return;
             }
@@ -2560,26 +2628,12 @@ function startCurrentSegment(
             }
 
 
-            /*
-                إذا توقف الصوت فعليًا من خارج التطبيق،
-                نعالج ذلك هنا.
-            */
-
             if (state.session.playing) {
 
                 handleExternalAudioStop();
             }
         };
 
-
-    /*
-        مهم جدًا:
-
-        لا نضع onemptied الذي يوقف الجلسة.
-
-        emptied يحدث طبيعيًا عند تغيير src،
-        وبالتالي لا يمكن اعتباره إيقافًا خارجيًا.
-    */
 
     currentAudio.onemptied =
         null;
@@ -2604,6 +2658,18 @@ function startCurrentSegment(
                 );
 
                 segmentTimer = null;
+            }
+
+
+            /*
+                FIREFOX FIX
+            */
+
+            if (isFirefox) {
+
+                try {
+                    currentAudio.muted = false;
+                } catch (error) {}
             }
 
 
@@ -2640,20 +2706,25 @@ function startCurrentSegment(
         currentAudioType === "normal"
     ) {
 
-        /*
-            مهم جدًا:
-
-            play() يحدث مباشرة من click
-            بدون await قبله.
-        */
-
         let immediatePlayPromise;
 
 
         try {
 
+            /*
+                =================================================
+                FIREFOX FIX
+                =================================================
+
+                حتى أول تشغيل في Firefox يستخدم نفس
+                الدالة الخاصة، بينما باقي المتصفحات
+                تستخدم play() العادي.
+            */
+
             immediatePlayPromise =
-                currentAudio.play();
+                playAudioForCurrentBrowser(
+                    currentAudio
+                );
 
         } catch (error) {
 
@@ -2665,6 +2736,14 @@ function startCurrentSegment(
 
             if (!isCurrentSegment()) {
                 return;
+            }
+
+
+            if (isFirefox) {
+
+                try {
+                    currentAudio.muted = false;
+                } catch (muteError) {}
             }
 
 
@@ -2703,6 +2782,22 @@ function startCurrentSegment(
                         }
 
 
+                        /*
+                            FIREFOX FIX
+
+                            playing event يقوم أيضًا
+                            بإلغاء muted، لكن نضمن هنا
+                            أن الصوت أصبح مسموعًا.
+                        */
+
+                        if (isFirefox) {
+
+                            try {
+                                currentAudio.muted = false;
+                            } catch (error) {}
+                        }
+
+
                         state.session.playing =
                             true;
 
@@ -2735,6 +2830,14 @@ function startCurrentSegment(
 
                         if (!isCurrentSegment()) {
                             return;
+                        }
+
+
+                        if (isFirefox) {
+
+                            try {
+                                currentAudio.muted = false;
+                            } catch (muteError) {}
                         }
 
 
@@ -3033,10 +3136,6 @@ function finishAyah(token) {
     }
 
 
-    /*
-        انتهت تكرارات الآية.
-    */
-
     state.session.currentAyahRepeat =
         1;
 
@@ -3197,20 +3296,8 @@ function pausePlayback() {
     playbackToken++;
 
 
-    /*
-        إيقاف داخلي.
-
-        resetAudioElement يفصل الأحداث
-        قبل pause/load.
-    */
-
     resetAudioElement();
 
-
-    /*
-        عند الضغط على ▶️ مرة أخرى،
-        تبدأ الآية الحالية من البداية.
-    */
 
     segmentIndex =
         0;
