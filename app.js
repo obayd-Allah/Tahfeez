@@ -14,7 +14,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 14";
+const CODE_VERSION = "CODE 15";
 
 
 /* =========================================================
@@ -86,8 +86,7 @@ const firefoxBufferCache = new Map();
 
 
 /* =========================================================
-   Firefox AudioWorklet
-   يحاول تغيير السرعة مع الحفاظ على طبقة الصوت
+   AudioWorklet - Firefox فقط
 ========================================================= */
 
 let firefoxWorkletReady = false;
@@ -98,16 +97,36 @@ let firefoxStretchNode = null;
 
 
 /* =========================================================
-   كود AudioWorklet الخاص بـ Firefox
+   كود AudioWorklet
+=========================================================
+
+   الفكرة:
+
+   - لا نستخدم playbackRate في Firefox.
+   - الصوت الأصلي يدخل إلى خوارزمية
+     Time Stretch.
+   - سرعة القراءة من الصوت تتغير،
+     بينما حجم الحبيبات الصوتية ثابت.
+   - بذلك نحاول الحفاظ على طبقة صوت الشيخ.
+
+   تم أيضًا إضافة Normalize لعملية
+   Overlap-Add حتى لا ترتفع شدة الصوت
+   أو يحدث تشويه بسبب تراكب الحبيبات.
 ========================================================= */
 
 const FIREFOX_WORKLET_CODE = `
 
-class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
+class TahfeezTimeStretchProcessor
+    extends AudioWorkletProcessor {
 
     constructor() {
 
         super();
+
+
+        /* =================================================
+           البيانات الصوتية
+        ================================================= */
 
         this.buffer = null;
 
@@ -115,17 +134,48 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
 
         this.bufferLength = 0;
 
+
+        /* =================================================
+           حدود الجزء الحالي
+        ================================================= */
+
         this.startFrame = 0;
 
         this.endFrame = 0;
 
-        this.position = 0;
+
+        /* =================================================
+           السرعة
+        ================================================= */
 
         this.speed = 1;
+
+
+        /* =================================================
+           حالة التشغيل
+        ================================================= */
 
         this.active = false;
 
         this.finished = false;
+
+
+        /* =================================================
+           إعدادات الخوارزمية
+        =================================================
+
+           grainSize:
+           حجم الحبيبة.
+
+           hopOut:
+           المسافة بين بداية الحبيبات في المخرج.
+
+           grainHopIn:
+           المسافة الأساسية داخل المصدر.
+
+           speed تتحكم في سرعة تقدم
+           موضع القراءة من المصدر.
+        ================================================= */
 
         this.grainSize = 2048;
 
@@ -133,28 +183,55 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
 
         this.grainHopIn = 512;
 
+
+        /* =================================================
+           الحبيبات
+        ================================================= */
+
         this.grains = [];
 
         this.nextGrainPosition = 0;
 
         this.outputPosition = 0;
 
-        this.grainCounter = 0;
+        this.inputPosition = 0;
 
-        this.sampleRate = sampleRate;
+
+        /* =================================================
+           معامل إنهاء
+        ================================================= */
+
+        this.endTail =
+            this.grainSize;
+
+
+        /* =================================================
+           استقبال الرسائل
+        ================================================= */
 
         this.port.onmessage = event => {
 
-            const data = event.data || {};
+            const data =
+                event.data || {};
 
-            if (data.type === "buffer") {
 
-                this.buffer = data.channels || null;
+            /* ---------------------------------------------
+               إرسال البيانات الصوتية
+            --------------------------------------------- */
+
+            if (
+                data.type === "buffer"
+            ) {
+
+                this.buffer =
+                    data.channels || null;
+
 
                 this.channels =
-                    this.buffer ?
-                    this.buffer.length :
-                    1;
+                    this.buffer
+                        ? this.buffer.length
+                        : 1;
+
 
                 this.bufferLength =
                     this.buffer &&
@@ -162,81 +239,159 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
                         ? this.buffer[0].length
                         : 0;
 
+
                 return;
             }
 
 
-            if (data.type === "start") {
+            /* ---------------------------------------------
+               بدء جزء جديد
+            --------------------------------------------- */
+
+            if (
+                data.type === "start"
+            ) {
 
                 this.startFrame =
                     Math.max(
                         0,
-                        Number(data.startFrame) || 0
+                        Number(
+                            data.startFrame
+                        ) || 0
                     );
+
 
                 this.endFrame =
                     Math.min(
                         this.bufferLength,
-                        Number(data.endFrame) ||
+                        Number(
+                            data.endFrame
+                        ) ||
                         this.bufferLength
                     );
 
+
                 this.speed =
                     Math.min(
                         1.25,
                         Math.max(
                             0.75,
-                            Number(data.speed) || 1
+                            Number(
+                                data.speed
+                            ) || 1
                         )
                     );
 
-                this.position =
+
+                this.inputPosition =
                     this.startFrame;
 
-                this.outputPosition = 0;
 
-                this.nextGrainPosition = 0;
+                this.outputPosition =
+                    0;
 
-                this.grains = [];
 
-                this.grainCounter = 0;
+                this.nextGrainPosition =
+                    0;
 
-                this.active = true;
 
-                this.finished = false;
+                this.grains =
+                    [];
+
+
+                this.active =
+                    true;
+
+
+                this.finished =
+                    false;
+
 
                 return;
             }
 
 
-            if (data.type === "speed") {
+            /* ---------------------------------------------
+               تغيير السرعة أثناء التشغيل
+            --------------------------------------------- */
+
+            if (
+                data.type === "speed"
+            ) {
 
                 this.speed =
                     Math.min(
                         1.25,
                         Math.max(
                             0.75,
-                            Number(data.speed) || 1
+                            Number(
+                                data.speed
+                            ) || 1
                         )
                     );
+
 
                 return;
             }
 
 
-            if (data.type === "stop") {
+            /* ---------------------------------------------
+               إيقاف
+            --------------------------------------------- */
 
-                this.active = false;
+            if (
+                data.type === "stop"
+            ) {
 
-                this.finished = true;
+                this.active =
+                    false;
 
-                this.grains = [];
+
+                this.finished =
+                    true;
+
+
+                this.grains =
+                    [];
+
 
                 return;
             }
         };
     }
 
+
+    /* =====================================================
+       إنشاء Hann Window
+    ===================================================== */
+
+    getWindow(index, length) {
+
+        if (length <= 1) {
+            return 1;
+        }
+
+
+        const phase =
+            index /
+            (length - 1);
+
+
+        return (
+            0.5 -
+            0.5 *
+            Math.cos(
+                2 *
+                Math.PI *
+                phase
+            )
+        );
+    }
+
+
+    /* =====================================================
+       إنشاء حبيبة صوتية
+    ===================================================== */
 
     createGrain() {
 
@@ -245,13 +400,14 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
             !this.buffer[0] ||
             !this.bufferLength
         ) {
+
             return null;
         }
 
 
         const grainStart =
             Math.floor(
-                this.position
+                this.inputPosition
             );
 
 
@@ -259,15 +415,20 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
             grainStart >=
             this.endFrame
         ) {
+
             return null;
         }
+
+
+        const remaining =
+            this.endFrame -
+            grainStart;
 
 
         const length =
             Math.min(
                 this.grainSize,
-                this.endFrame -
-                grainStart
+                remaining
             );
 
 
@@ -281,12 +442,16 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
             start:
                 grainStart,
 
-            length,
+            length:
+
+                length,
 
             outputStart:
+
                 this.nextGrainPosition,
 
             data:
+
                 []
         };
 
@@ -326,7 +491,18 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
         }
 
 
-        this.position +=
+        /*
+            السرعة هنا تغير سرعة
+            تقدم القراءة من المصدر.
+
+            لكن حجم الحبيبة نفسه
+            لا يتغير.
+
+            لذلك نحاول إبقاء
+            طبقة الصوت ثابتة.
+        */
+
+        this.inputPosition +=
             this.grainHopIn *
             this.speed;
 
@@ -335,11 +511,13 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
             this.hopOut;
 
 
-        this.grainCounter++;
-
         return grain;
     }
 
+
+    /* =====================================================
+       المعالجة
+    ===================================================== */
 
     process(inputs, outputs) {
 
@@ -351,6 +529,7 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
             !output ||
             !output[0]
         ) {
+
             return true;
         }
 
@@ -358,6 +537,10 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
         const outputLength =
             output[0].length;
 
+
+        /*
+            تنظيف المخرج
+        */
 
         for (
             let channel = 0;
@@ -369,6 +552,10 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
         }
 
 
+        /*
+            إذا لم يكن هناك تشغيل
+        */
+
         if (
             !this.active ||
             !this.buffer ||
@@ -379,15 +566,19 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
         }
 
 
-        /*
-            إنشاء حبيبات كافية للمخرج الحالي.
-        */
+        /* =================================================
+           إنشاء حبيبات كافية
+        ================================================= */
+
+        const requiredEnd =
+            this.outputPosition +
+            outputLength +
+            this.grainSize;
+
 
         while (
             this.nextGrainPosition <
-            this.outputPosition +
-            outputLength +
-            this.grainSize
+            requiredEnd
         ) {
 
             const grain =
@@ -405,15 +596,27 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
         }
 
 
-        /*
-            تركيب الحبيبات باستخدام نافذة Hann.
-        */
+        /* =================================================
+           حساب الطاقة المتراكمة
+           لتجنب ارتفاع الصوت بسبب
+           Overlap-Add
+        ================================================= */
+
+        const normalization =
+            new Float32Array(
+                outputLength
+            );
+
+
+        /* =================================================
+           تركيب الحبيبات
+        ================================================= */
 
         for (
             const grain of this.grains
         ) {
 
-            const grainOutputStart =
+            const relativeStart =
                 grain.outputStart -
                 this.outputPosition;
 
@@ -425,33 +628,34 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
             ) {
 
                 const outIndex =
-                    grainOutputStart + i;
+                    relativeStart + i;
 
 
                 if (
                     outIndex < 0 ||
                     outIndex >= outputLength
                 ) {
+
                     continue;
                 }
 
 
-                const phase =
-                    grain.length <= 1
-                        ? 1
-                        :
-                        i /
-                        (grain.length - 1);
-
-
                 const window =
-                    0.5 -
-                    0.5 *
-                    Math.cos(
-                        2 *
-                        Math.PI *
-                        phase
+                    this.getWindow(
+                        i,
+                        grain.length
                     );
+
+
+                /*
+                    نجمع وزن النافذة
+                    لاستخدامه لاحقًا
+                    في التطبيع.
+                */
+
+                normalization[
+                    outIndex
+                ] += window;
 
 
                 for (
@@ -477,13 +681,47 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
         }
 
 
+        /* =================================================
+           Normalize
+        ================================================= */
+
+        for (
+            let i = 0;
+            i < outputLength;
+            i++
+        ) {
+
+            const weight =
+                normalization[i];
+
+
+            if (weight > 0.0001) {
+
+                const inverse =
+                    1 /
+                    weight;
+
+
+                for (
+                    let channel = 0;
+                    channel < output.length;
+                    channel++
+                ) {
+
+                    output[channel][i] *=
+                        inverse;
+                }
+            }
+        }
+
+
         this.outputPosition +=
             outputLength;
 
 
-        /*
-            حذف الحبيبات التي خرجت بالكامل.
-        */
+        /* =================================================
+           حذف الحبيبات القديمة
+        ================================================= */
 
         this.grains =
             this.grains.filter(
@@ -494,25 +732,28 @@ class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
             );
 
 
-        /*
-            عندما نصل لنهاية الجزء الصوتي،
-            نسمح للحبيبات الأخيرة بالخروج.
-        */
+        /* =================================================
+           الوصول لنهاية الجزء
+        ================================================= */
 
         if (
-            this.position >=
+            this.inputPosition >=
             this.endFrame &&
             this.grains.length === 0
         ) {
 
             if (!this.finished) {
 
-                this.finished = true;
+                this.finished =
+                    true;
 
-                this.active = false;
+                this.active =
+                    false;
+
 
                 this.port.postMessage({
-                    type: "ended"
+                    type:
+                        "ended"
                 });
             }
         }
@@ -660,6 +901,7 @@ function getFirefoxAudioContext() {
 
 
         if (!AudioContextClass) {
+
             throw new Error(
                 "Web Audio API غير متوفر في Firefox."
             );
@@ -727,7 +969,10 @@ async function resumeFirefoxAudioContext() {
 
     try {
 
-        if (context.state !== "running") {
+        if (
+            context.state !==
+            "running"
+        ) {
 
             await context.resume();
         }
@@ -765,6 +1010,10 @@ function stopFirefoxSource() {
         null;
 
 
+    firefoxStretchNode =
+        null;
+
+
     if (!source) {
         return;
     }
@@ -773,28 +1022,44 @@ function stopFirefoxSource() {
     try {
 
         source.port.postMessage({
-            type: "stop"
+            type:
+                "stop"
         });
 
     } catch (error) {}
 
 
     try {
-        source.onprocessorerror = null;
+
+        source.onprocessorerror =
+            null;
+
     } catch (error) {}
 
 
     try {
+
+        source.port.onmessage =
+            null;
+
+    } catch (error) {}
+
+
+    try {
+
         source.disconnect();
+
     } catch (error) {}
 }
 
 
 /* =========================================================
-   تحويل AudioBuffer إلى بيانات قابلة للإرسال
+   تحويل AudioBuffer إلى بيانات
 ========================================================= */
 
-function getFirefoxBufferChannels(buffer) {
+function getFirefoxBufferChannels(
+    buffer
+) {
 
     const channels = [];
 
@@ -830,16 +1095,20 @@ function getFirefoxBufferChannels(buffer) {
 
 
 /* =========================================================
-   تحميل وفك ضغط ملف صوت Firefox
+   تحميل وفك ضغط ملف الصوت
 ========================================================= */
 
-async function getFirefoxAudioBuffer(url) {
+async function getFirefoxAudioBuffer(
+    url
+) {
 
     if (
         firefoxBufferCache.has(url)
     ) {
 
-        return firefoxBufferCache.get(url);
+        return firefoxBufferCache.get(
+            url
+        );
     }
 
 
@@ -848,6 +1117,7 @@ async function getFirefoxAudioBuffer(url) {
 
 
     if (!context) {
+
         throw new Error(
             "Web Audio API غير متوفر."
         );
@@ -935,7 +1205,9 @@ function configureFirefoxSourceSpeed(
    تشغيل الصوت حسب المتصفح
 ========================================================= */
 
-function playAudioForCurrentBrowser(media) {
+function playAudioForCurrentBrowser(
+    media
+) {
 
     if (!media) {
         return null;
@@ -943,24 +1215,25 @@ function playAudioForCurrentBrowser(media) {
 
 
     /*
-        Firefox يستخدم AudioWorklet
-        من startCurrentSegment.
+        Firefox يستخدم AudioWorklet.
     */
 
     if (isFirefox) {
-
         return null;
     }
 
 
     /*
         باقي المتصفحات:
-        لا تغيير عليها إطلاقًا.
+        لا تغيير عليها.
     */
 
     try {
+
         return media.play();
+
     } catch (error) {
+
         throw error;
     }
 }
@@ -1017,6 +1290,7 @@ function endInternalAudioActionSoon() {
                     internalAudioActionDepth - 1
                 );
 
+
             internalAudioAction =
                 internalAudioActionDepth > 0;
 
@@ -1029,14 +1303,23 @@ function endInternalAudioActionSoon() {
 function detachAudioEvents() {
 
     audio.onplay = null;
+
     audio.onplaying = null;
+
     audio.onloadedmetadata = null;
+
     audio.ontimeupdate = null;
+
     audio.onended = null;
+
     audio.onerror = null;
+
     audio.onpause = null;
+
     audio.onemptied = null;
+
     audio.onseeking = null;
+
     audio.onseeked = null;
 }
 
@@ -1046,43 +1329,69 @@ function detachAudioEvents() {
 ========================================================= */
 
 const setupScreen =
-    document.getElementById("setupScreen");
+    document.getElementById(
+        "setupScreen"
+    );
 
 const memorizationScreen =
-    document.getElementById("memorizationScreen");
+    document.getElementById(
+        "memorizationScreen"
+    );
 
 const reciterSelect =
-    document.getElementById("reciterSelect");
+    document.getElementById(
+        "reciterSelect"
+    );
 
 const surahSelect =
-    document.getElementById("surahSelect");
+    document.getElementById(
+        "surahSelect"
+    );
 
 const fromAyah =
-    document.getElementById("fromAyah");
+    document.getElementById(
+        "fromAyah"
+    );
 
 const toAyah =
-    document.getElementById("toAyah");
+    document.getElementById(
+        "toAyah"
+    );
 
 const speedRange =
-    document.getElementById("speedRange");
+    document.getElementById(
+        "speedRange"
+    );
 
 const speedValue =
-    document.getElementById("speedValue");
+    document.getElementById(
+        "speedValue"
+    );
 
 const ayahRepeat =
-    document.getElementById("ayahRepeat");
+    document.getElementById(
+        "ayahRepeat"
+    );
 
 const blockRepeat =
-    document.getElementById("blockRepeat");
+    document.getElementById(
+        "blockRepeat"
+    );
 
 const waitSelect =
-    document.getElementById("waitSelect");
+    document.getElementById(
+        "waitSelect"
+    );
 
 const teacherModeField =
-    document.getElementById("teacherModeField");
+    document.getElementById(
+        "teacherModeField"
+    );
 
 const teacherMode =
-    document.getElementById("teacherMode");
+    document.getElementById(
+        "teacherMode"
+    );
 
 const teacherModeDescription =
     document.getElementById(
@@ -1095,7 +1404,9 @@ const availabilityMessage =
     );
 
 const startButton =
-    document.getElementById("startButton");
+    document.getElementById(
+        "startButton"
+    );
 
 const playerSettingsButton =
     document.getElementById(
@@ -1154,14 +1465,19 @@ const nextAyahButton =
 
 function setMediaSessionNone() {
 
-    if (!("mediaSession" in navigator)) {
+    if (
+        !("mediaSession" in navigator)
+    ) {
+
         return;
     }
+
 
     try {
 
         navigator.mediaSession.metadata =
             null;
+
 
         navigator.mediaSession.playbackState =
             "none";
@@ -1178,9 +1494,13 @@ function setMediaSessionNone() {
 
 function setupMediaSessionHandlers() {
 
-    if (!("mediaSession" in navigator)) {
+    if (
+        !("mediaSession" in navigator)
+    ) {
+
         return;
     }
+
 
     try {
 
@@ -1192,8 +1512,14 @@ function setupMediaSessionHandlers() {
                     return;
                 }
 
-                if (!state.session.playing) {
-                    playCurrentAyah(true);
+
+                if (
+                    !state.session.playing
+                ) {
+
+                    playCurrentAyah(
+                        true
+                    );
                 }
             }
         );
@@ -1207,7 +1533,11 @@ function setupMediaSessionHandlers() {
                     return;
                 }
 
-                if (state.session.playing) {
+
+                if (
+                    state.session.playing
+                ) {
+
                     pausePlayback();
                 }
             }
@@ -1312,7 +1642,9 @@ function handleExternalSeekAttempt() {
 
     if (waitTimer) {
 
-        clearTimeout(waitTimer);
+        clearTimeout(
+            waitTimer
+        );
 
         waitTimer = null;
     }
@@ -1320,7 +1652,9 @@ function handleExternalSeekAttempt() {
 
     if (segmentTimer) {
 
-        clearTimeout(segmentTimer);
+        clearTimeout(
+            segmentTimer
+        );
 
         segmentTimer = null;
     }
@@ -1333,11 +1667,18 @@ function handleExternalSeekAttempt() {
 
     currentAudioType = "normal";
 
-    state.session.currentAyahRepeat = 1;
 
-    state.session.playing = false;
+    state.session.currentAyahRepeat =
+        1;
 
-    playPauseButton.textContent = "▶️";
+
+    state.session.playing =
+        false;
+
+
+    playPauseButton.textContent =
+        "▶️";
+
 
     setMediaSessionNone();
 }
@@ -1385,27 +1726,31 @@ async function loadData() {
 
 
         state.quran =
-            quranData.map(surah => ({
+            quranData.map(
+                surah => ({
 
-                number:
-                    surah.id,
+                    number:
+                        surah.id,
 
-                name:
-                    surah.name,
+                    name:
+                        surah.name,
 
-                ayahCount:
-                    surah.total_verses,
+                    ayahCount:
+                        surah.total_verses,
 
-                ayahs:
-                    surah.verses.map(ayah => ({
+                    ayahs:
+                        surah.verses.map(
+                            ayah => ({
 
-                        number:
-                            ayah.id,
+                                number:
+                                    ayah.id,
 
-                        text:
-                            ayah.text
-                    }))
-            }));
+                                text:
+                                    ayah.text
+                            })
+                        )
+                })
+            );
 
 
         state.surahs =
@@ -1419,7 +1764,10 @@ async function loadData() {
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            error
+        );
+
 
         showAvailability(
             "تعذر تحميل بيانات التحفيظ حاليًا."
@@ -1441,18 +1789,28 @@ function populateReciters() {
     `;
 
 
-    for (const reciter of state.reciters) {
+    for (
+        const reciter of
+        state.reciters
+    ) {
 
         const option =
-            document.createElement("option");
+            document.createElement(
+                "option"
+            );
+
 
         option.value =
             reciter.id;
 
+
         option.textContent =
             reciter.name;
 
-        reciterSelect.appendChild(option);
+
+        reciterSelect.appendChild(
+            option
+        );
     }
 }
 
@@ -1480,19 +1838,26 @@ function populateSurahs() {
 
 
     const availableSurahs =
-        state.selectedReciter.surahs || {};
+        state.selectedReciter.surahs ||
+        {};
 
 
     for (
         const number of
-        Object.keys(availableSurahs)
+        Object.keys(
+            availableSurahs
+        )
     ) {
 
         const surah =
             state.surahs.find(
                 item =>
-                    String(item.number) ===
-                    String(number)
+                    String(
+                        item.number
+                    ) ===
+                    String(
+                        number
+                    )
             );
 
 
@@ -1502,7 +1867,9 @@ function populateSurahs() {
 
 
         const option =
-            document.createElement("option");
+            document.createElement(
+                "option"
+            );
 
 
         option.value =
@@ -1513,7 +1880,9 @@ function populateSurahs() {
             `${surah.number}. ${surah.name}`;
 
 
-        surahSelect.appendChild(option);
+        surahSelect.appendChild(
+            option
+        );
     }
 
 
@@ -1570,13 +1939,16 @@ surahSelect.addEventListener(
     () => {
 
         const number =
-            Number(surahSelect.value);
+            Number(
+                surahSelect.value
+            );
 
 
         state.selectedSurah =
             state.surahs.find(
                 surah =>
-                    surah.number === number
+                    surah.number ===
+                    number
             ) || null;
 
 
@@ -1612,8 +1984,10 @@ surahSelect.addEventListener(
 
             disableAyahInputs();
 
+
             startButton.disabled =
                 true;
+
 
             return;
         }
@@ -1655,7 +2029,9 @@ surahSelect.addEventListener(
    معرفة السورة المتوفرة
 ========================================================= */
 
-function getAvailableSurah(number) {
+function getAvailableSurah(
+    number
+) {
 
     if (!state.selectedReciter) {
         return null;
@@ -1702,10 +2078,15 @@ function validateAyahRange() {
 
 
     let from =
-        Number(fromAyah.value);
+        Number(
+            fromAyah.value
+        );
+
 
     let to =
-        Number(toAyah.value);
+        Number(
+            toAyah.value
+        );
 
 
     if (
@@ -1728,14 +2109,20 @@ function validateAyahRange() {
     }
 
 
-    if (from > available.to) {
+    if (
+        from >
+        available.to
+    ) {
 
         from =
             available.to;
     }
 
 
-    if (to > available.to) {
+    if (
+        to >
+        available.to
+    ) {
 
         to =
             available.to;
@@ -1771,7 +2158,9 @@ speedRange.addEventListener(
     () => {
 
         const speed =
-            Number(speedRange.value);
+            Number(
+                speedRange.value
+            );
 
 
         speedValue.textContent =
@@ -1920,10 +2309,15 @@ function validateSetup() {
 
 
     const from =
-        Number(fromAyah.value);
+        Number(
+            fromAyah.value
+        );
+
 
     const to =
-        Number(toAyah.value);
+        Number(
+            toAyah.value
+        );
 
 
     startButton.disabled = !(
@@ -1956,10 +2350,15 @@ async function startMemorization() {
 
 
     const from =
-        Number(fromAyah.value);
+        Number(
+            fromAyah.value
+        );
+
 
     const to =
-        Number(toAyah.value);
+        Number(
+            toAyah.value
+        );
 
 
     state.session = {
@@ -1980,10 +2379,14 @@ async function startMemorization() {
             from,
 
         ayahRepeat:
-            Number(ayahRepeat.value),
+            Number(
+                ayahRepeat.value
+            ),
 
         blockRepeat:
-            Number(blockRepeat.value),
+            Number(
+                blockRepeat.value
+            ),
 
         currentAyahRepeat:
             1,
@@ -1992,10 +2395,14 @@ async function startMemorization() {
             1,
 
         speed:
-            Number(speedRange.value),
+            Number(
+                speedRange.value
+            ),
 
         wait:
-            Number(waitSelect.value),
+            Number(
+                waitSelect.value
+            ),
 
         teacherMode:
             teacherMode.checked,
@@ -2004,10 +2411,6 @@ async function startMemorization() {
             false
     };
 
-
-    /*
-        تجهيز AudioWorklet عند Firefox فقط.
-    */
 
     if (isFirefox) {
 
@@ -2108,6 +2511,7 @@ function renderCurrentAyah() {
         currentAyahText.textContent =
             "سيظهر نص الآية هنا";
 
+
         return;
     }
 
@@ -2141,7 +2545,9 @@ function updateSessionInfo() {
    الانتقال إلى آية أخرى
 ========================================================= */
 
-async function navigateToAyah(targetAyah) {
+async function navigateToAyah(
+    targetAyah
+) {
 
     if (!state.session) {
         return;
@@ -2177,6 +2583,7 @@ async function navigateToAyah(targetAyah) {
         state.session.playing =
             true;
 
+
         playPauseButton.textContent =
             "⏸️";
     }
@@ -2187,7 +2594,8 @@ async function navigateToAyah(targetAyah) {
 
     if (
         !state.session ||
-        navigationToken !== playbackToken
+        navigationToken !==
+        playbackToken
     ) {
 
         return;
@@ -2206,8 +2614,10 @@ async function navigateToAyah(targetAyah) {
         state.session.playing =
             false;
 
+
         playPauseButton.textContent =
             "▶️";
+
 
         setMediaSessionNone();
     }
@@ -2328,13 +2738,17 @@ playPauseButton.addEventListener(
         }
 
 
-        if (state.session.playing) {
+        if (
+            state.session.playing
+        ) {
 
             pausePlayback();
 
         } else {
 
-            playCurrentAyah(true);
+            playCurrentAyah(
+                true
+            );
         }
     }
 );
@@ -2375,7 +2789,11 @@ async function loadPausePoints() {
         `${reciter.id}_${surahNumber}_${ayahNumber}`;
 
 
-    if (pausePointsCache.has(cacheKey)) {
+    if (
+        pausePointsCache.has(
+            cacheKey
+        )
+    ) {
 
         pausePoints =
             [
@@ -2383,6 +2801,7 @@ async function loadPausePoints() {
                     cacheKey
                 )
             ];
+
 
         return;
     }
@@ -2427,8 +2846,12 @@ async function loadPausePoints() {
         const ayahData =
             allPauseData.find(
                 item =>
-                    Number(item.ayah) ===
-                    Number(ayahNumber)
+                    Number(
+                        item.ayah
+                    ) ===
+                    Number(
+                        ayahNumber
+                    )
             );
 
 
@@ -2444,11 +2867,16 @@ async function loadPausePoints() {
                     .map(Number)
                     .filter(
                         value =>
-                            Number.isFinite(value) &&
+                            Number.isFinite(
+                                value
+                            ) &&
                             value > 0
                     )
                     .sort(
-                        (a, b) =>
+                        (
+                            a,
+                            b
+                        ) =>
                             a - b
                     );
 
@@ -2460,7 +2888,9 @@ async function loadPausePoints() {
 
 
             pausePoints =
-                [...points];
+                [
+                    ...points
+                ];
         }
 
     } catch (error) {
@@ -2469,6 +2899,7 @@ async function loadPausePoints() {
             "تعذر تحميل pauses.json",
             error
         );
+
 
         pausePoints = [];
     }
@@ -2487,7 +2918,6 @@ function resetAudioElement() {
     if (isFirefox) {
 
         stopFirefoxSource();
-
     }
 
 
@@ -2498,17 +2928,25 @@ function resetAudioElement() {
 
 
     try {
+
         audio.pause();
+
     } catch (error) {}
 
 
     try {
-        audio.removeAttribute("src");
+
+        audio.removeAttribute(
+            "src"
+        );
+
     } catch (error) {}
 
 
     try {
+
         audio.load();
+
     } catch (error) {}
 
 
@@ -2524,7 +2962,10 @@ function clearPlaybackResources() {
 
     if (waitTimer) {
 
-        clearTimeout(waitTimer);
+        clearTimeout(
+            waitTimer
+        );
+
 
         waitTimer = null;
     }
@@ -2532,7 +2973,10 @@ function clearPlaybackResources() {
 
     if (segmentTimer) {
 
-        clearTimeout(segmentTimer);
+        clearTimeout(
+            segmentTimer
+        );
+
 
         segmentTimer = null;
     }
@@ -2568,10 +3012,13 @@ function playCurrentAyah(
     clearPlaybackResources();
 
 
-    if (preservePlayingVisual) {
+    if (
+        preservePlayingVisual
+    ) {
 
         state.session.playing =
             true;
+
 
         playPauseButton.textContent =
             "⏸️";
@@ -2580,6 +3027,7 @@ function playCurrentAyah(
 
         state.session.playing =
             false;
+
 
         playPauseButton.textContent =
             "▶️";
@@ -2605,7 +3053,9 @@ function playCurrentAyah(
    حدود الجزء
 ========================================================= */
 
-function getSegmentBounds(duration) {
+function getSegmentBounds(
+    duration
+) {
 
     const totalSegments =
         pausePoints.length + 1;
@@ -2658,19 +3108,26 @@ function getSegmentBounds(duration) {
    تنظيف نقاط الوقف
 ========================================================= */
 
-function sanitizePausePoints(duration) {
+function sanitizePausePoints(
+    duration
+) {
 
     pausePoints =
         pausePoints
             .map(Number)
             .filter(
                 point =>
-                    Number.isFinite(point) &&
+                    Number.isFinite(
+                        point
+                    ) &&
                     point > 0 &&
                     point < duration
             )
             .sort(
-                (a, b) =>
+                (
+                    a,
+                    b
+                ) =>
                     a - b
             );
 }
@@ -2759,7 +3216,9 @@ function configureAudioSpeed(
    إيقاف صوت داخلي
 ========================================================= */
 
-function pauseAudioInternally(media) {
+function pauseAudioInternally(
+    media
+) {
 
     if (!media) {
         return;
@@ -2838,7 +3297,9 @@ function handleExternalAudioStop() {
 
     if (waitTimer) {
 
-        clearTimeout(waitTimer);
+        clearTimeout(
+            waitTimer
+        );
 
         waitTimer = null;
     }
@@ -2846,7 +3307,9 @@ function handleExternalAudioStop() {
 
     if (segmentTimer) {
 
-        clearTimeout(segmentTimer);
+        clearTimeout(
+            segmentTimer
+        );
 
         segmentTimer = null;
     }
@@ -2880,7 +3343,7 @@ function handleExternalAudioStop() {
 
 
 /* =========================================================
-   تشغيل Firefox باستخدام AudioWorklet
+   Firefox AudioWorklet
 ========================================================= */
 
 async function startFirefoxWebAudioSegment(
@@ -2982,11 +3445,15 @@ async function startFirefoxWebAudioSegment(
 
 
         const duration =
-            Number(buffer.duration);
+            Number(
+                buffer.duration
+            );
 
 
         if (
-            !Number.isFinite(duration) ||
+            !Number.isFinite(
+                duration
+            ) ||
             duration <= 0
         ) {
 
@@ -3015,6 +3482,7 @@ async function startFirefoxWebAudioSegment(
                 0
             );
 
+
             return;
         }
 
@@ -3039,22 +3507,28 @@ async function startFirefoxWebAudioSegment(
                 0
             );
 
+
             return;
         }
 
 
-        /*
-            إنشاء AudioWorklet جديد لهذا الجزء.
-        */
+        /* =================================================
+           إنشاء Worklet
+        ================================================= */
 
         const node =
             new AudioWorkletNode(
                 context,
                 "tahfeez-time-stretch",
                 {
-                    numberOfInputs: 0,
-                    numberOfOutputs: 1,
-                    outputChannelCount: [2]
+                    numberOfInputs:
+                        0,
+
+                    numberOfOutputs:
+                        1,
+
+                    outputChannelCount:
+                        [2]
                 }
             );
 
@@ -3071,6 +3545,10 @@ async function startFirefoxWebAudioSegment(
         firefoxSource =
             node;
 
+
+        /* =================================================
+           تجهيز البيانات
+        ================================================= */
 
         const channels =
             getFirefoxBufferChannels(
@@ -3107,7 +3585,9 @@ async function startFirefoxWebAudioSegment(
                 1.25,
                 Math.max(
                     0.75,
-                    Number(state.session.speed) || 1
+                    Number(
+                        state.session.speed
+                    ) || 1
                 )
             );
 
@@ -3148,6 +3628,7 @@ async function startFirefoxWebAudioSegment(
                         segmentTimer
                     );
 
+
                     segmentTimer = null;
                 }
 
@@ -3169,13 +3650,16 @@ async function startFirefoxWebAudioSegment(
                     firefoxSource =
                         null;
 
+
                     firefoxStretchNode =
                         null;
                 }
 
 
                 try {
+
                     node.disconnect();
+
                 } catch (error) {}
 
 
@@ -3214,6 +3698,10 @@ async function startFirefoxWebAudioSegment(
             };
 
 
+        /* =================================================
+           بدء الجزء
+        ================================================= */
+
         node.port.postMessage({
 
             type:
@@ -3231,9 +3719,7 @@ async function startFirefoxWebAudioSegment(
 
 
         /*
-            الزمن المتوقع للجزء.
-            نستخدم هامشًا إضافيًا لأن المعالجة
-            الحبيبية تحتاج إلى إنهاء آخر الحبيبات.
+            الزمن المتوقع.
         */
 
         const wallTime =
@@ -3255,8 +3741,8 @@ async function startFirefoxWebAudioSegment(
             setTimeout(
                 finishOnce,
                 Math.max(
-                    100,
-                    wallTime + 1000
+                    200,
+                    wallTime + 1500
                 )
             );
 
@@ -3299,11 +3785,13 @@ async function startFirefoxWebAudioSegment(
 
 
         if (
-            thisSourceId === firefoxSourceId
+            thisSourceId ===
+            firefoxSourceId
         ) {
 
             firefoxSource =
                 null;
+
 
             firefoxStretchNode =
                 null;
@@ -3349,11 +3837,13 @@ function handleCurrentFirefoxSegmentFinished(
 
     if (
         finishedSource &&
-        firefoxSource === finishedSource
+        firefoxSource ===
+        finishedSource
     ) {
 
         firefoxSource =
             null;
+
 
         firefoxStretchNode =
             null;
@@ -3411,11 +3901,9 @@ function startCurrentSegment(
     }
 
 
-    /*
-        =====================================================
-        FIREFOX فقط
-        =====================================================
-    */
+    /* =====================================================
+       FIREFOX فقط
+    ===================================================== */
 
     if (isFirefox) {
 
@@ -3429,13 +3917,9 @@ function startCurrentSegment(
     }
 
 
-    /*
-        =====================================================
-        باقي المتصفحات
-        نفس المسار السابق
-        =====================================================
-    */
-
+    /* =====================================================
+       باقي المتصفحات
+    ===================================================== */
 
     const reciter =
         state.session.reciter;
@@ -3468,17 +3952,25 @@ function startCurrentSegment(
 
 
     try {
+
         currentAudio.pause();
+
     } catch (error) {}
 
 
     try {
-        currentAudio.removeAttribute("src");
+
+        currentAudio.removeAttribute(
+            "src"
+        );
+
     } catch (error) {}
 
 
     try {
+
         currentAudio.load();
+
     } catch (error) {}
 
 
@@ -3491,7 +3983,9 @@ function startCurrentSegment(
             1.25,
             Math.max(
                 0.75,
-                Number(state.session.speed) || 1
+                Number(
+                    state.session.speed
+                ) || 1
             )
         );
 
@@ -3512,10 +4006,13 @@ function startCurrentSegment(
     function isCurrentSegment() {
 
         return (
-            Boolean(state.session) &&
+            Boolean(
+                state.session
+            ) &&
             token === playbackToken &&
             currentAudio === audio &&
-            thisSegmentId === audioSegmentId
+            thisSegmentId ===
+                audioSegmentId
         );
     }
 
@@ -3537,6 +4034,7 @@ function startCurrentSegment(
                 segmentTimer
             );
 
+
             segmentTimer = null;
         }
 
@@ -3554,7 +4052,9 @@ function startCurrentSegment(
 
 
         try {
+
             currentAudio.pause();
+
         } catch (error) {}
 
 
@@ -3643,7 +4143,9 @@ function startCurrentSegment(
 
 
             if (
-                !Number.isFinite(duration) ||
+                !Number.isFinite(
+                    duration
+                ) ||
                 duration <= 0
             ) {
 
@@ -3713,6 +4215,7 @@ function startCurrentSegment(
                     internalSeekAction =
                         false;
 
+
                     finishOnce();
 
                     return;
@@ -3769,7 +4272,8 @@ function startCurrentSegment(
             if (
                 userInitiated &&
                 segmentIndex === 0 &&
-                currentAudioType === "normal"
+                currentAudioType ===
+                    "normal"
             ) {
 
                 return;
@@ -3820,7 +4324,7 @@ function startCurrentSegment(
             if (
                 playPromise &&
                 typeof playPromise.catch ===
-                "function"
+                    "function"
             ) {
 
                 playPromise.catch(
@@ -3851,7 +4355,7 @@ function startCurrentSegment(
                         if (
                             error &&
                             error.name ===
-                            "NotAllowedError"
+                                "NotAllowedError"
                         ) {
 
                             showAvailability(
@@ -3883,7 +4387,9 @@ function startCurrentSegment(
 
 
             if (
-                !Number.isFinite(duration) ||
+                !Number.isFinite(
+                    duration
+                ) ||
                 duration <= 0
             ) {
 
@@ -3984,6 +4490,7 @@ function startCurrentSegment(
                     segmentTimer
                 );
 
+
                 segmentTimer = null;
             }
 
@@ -4014,7 +4521,8 @@ function startCurrentSegment(
     if (
         userInitiated &&
         segmentIndex === 0 &&
-        currentAudioType === "normal"
+        currentAudioType ===
+            "normal"
     ) {
 
         let immediatePlayPromise;
@@ -4056,7 +4564,7 @@ function startCurrentSegment(
         if (
             immediatePlayPromise &&
             typeof immediatePlayPromise.then ===
-            "function"
+                "function"
         ) {
 
             immediatePlayPromise
@@ -4077,7 +4585,8 @@ function startCurrentSegment(
 
 
                         if (
-                            "mediaSession" in navigator
+                            "mediaSession" in
+                            navigator
                         ) {
 
                             try {
@@ -4117,7 +4626,7 @@ function startCurrentSegment(
                         if (
                             error &&
                             error.name ===
-                            "NotAllowedError"
+                                "NotAllowedError"
                         ) {
 
                             showAvailability(
@@ -4170,7 +4679,10 @@ function handleCurrentSegmentFinished(
 
     if (!bounds) {
 
-        finishAyah(token);
+        finishAyah(
+            token
+        );
+
 
         return;
     }
@@ -4242,12 +4754,17 @@ function waitAfterSegment(
 
 
     if (
-        !Number.isFinite(multiplier) ||
+        !Number.isFinite(
+            multiplier
+        ) ||
         multiplier <= 0 ||
         segmentDuration <= 0
     ) {
 
-        continueAfterWait(token);
+        continueAfterWait(
+            token
+        );
+
 
         return;
     }
@@ -4272,7 +4789,10 @@ function waitAfterSegment(
 
     if (waitTimer) {
 
-        clearTimeout(waitTimer);
+        clearTimeout(
+            waitTimer
+        );
+
 
         waitTimer = null;
     }
@@ -4294,7 +4814,9 @@ function waitAfterSegment(
                 }
 
 
-                continueAfterWait(token);
+                continueAfterWait(
+                    token
+                );
 
             },
             waitTime
@@ -4306,7 +4828,9 @@ function waitAfterSegment(
    بعد الانتظار
 ========================================================= */
 
-function continueAfterWait(token) {
+function continueAfterWait(
+    token
+) {
 
     if (
         !state.session ||
@@ -4340,7 +4864,9 @@ function continueAfterWait(token) {
     }
 
 
-    finishAyah(token);
+    finishAyah(
+        token
+    );
 }
 
 
@@ -4348,7 +4874,9 @@ function continueAfterWait(token) {
    انتهاء الآية
 ========================================================= */
 
-function finishAyah(token) {
+function finishAyah(
+    token
+) {
 
     if (
         !state.session ||
@@ -4405,7 +4933,9 @@ function finishAyah(token) {
             "⏸️";
 
 
-        prepareNextAyahAndPlay(token);
+        prepareNextAyahAndPlay(
+            token
+        );
 
 
         return;
@@ -4441,7 +4971,9 @@ function finishAyah(token) {
             "⏸️";
 
 
-        prepareNextAyahAndPlay(token);
+        prepareNextAyahAndPlay(
+            token
+        );
 
 
         return;
@@ -4456,7 +4988,9 @@ function finishAyah(token) {
    تجهيز الآية التالية
 ========================================================= */
 
-async function prepareNextAyahAndPlay(token) {
+async function prepareNextAyahAndPlay(
+    token
+) {
 
     if (
         !state.session ||
@@ -4536,7 +5070,10 @@ function pausePlayback() {
 
     if (waitTimer) {
 
-        clearTimeout(waitTimer);
+        clearTimeout(
+            waitTimer
+        );
+
 
         waitTimer = null;
     }
@@ -4544,7 +5081,10 @@ function pausePlayback() {
 
     if (segmentTimer) {
 
-        clearTimeout(segmentTimer);
+        clearTimeout(
+            segmentTimer
+        );
+
 
         segmentTimer = null;
     }
@@ -4673,7 +5213,9 @@ function saveSettings() {
 
     localStorage.setItem(
         "tahfeez-settings",
-        JSON.stringify(settings)
+        JSON.stringify(
+            settings
+        )
     );
 }
 
@@ -4698,7 +5240,9 @@ function restoreSettings() {
     try {
 
         const settings =
-            JSON.parse(saved);
+            JSON.parse(
+                saved
+            );
 
 
         if (settings.reciter) {
@@ -4731,8 +5275,12 @@ function restoreSettings() {
             state.selectedSurah =
                 state.surahs.find(
                     surah =>
-                        String(surah.number) ===
-                        String(settings.surah)
+                        String(
+                            surah.number
+                        ) ===
+                        String(
+                            settings.surah
+                        )
                 ) || null;
         }
 
@@ -4753,12 +5301,14 @@ function restoreSettings() {
                 fromAyah.min =
                     available.from;
 
+
                 fromAyah.max =
                     available.to;
 
 
                 toAyah.min =
                     available.from;
+
 
                 toAyah.max =
                     available.to;
@@ -4795,7 +5345,9 @@ function restoreSettings() {
 
 
             speedValue.textContent =
-                `${Number(settings.speed).toFixed(2)}×`;
+                `${Number(
+                    settings.speed
+                ).toFixed(2)}×`;
         }
 
 
@@ -4830,7 +5382,8 @@ function restoreSettings() {
 
 
         if (
-            settings.teacherMode === true &&
+            settings.teacherMode ===
+                true &&
             state.selectedReciter?.teacherMode
         ) {
 
@@ -4861,8 +5414,10 @@ function resetAyahInputs() {
     fromAyah.value =
         1;
 
+
     toAyah.value =
         1;
+
 
     disableAyahInputs();
 }
@@ -4872,6 +5427,7 @@ function disableAyahInputs() {
 
     fromAyah.disabled =
         true;
+
 
     toAyah.disabled =
         true;
@@ -4883,12 +5439,15 @@ function enableAyahInputs() {
     fromAyah.disabled =
         false;
 
+
     toAyah.disabled =
         false;
 }
 
 
-function showAvailability(message) {
+function showAvailability(
+    message
+) {
 
     availabilityMessage.textContent =
         message;
