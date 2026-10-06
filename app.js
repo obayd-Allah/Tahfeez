@@ -14,7 +14,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 12";
+const CODE_VERSION = "CODE 13";
 
 
 /* =========================================================
@@ -236,50 +236,6 @@ function stopFirefoxSource() {
 
 
 /* =========================================================
-   حساب detune اللازم للحفاظ على النبرة
-========================================================= */
-
-function getFirefoxPitchCompensation(speed) {
-
-    const safeSpeed =
-        Math.min(
-            1.25,
-            Math.max(
-                0.75,
-                Number(speed) || 1
-            )
-        );
-
-
-    if (safeSpeed === 1) {
-        return 0;
-    }
-
-
-    /*
-        playbackRate يغيّر السرعة والنبرة معًا.
-
-        نستخدم detune معاكسًا حتى يكون
-        المعدل النهائي للنبرة قريبًا من 1×.
-
-        finalRate =
-            playbackRate *
-            2^(detune / 1200)
-
-        لذلك:
-
-        detune =
-            -1200 * log2(playbackRate)
-    */
-
-    return (
-        -1200 *
-        Math.log2(safeSpeed)
-    );
-}
-
-
-/* =========================================================
    تحميل وفك ضغط ملف صوت Firefox
 ========================================================= */
 
@@ -338,6 +294,7 @@ async function getFirefoxAudioBuffer(url) {
 
 /* =========================================================
    تغيير سرعة مصدر Firefox الحالي
+   Firefox فقط
 ========================================================= */
 
 function configureFirefoxSourceSpeed(
@@ -360,6 +317,22 @@ function configureFirefoxSourceSpeed(
         );
 
 
+    /*
+        Firefox فقط:
+
+        playbackRate هو المسؤول عن السرعة.
+
+        لا نستخدم detune هنا.
+
+        السبب:
+        detune ليس نظامًا مستقلًا للحفاظ على
+        النبرة مع تغيير السرعة، بل يدخل في
+        حساب معدل التشغيل النهائي.
+
+        لذلك استخدام detune المعاكس كان يلغي
+        تأثير السرعة تقريبًا في CODE 12.
+    */
+
     try {
 
         source.playbackRate.value =
@@ -369,22 +342,6 @@ function configureFirefoxSourceSpeed(
 
         console.warn(
             "تعذر تغيير سرعة Firefox Web Audio:",
-            error
-        );
-    }
-
-
-    try {
-
-        source.detune.value =
-            getFirefoxPitchCompensation(
-                safeSpeed
-            );
-
-    } catch (error) {
-
-        console.warn(
-            "تعذر تعويض نبرة Firefox:",
             error
         );
     }
@@ -2173,9 +2130,8 @@ function configureAudioSpeed(
 
 
     /*
-        Firefox لا يدخل هنا في CODE 12.
+        Firefox لا يدخل هنا.
     */
-
 
     if (isFirefox) {
         return safeSpeed;
@@ -2549,27 +2505,31 @@ async function startFirefoxWebAudioSegment(
 
 
         /*
-            السرعة الحقيقية.
+            =================================================
+            FIREFOX فقط
+            =================================================
+
+            نستخدم playbackRate فقط.
+
+            لا نستخدم detune.
+
+            هذا يجعل السرعة تتغير فعليًا:
+            0.75× = أبطأ
+            1.00× = طبيعية
+            1.25× = أسرع
+
+            ملاحظة:
+            في هذه النسخة التجريبية سيتغير Pitch
+            مع السرعة، لأن playbackRate وحده يغيّر
+            السرعة والنبرة معًا.
+
+            الهدف من CODE 13 هو التأكد أولًا أن
+            تغيير السرعة نفسه يعمل في Firefox
+            بدون التقطيع الذي ظهر سابقًا.
         */
 
         source.playbackRate.value =
             actualSpeed;
-
-
-        /*
-            تعويض النبرة.
-
-            عند 1.25× مثلًا:
-            playbackRate = 1.25
-
-            وdetune سالب بالقيمة المقابلة،
-            فيبقى الصوت قريبًا من نبرته الأصلية.
-        */
-
-        source.detune.value =
-            getFirefoxPitchCompensation(
-                actualSpeed
-            );
 
 
         firefoxSource =
@@ -2833,10 +2793,12 @@ function startCurrentSegment(
         FIREFOX فقط
         =====================================================
 
-        Firefox في CODE 12 لا يستخدم
-        HTMLAudioElement.playbackRate.
+        Firefox يستخدم Web Audio.
 
-        يستخدم Web Audio + playbackRate + detune.
+        في CODE 13:
+        playbackRate فقط.
+
+        detune لا يستخدم.
     */
 
     if (isFirefox) {
