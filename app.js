@@ -14,7 +14,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 10";
+const CODE_VERSION = "CODE 11";
 
 
 /* =========================================================
@@ -1850,7 +1850,7 @@ function sanitizePausePoints(duration) {
 
 
 /* =========================================================
-   CODE 10
+   CODE 11
    إعداد السرعة
 ========================================================= */
 
@@ -1874,15 +1874,16 @@ function configureAudioSpeed(
         FIREFOX فقط
         =====================================================
 
-        في CODE 10 نجرب تعطيل الحفاظ على طبقة الصوت.
+        في CODE 10 كان تعطيل preservesPitch
+        يقلل التقطيع، لكنه يغيّر نبرة الصوت.
 
-        السبب:
-        Firefox قد يسبب تقطيعًا عند:
-        playbackRate > 1
-        + preservesPitch = true
+        CODE 11:
+        نعيد الحفاظ على طبقة الصوت.
 
-        هذا التعديل لا يؤثر إطلاقًا على
-        Chrome / Edge / باقي المتصفحات.
+        ولا نستخدم defaultPlaybackRate
+        في Firefox.
+
+        السرعة نفسها تُضبط عبر playbackRate.
     */
 
     if (isFirefox) {
@@ -1890,7 +1891,7 @@ function configureAudioSpeed(
         try {
 
             media.preservesPitch =
-                false;
+                true;
 
         } catch (error) {}
 
@@ -1898,7 +1899,7 @@ function configureAudioSpeed(
         try {
 
             media.mozPreservesPitch =
-                false;
+                true;
 
         } catch (error) {}
 
@@ -1906,7 +1907,7 @@ function configureAudioSpeed(
         try {
 
             media.webkitPreservesPitch =
-                false;
+                true;
 
         } catch (error) {}
 
@@ -2160,6 +2161,10 @@ function startCurrentSegment(
         false;
 
 
+    let firefoxSpeedApplyScheduled =
+        false;
+
+
     beginInternalAudioAction();
 
 
@@ -2199,7 +2204,10 @@ function startCurrentSegment(
         =====================================================
 
         Firefox:
-        نبدأ بسرعة 1× فقط.
+        نبدأ دائمًا بسرعة 1×.
+
+        بعد onplaying فقط:
+        نضع السرعة المطلوبة.
 
         باقي المتصفحات:
         نفس النظام السابق.
@@ -2216,6 +2224,30 @@ function startCurrentSegment(
 
 
     if (isFirefox) {
+
+        try {
+
+            currentAudio.preservesPitch =
+                true;
+
+        } catch (error) {}
+
+
+        try {
+
+            currentAudio.mozPreservesPitch =
+                true;
+
+        } catch (error) {}
+
+
+        try {
+
+            currentAudio.webkitPreservesPitch =
+                true;
+
+        } catch (error) {}
+
 
         try {
 
@@ -2347,23 +2379,96 @@ function startCurrentSegment(
 
 
             /*
-                Firefox فقط:
-                بعد أن يبدأ الصوت فعلًا،
-                نضع السرعة المطلوبة.
+                =================================================
+                FIREFOX فقط
+                =================================================
+
+                لا نغيّر السرعة مباشرة لحظة onplaying.
+
+                ننتظر دورة واحدة من event loop حتى يكون
+                Firefox قد بدأ تشغيل الصوت فعلًا، ثم نضع
+                السرعة المطلوبة.
+
+                مع الحفاظ على طبقة الصوت.
             */
 
-            if (isFirefox) {
+            if (
+                isFirefox &&
+                !firefoxSpeedApplyScheduled
+            ) {
 
-                try {
-                    currentAudio.muted = false;
-                } catch (error) {}
+                firefoxSpeedApplyScheduled =
+                    true;
 
 
-                configureAudioSpeed(
-                    currentAudio,
-                    state.session.speed
-                );
+                const applyFirefoxSpeed =
+                    () => {
+
+                        if (
+                            !isCurrentSegment()
+                        ) {
+
+                            return;
+                        }
+
+
+                        try {
+
+                            currentAudio.preservesPitch =
+                                true;
+
+                        } catch (error) {}
+
+
+                        try {
+
+                            currentAudio.mozPreservesPitch =
+                                true;
+
+                        } catch (error) {}
+
+
+                        try {
+
+                            currentAudio.webkitPreservesPitch =
+                                true;
+
+                        } catch (error) {}
+
+
+                        configureAudioSpeed(
+                            currentAudio,
+                            state.session.speed
+                        );
+                    };
+
+
+                if (
+                    typeof requestAnimationFrame ===
+                    "function"
+                ) {
+
+                    requestAnimationFrame(
+                        applyFirefoxSpeed
+                    );
+
+                } else {
+
+                    setTimeout(
+                        applyFirefoxSpeed,
+                        0
+                    );
+                }
             }
+
+
+            try {
+
+                if (isFirefox) {
+                    currentAudio.muted = false;
+                }
+
+            } catch (error) {}
 
 
             state.session.playing =
