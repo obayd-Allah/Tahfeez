@@ -39,8 +39,12 @@
                     <select id="reciterSelect">
                         <option value="">اختر الشيخ</option>
 
+                        <option value="ahmed-atia">
+                            الشيخ أحمد عطية
+                        </option>
+
                         <option value="mohamed-alsouri">
-                            محمد السوري
+                            الشيخ محمد السوري
                         </option>
 
                         <option value="ibrahim">
@@ -322,6 +326,7 @@
             -->
             <div class="player-controls">
 
+                <!-- الآية السابقة -->
                 <button
                     id="previousAyahButton"
                     class="control-button"
@@ -332,6 +337,8 @@
                     ⏪
                 </button>
 
+
+                <!-- إعادة المقطع -->
                 <button
                     id="restartBlockButton"
                     class="control-button"
@@ -342,6 +349,8 @@
                     ⏹️
                 </button>
 
+
+                <!-- تشغيل / إيقاف -->
                 <button
                     id="playPauseButton"
                     class="control-button play-button"
@@ -352,16 +361,8 @@
                     ▶️
                 </button>
 
-                <button
-                    id="nextAyahButton"
-                    class="control-button"
-                    type="button"
-                    aria-label="الآية التالية"
-                    title="الآية التالية"
-                >
-                    ⏩
-                </button>
 
+                <!-- الإعدادات -->
                 <button
                     id="playerSettingsButton"
                     class="control-button settings-control"
@@ -370,6 +371,18 @@
                     title="الإعدادات"
                 >
                     ⚙️
+                </button>
+
+
+                <!-- الآية التالية -->
+                <button
+                    id="nextAyahButton"
+                    class="control-button"
+                    type="button"
+                    aria-label="الآية التالية"
+                    title="الآية التالية"
+                >
+                    ⏩
                 </button>
 
             </div>
