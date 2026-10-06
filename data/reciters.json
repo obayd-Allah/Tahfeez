@@ -1,7 +1,14 @@
 [
   {
     "id": "mohamed-alsouri",
-    "name": "محمد السوري",
+    "name": "الشيخ محمد السوري",
+    "audioBaseUrl": "",
+    "teacherMode": false,
+    "surahs": {}
+  },
+  {
+    "id": "Ahmed-atiia",
+    "name": "الشيخ أحمد عطية",
     "audioBaseUrl": "",
     "teacherMode": false,
     "surahs": {}
