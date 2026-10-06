@@ -1,3 +1,7 @@
+/* =========================================================
+   TAHFEEZ CODE 09
+========================================================= */
+
 const state = {
     quran: [],
     surahs: [],
@@ -12,15 +16,13 @@ const state = {
 
 /* =========================================================
    رقم النسخة المؤقت
-   غيّر هذا الرقم مع كل تحديث للكود على GitHub
 ========================================================= */
 
-const CODE_VERSION = "CODE 08";
+const CODE_VERSION = "CODE 09";
 
 
 /* =========================================================
    مربع اختبار تحميل النسخة
-   سيُحذف لاحقًا
 ========================================================= */
 
 (function createTemporaryVersionBox() {
@@ -96,11 +98,6 @@ try {
    FIREFOX FIX
 ========================================================= */
 
-/*
-    نحدد Firefox فقط.
-
-    باقي المتصفحات لن تدخل هذا المسار إطلاقًا.
-*/
 const isFirefox =
     /firefox/i.test(navigator.userAgent);
 
@@ -127,10 +124,6 @@ function playAudioForCurrentBrowser(media) {
 
     if (!isFirefox) {
 
-        /*
-            المسار الأصلي لباقي المتصفحات.
-        */
-
         try {
             return media.play();
         } catch (error) {
@@ -138,12 +131,6 @@ function playAudioForCurrentBrowser(media) {
         }
     }
 
-
-    /*
-        =====================================================
-        FIREFOX ONLY
-        =====================================================
-    */
 
     try {
         media.muted = true;
@@ -167,11 +154,6 @@ function playAudioForCurrentBrowser(media) {
     }
 
 
-    /*
-        عند نجاح التشغيل:
-        نعيد الصوت مسموعًا.
-    */
-
     if (
         playPromise &&
         typeof playPromise.then === "function"
@@ -194,10 +176,6 @@ function playAudioForCurrentBrowser(media) {
                     media.muted = false;
                 } catch (muteError) {}
 
-                /*
-                    لا نرمي الخطأ مرة أخرى من هنا،
-                    لأن المستدعي يعالج Promise الأصلي.
-                */
                 console.error(
                     "Firefox play error:",
                     error
@@ -213,18 +191,12 @@ function playAudioForCurrentBrowser(media) {
 
 /*
     رقم يميز كل مقطع صوتي.
-
-    إذا وصل حدث قديم من مقطع سابق،
-    يتم تجاهله.
 */
 let audioSegmentId = 0;
 
 
 /*
     هذه القيمة لا تعني أن المستخدم ضغط Pause.
-
-    هي فقط تعني أن التطبيق نفسه يقوم الآن
-    بعملية داخلية على عنصر الصوت.
 */
 let internalAudioAction = false;
 
@@ -305,13 +277,6 @@ function detachAudioEvents() {
     audio.onpause = null;
     audio.onemptied = null;
     audio.onseeking = null;
-
-    /*
-        FIREFOX ONLY
-
-        مهم جدًا تنظيف onseeked أيضًا،
-        حتى لا يبقى حدث من مقطع سابق.
-    */
     audio.onseeked = null;
 }
 
@@ -443,7 +408,6 @@ function setupMediaSessionHandlers() {
                 }
 
                 if (!state.session.playing) {
-
                     playCurrentAyah(true);
                 }
             }
@@ -459,7 +423,6 @@ function setupMediaSessionHandlers() {
                 }
 
                 if (state.session.playing) {
-
                     pausePlayback();
                 }
             }
@@ -471,7 +434,6 @@ function setupMediaSessionHandlers() {
             navigator.mediaSession.setActionHandler(
                 "stop",
                 () => {
-
                     handleExternalAudioStop();
                 }
             );
@@ -484,7 +446,6 @@ function setupMediaSessionHandlers() {
             navigator.mediaSession.setActionHandler(
                 "seekbackward",
                 () => {
-
                     handleExternalSeekAttempt();
                 }
             );
@@ -497,7 +458,6 @@ function setupMediaSessionHandlers() {
             navigator.mediaSession.setActionHandler(
                 "seekforward",
                 () => {
-
                     handleExternalSeekAttempt();
                 }
             );
@@ -530,7 +490,6 @@ function setupMediaSessionHandlers() {
             navigator.mediaSession.setActionHandler(
                 "seekto",
                 () => {
-
                     handleExternalSeekAttempt();
                 }
             );
@@ -1376,15 +1335,6 @@ function updateSessionInfo() {
 
 /* =========================================================
    الانتقال إلى آية أخرى
-   إذا كان التشغيل يعمل:
-   الآية الجديدة تبدأ تلقائيًا.
-
-   إذا كان متوقفًا:
-   ننتقل فقط دون تشغيل.
-
-   مهم:
-   نحتفظ بحالة زر التشغيل أثناء الانتقال،
-   فلا يظهر ▶️ للحظة إذا كان المستخدم يشغل الصوت.
 ========================================================= */
 
 async function navigateToAyah(targetAyah) {
@@ -1414,20 +1364,9 @@ async function navigateToAyah(targetAyah) {
     updateSessionInfo();
 
 
-    /*
-        stopPlayback() غيّر playbackToken.
-        نحتفظ بالرقم الحالي لحماية العملية
-        من ضغطات انتقال أخرى أثناء التحميل.
-    */
-
     const navigationToken =
         playbackToken;
 
-
-    /*
-        إذا كان الصوت يعمل قبل الانتقال،
-        نحافظ بصريًا على ⏸️ أثناء تحميل الآية.
-    */
 
     if (wasPlaying) {
 
@@ -1453,24 +1392,12 @@ async function navigateToAyah(targetAyah) {
 
     if (wasPlaying) {
 
-        /*
-            playCurrentAyah(false, true)
-
-            true = نحافظ على حالة زر ⏸️
-            أثناء بدء الآية الجديدة.
-        */
-
         playCurrentAyah(
             false,
             true
         );
 
     } else {
-
-        /*
-            عند التوقف:
-            لا نشغل الصوت.
-        */
 
         state.session.playing =
             false;
@@ -1768,13 +1695,6 @@ function resetAudioElement() {
     } catch (error) {}
 
 
-    /*
-        FIREFOX FIX
-
-        إذا كان الصوت مكتومًا بسبب محاولة play()
-        فنعيده للوضع الطبيعي عند إعادة ضبط العنصر.
-    */
-
     if (isFirefox) {
 
         try {
@@ -1834,16 +1754,6 @@ function clearPlaybackResources() {
    تشغيل الآية
 ========================================================= */
 
-/*
-    userInitiated:
-        المستخدم ضغط زر التشغيل.
-
-    preservePlayingVisual:
-        الانتقال التلقائي إلى آية جديدة أثناء التشغيل.
-
-        في هذه الحالة لا نعرض ▶️ للحظة،
-        بل نحافظ على ⏸️.
-*/
 function playCurrentAyah(
     userInitiated = false,
     preservePlayingVisual = false
@@ -1862,14 +1772,6 @@ function playCurrentAyah(
 
     clearPlaybackResources();
 
-
-    /*
-        إذا كانت هذه بداية تشغيل حقيقية من المستخدم،
-        نبدأ من حالة التوقف.
-
-        أما إذا كنا ننتقل تلقائيًا إلى آية جديدة،
-        فنحافظ على حالة التشغيل بصريًا.
-    */
 
     if (preservePlayingVisual) {
 
@@ -1980,7 +1882,8 @@ function sanitizePausePoints(duration) {
 
 
 /* =========================================================
-   إعداد السرعة
+   CODE 09
+   إعداد سرعة الصوت
 ========================================================= */
 
 function configureAudioSpeed(
@@ -1997,6 +1900,65 @@ function configureAudioSpeed(
             )
         );
 
+
+    /*
+        Firefox:
+
+        لا نستخدم defaultPlaybackRate هنا.
+        playbackRate فقط.
+
+        في CODE 09 يتم استدعاء هذه الدالة
+        بعد بدء التشغيل في Firefox.
+    */
+
+    if (isFirefox) {
+
+        try {
+
+            media.preservesPitch =
+                true;
+
+        } catch (error) {}
+
+
+        try {
+
+            media.webkitPreservesPitch =
+                true;
+
+        } catch (error) {}
+
+
+        try {
+
+            media.mozPreservesPitch =
+                true;
+
+        } catch (error) {}
+
+
+        try {
+
+            media.playbackRate =
+                safeSpeed;
+
+        } catch (error) {
+
+            console.warn(
+                "تعذر ضبط سرعة التشغيل في Firefox:",
+                error
+            );
+        }
+
+
+        return safeSpeed;
+    }
+
+
+    /*
+        باقي المتصفحات:
+        نفس الطريقة السابقة.
+    */
 
     try {
 
@@ -2084,11 +2046,6 @@ function pauseAudioInternally(media) {
                 state.session &&
                 state.session.playing
             ) {
-
-                /*
-                    startCurrentSegment()
-                    سيضع handler الجديد.
-                */
 
             } else {
 
@@ -2220,8 +2177,6 @@ function startCurrentSegment(
 
     /* =====================================================
        FIREFOX ONLY
-
-       متغيرات خاصة بعملية seek ثم play.
     ===================================================== */
 
     let firefoxWaitingForSeek = false;
@@ -2245,12 +2200,6 @@ function startCurrentSegment(
 
     } catch (error) {}
 
-
-    /*
-        FIREFOX FIX
-
-        نتأكد أن أي muted سابق لا يبقى مع المقطع الجديد.
-    */
 
     if (isFirefox) {
 
@@ -2280,11 +2229,43 @@ function startCurrentSegment(
         url;
 
 
+    /*
+        =====================================================
+        CODE 09 — FIREFOX
+
+        لا نضع 1.25× قبل بدء التشغيل.
+
+        Firefox يبدأ الملف أولًا بسرعة 1.00×،
+        وبعد حدث playing نضع السرعة المطلوبة.
+    =====================================================
+    */
+
     const actualSpeed =
+        Math.min(
+            1.25,
+            Math.max(
+                0.75,
+                Number(state.session.speed) || 1
+            )
+        );
+
+
+    if (isFirefox) {
+
+        try {
+
+            currentAudio.playbackRate =
+                1;
+
+        } catch (error) {}
+
+    } else {
+
         configureAudioSpeed(
             currentAudio,
-            state.session.speed
+            actualSpeed
         );
+    }
 
 
     endInternalAudioActionSoon();
@@ -2401,10 +2382,14 @@ function startCurrentSegment(
 
 
             /*
-                FIREFOX FIX
+                =================================================
+                CODE 09 — FIREFOX
 
-                إذا كان Firefox بدأ التشغيل مكتومًا،
-                نعيد الصوت مسموعًا بمجرد وصول playing.
+                الآن فقط، بعد أن بدأ الصوت فعلًا،
+                نطبق السرعة المطلوبة.
+
+                هذه أهم نقطة في الإصدار الجديد.
+            =================================================
             */
 
             if (isFirefox) {
@@ -2412,6 +2397,12 @@ function startCurrentSegment(
                 try {
                     currentAudio.muted = false;
                 } catch (error) {}
+
+
+                configureAudioSpeed(
+                    currentAudio,
+                    state.session.speed
+                );
             }
 
 
@@ -2537,14 +2528,9 @@ function startCurrentSegment(
 
 
                 /*
-                    =================================================
                     FIREFOX ONLY
 
-                    لا نشغل الصوت الآن.
-
-                    ننتظر حتى يخبرنا Firefox بأن seek
-                    انتهى فعلًا عن طريق seeked.
-                    =================================================
+                    ننتظر seeked قبل التشغيل.
                 */
 
                 if (isFirefox) {
@@ -2594,11 +2580,6 @@ function startCurrentSegment(
                             firefoxPlayAfterSeek =
                                 false;
 
-
-                            /*
-                                بعد انتهاء seek:
-                                الآن فقط نشغل.
-                            */
 
                             if (
                                 currentAudio.paused
@@ -2671,11 +2652,6 @@ function startCurrentSegment(
 
                 } else {
 
-                    /*
-                        باقي المتصفحات:
-                        نفس المسار القديم تمامًا.
-                    */
-
                     setTimeout(
                         () => {
 
@@ -2689,10 +2665,20 @@ function startCurrentSegment(
             }
 
 
-            configureAudioSpeed(
-                currentAudio,
-                actualSpeed
-            );
+            /*
+                CODE 09:
+
+                لا نعيد ضبط السرعة هنا في Firefox.
+                تم ضبطها في onplaying.
+            */
+
+            if (!isFirefox) {
+
+                configureAudioSpeed(
+                    currentAudio,
+                    actualSpeed
+                );
+            }
 
 
             const segmentDuration =
@@ -2725,12 +2711,7 @@ function startCurrentSegment(
 
 
             /*
-                =================================================
-                FIREFOX ONLY
-                =================================================
-
-                إذا كان Firefox ينتظر seeked،
-                فلا نستدعي play() هنا.
+                Firefox ينتظر seeked.
             */
 
             if (
@@ -2823,12 +2804,6 @@ function startCurrentSegment(
                             return;
                         }
 
-
-                        /*
-                            FIREFOX FIX
-
-                            تنظيف muted إذا فشل التشغيل.
-                        */
 
                         if (isFirefox) {
 
@@ -3013,10 +2988,6 @@ function startCurrentSegment(
             }
 
 
-            /*
-                FIREFOX FIX
-            */
-
             if (isFirefox) {
 
                 try {
@@ -3064,12 +3035,9 @@ function startCurrentSegment(
         try {
 
             /*
-                =================================================
-                FIREFOX FIX
-                =================================================
-
-                أول تشغيل أيضًا يستخدم المسار الخاص
-                بـ Firefox.
+                Firefox يبدأ الآن بسرعة 1.00×
+                لأن configureAudioSpeed لم يتم استدعاؤه
+                قبل play().
             */
 
             immediatePlayPromise =
@@ -3134,7 +3102,8 @@ function startCurrentSegment(
 
 
                         /*
-                            FIREFOX FIX
+                            في Firefox:
+                            السرعة سيتم تطبيقها في onplaying.
                         */
 
                         if (isFirefox) {
@@ -3362,12 +3331,6 @@ function waitAfterSegment(
         true;
 
 
-    /*
-        مهم:
-        لا نغيّر الزر إلى ▶️ هنا.
-        أثناء الانتظار ما زلنا في وضع التشغيل.
-    */
-
     playPauseButton.textContent =
         "⏸️";
 
@@ -3482,11 +3445,6 @@ function finishAyah(token) {
         updateSessionInfo();
 
 
-        /*
-            ما زلنا في حالة تشغيل،
-            لذلك playCurrentAyah يحافظ على ⏸️.
-        */
-
         playCurrentAyah(
             false,
             true
@@ -3517,11 +3475,6 @@ function finishAyah(token) {
 
         updateSessionInfo();
 
-
-        /*
-            لا نغير زر التشغيل إلى ▶️.
-            الجلسة ما زالت تعمل.
-        */
 
         state.session.playing =
             true;
@@ -3566,10 +3519,6 @@ function finishAyah(token) {
         updateSessionInfo();
 
 
-        /*
-            ما زال التشغيل مستمرًا.
-        */
-
         state.session.playing =
             true;
 
@@ -3604,11 +3553,6 @@ async function prepareNextAyahAndPlay(token) {
         return;
     }
 
-
-    /*
-        نحافظ على شكل الزر أثناء تحميل
-        نقاط الوقف للآية الجديدة.
-    */
 
     state.session.playing =
         true;
