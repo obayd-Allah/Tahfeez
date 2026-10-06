@@ -78,9 +78,7 @@ function playAudioForCurrentBrowser(media) {
     */
 
     try {
-
         media.muted = true;
-
     } catch (error) {}
 
 
@@ -114,11 +112,6 @@ function playAudioForCurrentBrowser(media) {
         playPromise.then(
             () => {
 
-                /*
-                    لا نغير muted إذا كان هناك
-                    مقطع جديد أصبح هو الحالي.
-                */
-
                 if (media === audio) {
 
                     try {
@@ -133,7 +126,14 @@ function playAudioForCurrentBrowser(media) {
                     media.muted = false;
                 } catch (muteError) {}
 
-                throw error;
+                /*
+                    لا نرمي الخطأ مرة أخرى من هنا،
+                    لأن المستدعي يعالج Promise الأصلي.
+                */
+                console.error(
+                    "Firefox play error:",
+                    error
+                );
             }
         );
     }
@@ -237,6 +237,14 @@ function detachAudioEvents() {
     audio.onpause = null;
     audio.onemptied = null;
     audio.onseeking = null;
+
+    /*
+        FIREFOX ONLY
+
+        مهم جدًا تنظيف onseeked أيضًا،
+        حتى لا يبقى حدث من مقطع سابق.
+    */
+    audio.onseeked = null;
 }
 
 
@@ -2029,6 +2037,17 @@ function startCurrentSegment(
 
 
     /* =====================================================
+       FIREFOX ONLY
+
+       متغيرات خاصة بعملية seek ثم play.
+    ===================================================== */
+
+    let firefoxWaitingForSeek = false;
+
+    let firefoxPlayAfterSeek = false;
+
+
+    /* =====================================================
        تغيير المصدر بأمان
     ===================================================== */
 
@@ -2304,6 +2323,10 @@ function startCurrentSegment(
             }
 
 
+            /* =================================================
+               SEEK
+            ================================================= */
+
             if (
                 Math.abs(
                     currentAudio.currentTime -
@@ -2331,15 +2354,156 @@ function startCurrentSegment(
                 }
 
 
-                setTimeout(
-                    () => {
+                /*
+                    =================================================
+                    FIREFOX ONLY
 
-                        internalSeekAction =
-                            false;
+                    لا نشغل الصوت الآن.
 
-                    },
-                    0
-                );
+                    ننتظر حتى يخبرنا Firefox بأن seek
+                    انتهى فعلًا عن طريق seeked.
+                    =================================================
+                */
+
+                if (isFirefox) {
+
+                    firefoxWaitingForSeek =
+                        true;
+
+                    firefoxPlayAfterSeek =
+                        true;
+
+
+                    currentAudio.onseeked =
+                        () => {
+
+                            if (
+                                !isCurrentSegment()
+                            ) {
+
+                                return;
+                            }
+
+
+                            if (
+                                !firefoxWaitingForSeek
+                            ) {
+
+                                return;
+                            }
+
+
+                            firefoxWaitingForSeek =
+                                false;
+
+
+                            internalSeekAction =
+                                false;
+
+
+                            if (
+                                !firefoxPlayAfterSeek
+                            ) {
+
+                                return;
+                            }
+
+
+                            firefoxPlayAfterSeek =
+                                false;
+
+
+                            /*
+                                بعد انتهاء seek:
+                                الآن فقط نشغل.
+                            */
+
+                            if (
+                                currentAudio.paused
+                            ) {
+
+                                try {
+
+                                    const promise =
+                                        playAudioForCurrentBrowser(
+                                            currentAudio
+                                        );
+
+
+                                    if (
+                                        promise &&
+                                        typeof promise.catch ===
+                                        "function"
+                                    ) {
+
+                                        promise.catch(
+                                            error => {
+
+                                                console.error(
+                                                    "Firefox: تعذر التشغيل بعد seek:",
+                                                    error
+                                                );
+
+
+                                                if (
+                                                    !isCurrentSegment()
+                                                ) {
+
+                                                    return;
+                                                }
+
+
+                                                state.session.playing =
+                                                    false;
+
+
+                                                playPauseButton.textContent =
+                                                    "▶️";
+
+
+                                                setMediaSessionNone();
+                                            }
+                                        );
+                                    }
+
+                                } catch (error) {
+
+                                    console.error(
+                                        "Firefox: تعذر التشغيل بعد seek:",
+                                        error
+                                    );
+
+
+                                    state.session.playing =
+                                        false;
+
+
+                                    playPauseButton.textContent =
+                                        "▶️";
+
+
+                                    setMediaSessionNone();
+                                }
+                            }
+                        };
+
+                } else {
+
+                    /*
+                        باقي المتصفحات:
+                        نفس المسار القديم تمامًا.
+                    */
+
+                    setTimeout(
+                        () => {
+
+                            internalSeekAction =
+                                false;
+
+                        },
+                        0
+                    );
+                }
             }
 
 
@@ -2379,6 +2543,24 @@ function startCurrentSegment(
 
 
             /*
+                =================================================
+                FIREFOX ONLY
+                =================================================
+
+                إذا كان Firefox ينتظر seeked،
+                فلا نستدعي play() هنا.
+            */
+
+            if (
+                isFirefox &&
+                firefoxWaitingForSeek
+            ) {
+
+                return;
+            }
+
+
+            /*
                 الجزء الأول بدأ بالفعل من play()
                 المباشر في ضغطة المستخدم.
             */
@@ -2407,18 +2589,6 @@ function startCurrentSegment(
 
 
             try {
-
-                /*
-                    =================================================
-                    FIREFOX FIX
-                    =================================================
-
-                    Firefox:
-                    muted -> play -> unmute عند playing
-
-                    باقي المتصفحات:
-                    play() العادي كما كان.
-                */
 
                 playPromise =
                     playAudioForCurrentBrowser(
@@ -2716,9 +2886,8 @@ function startCurrentSegment(
                 FIREFOX FIX
                 =================================================
 
-                حتى أول تشغيل في Firefox يستخدم نفس
-                الدالة الخاصة، بينما باقي المتصفحات
-                تستخدم play() العادي.
+                أول تشغيل أيضًا يستخدم المسار الخاص
+                بـ Firefox.
             */
 
             immediatePlayPromise =
@@ -2784,10 +2953,6 @@ function startCurrentSegment(
 
                         /*
                             FIREFOX FIX
-
-                            playing event يقوم أيضًا
-                            بإلغاء muted، لكن نضمن هنا
-                            أن الصوت أصبح مسموعًا.
                         */
 
                         if (isFirefox) {
