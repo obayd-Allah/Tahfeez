@@ -14,7 +14,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 13";
+const CODE_VERSION = "CODE 14";
 
 
 /* =========================================================
@@ -83,6 +83,557 @@ let firefoxSource = null;
 let firefoxSourceId = 0;
 
 const firefoxBufferCache = new Map();
+
+
+/* =========================================================
+   Firefox AudioWorklet
+   يحاول تغيير السرعة مع الحفاظ على طبقة الصوت
+========================================================= */
+
+let firefoxWorkletReady = false;
+
+let firefoxWorkletPromise = null;
+
+let firefoxStretchNode = null;
+
+
+/* =========================================================
+   كود AudioWorklet الخاص بـ Firefox
+========================================================= */
+
+const FIREFOX_WORKLET_CODE = `
+
+class TahfeezTimeStretchProcessor extends AudioWorkletProcessor {
+
+    constructor() {
+
+        super();
+
+        this.buffer = null;
+
+        this.channels = 1;
+
+        this.bufferLength = 0;
+
+        this.startFrame = 0;
+
+        this.endFrame = 0;
+
+        this.position = 0;
+
+        this.speed = 1;
+
+        this.active = false;
+
+        this.finished = false;
+
+        this.grainSize = 2048;
+
+        this.hopOut = 512;
+
+        this.grainHopIn = 512;
+
+        this.grains = [];
+
+        this.nextGrainPosition = 0;
+
+        this.outputPosition = 0;
+
+        this.grainCounter = 0;
+
+        this.sampleRate = sampleRate;
+
+        this.port.onmessage = event => {
+
+            const data = event.data || {};
+
+            if (data.type === "buffer") {
+
+                this.buffer = data.channels || null;
+
+                this.channels =
+                    this.buffer ?
+                    this.buffer.length :
+                    1;
+
+                this.bufferLength =
+                    this.buffer &&
+                    this.buffer[0]
+                        ? this.buffer[0].length
+                        : 0;
+
+                return;
+            }
+
+
+            if (data.type === "start") {
+
+                this.startFrame =
+                    Math.max(
+                        0,
+                        Number(data.startFrame) || 0
+                    );
+
+                this.endFrame =
+                    Math.min(
+                        this.bufferLength,
+                        Number(data.endFrame) ||
+                        this.bufferLength
+                    );
+
+                this.speed =
+                    Math.min(
+                        1.25,
+                        Math.max(
+                            0.75,
+                            Number(data.speed) || 1
+                        )
+                    );
+
+                this.position =
+                    this.startFrame;
+
+                this.outputPosition = 0;
+
+                this.nextGrainPosition = 0;
+
+                this.grains = [];
+
+                this.grainCounter = 0;
+
+                this.active = true;
+
+                this.finished = false;
+
+                return;
+            }
+
+
+            if (data.type === "speed") {
+
+                this.speed =
+                    Math.min(
+                        1.25,
+                        Math.max(
+                            0.75,
+                            Number(data.speed) || 1
+                        )
+                    );
+
+                return;
+            }
+
+
+            if (data.type === "stop") {
+
+                this.active = false;
+
+                this.finished = true;
+
+                this.grains = [];
+
+                return;
+            }
+        };
+    }
+
+
+    createGrain() {
+
+        if (
+            !this.buffer ||
+            !this.buffer[0] ||
+            !this.bufferLength
+        ) {
+            return null;
+        }
+
+
+        const grainStart =
+            Math.floor(
+                this.position
+            );
+
+
+        if (
+            grainStart >=
+            this.endFrame
+        ) {
+            return null;
+        }
+
+
+        const length =
+            Math.min(
+                this.grainSize,
+                this.endFrame -
+                grainStart
+            );
+
+
+        if (length <= 0) {
+            return null;
+        }
+
+
+        const grain = {
+
+            start:
+                grainStart,
+
+            length,
+
+            outputStart:
+                this.nextGrainPosition,
+
+            data:
+                []
+        };
+
+
+        for (
+            let channel = 0;
+            channel < this.channels;
+            channel++
+        ) {
+
+            const source =
+                this.buffer[channel];
+
+
+            const samples =
+                new Float32Array(
+                    length
+                );
+
+
+            for (
+                let i = 0;
+                i < length;
+                i++
+            ) {
+
+                samples[i] =
+                    source[
+                        grainStart + i
+                    ] || 0;
+            }
+
+
+            grain.data.push(
+                samples
+            );
+        }
+
+
+        this.position +=
+            this.grainHopIn *
+            this.speed;
+
+
+        this.nextGrainPosition +=
+            this.hopOut;
+
+
+        this.grainCounter++;
+
+        return grain;
+    }
+
+
+    process(inputs, outputs) {
+
+        const output =
+            outputs[0];
+
+
+        if (
+            !output ||
+            !output[0]
+        ) {
+            return true;
+        }
+
+
+        const outputLength =
+            output[0].length;
+
+
+        for (
+            let channel = 0;
+            channel < output.length;
+            channel++
+        ) {
+
+            output[channel].fill(0);
+        }
+
+
+        if (
+            !this.active ||
+            !this.buffer ||
+            !this.buffer[0]
+        ) {
+
+            return true;
+        }
+
+
+        /*
+            إنشاء حبيبات كافية للمخرج الحالي.
+        */
+
+        while (
+            this.nextGrainPosition <
+            this.outputPosition +
+            outputLength +
+            this.grainSize
+        ) {
+
+            const grain =
+                this.createGrain();
+
+
+            if (!grain) {
+                break;
+            }
+
+
+            this.grains.push(
+                grain
+            );
+        }
+
+
+        /*
+            تركيب الحبيبات باستخدام نافذة Hann.
+        */
+
+        for (
+            const grain of this.grains
+        ) {
+
+            const grainOutputStart =
+                grain.outputStart -
+                this.outputPosition;
+
+
+            for (
+                let i = 0;
+                i < grain.length;
+                i++
+            ) {
+
+                const outIndex =
+                    grainOutputStart + i;
+
+
+                if (
+                    outIndex < 0 ||
+                    outIndex >= outputLength
+                ) {
+                    continue;
+                }
+
+
+                const phase =
+                    grain.length <= 1
+                        ? 1
+                        :
+                        i /
+                        (grain.length - 1);
+
+
+                const window =
+                    0.5 -
+                    0.5 *
+                    Math.cos(
+                        2 *
+                        Math.PI *
+                        phase
+                    );
+
+
+                for (
+                    let channel = 0;
+                    channel < output.length;
+                    channel++
+                ) {
+
+                    const sourceChannel =
+                        Math.min(
+                            channel,
+                            grain.data.length - 1
+                        );
+
+
+                    output[channel][outIndex] +=
+                        grain.data[
+                            sourceChannel
+                        ][i] *
+                        window;
+                }
+            }
+        }
+
+
+        this.outputPosition +=
+            outputLength;
+
+
+        /*
+            حذف الحبيبات التي خرجت بالكامل.
+        */
+
+        this.grains =
+            this.grains.filter(
+                grain =>
+                    grain.outputStart +
+                    grain.length >
+                    this.outputPosition
+            );
+
+
+        /*
+            عندما نصل لنهاية الجزء الصوتي،
+            نسمح للحبيبات الأخيرة بالخروج.
+        */
+
+        if (
+            this.position >=
+            this.endFrame &&
+            this.grains.length === 0
+        ) {
+
+            if (!this.finished) {
+
+                this.finished = true;
+
+                this.active = false;
+
+                this.port.postMessage({
+                    type: "ended"
+                });
+            }
+        }
+
+
+        return true;
+    }
+}
+
+
+registerProcessor(
+    "tahfeez-time-stretch",
+    TahfeezTimeStretchProcessor
+);
+
+`;
+
+
+/* =========================================================
+   إنشاء Worklet Firefox
+========================================================= */
+
+async function ensureFirefoxWorklet() {
+
+    if (!isFirefox) {
+        return false;
+    }
+
+
+    const context =
+        getFirefoxAudioContext();
+
+
+    if (!context) {
+        return false;
+    }
+
+
+    if (firefoxWorkletReady) {
+        return true;
+    }
+
+
+    if (firefoxWorkletPromise) {
+        return firefoxWorkletPromise;
+    }
+
+
+    firefoxWorkletPromise =
+        (async () => {
+
+            try {
+
+                if (
+                    !context.audioWorklet ||
+                    !context.audioWorklet.addModule
+                ) {
+
+                    throw new Error(
+                        "AudioWorklet غير متوفر في Firefox."
+                    );
+                }
+
+
+                const blob =
+                    new Blob(
+                        [
+                            FIREFOX_WORKLET_CODE
+                        ],
+                        {
+                            type:
+                                "application/javascript"
+                        }
+                    );
+
+
+                const url =
+                    URL.createObjectURL(
+                        blob
+                    );
+
+
+                try {
+
+                    await context.audioWorklet.addModule(
+                        url
+                    );
+
+                } finally {
+
+                    URL.revokeObjectURL(
+                        url
+                    );
+                }
+
+
+                firefoxWorkletReady =
+                    true;
+
+
+                return true;
+
+            } catch (error) {
+
+                console.error(
+                    "تعذر إنشاء Firefox AudioWorklet:",
+                    error
+                );
+
+
+                firefoxWorkletReady =
+                    false;
+
+
+                return false;
+            }
+        })();
+
+
+    return firefoxWorkletPromise;
+}
 
 
 /* =========================================================
@@ -220,18 +771,61 @@ function stopFirefoxSource() {
 
 
     try {
-        source.onended = null;
+
+        source.port.postMessage({
+            type: "stop"
+        });
+
     } catch (error) {}
 
 
     try {
-        source.stop();
+        source.onprocessorerror = null;
     } catch (error) {}
 
 
     try {
         source.disconnect();
     } catch (error) {}
+}
+
+
+/* =========================================================
+   تحويل AudioBuffer إلى بيانات قابلة للإرسال
+========================================================= */
+
+function getFirefoxBufferChannels(buffer) {
+
+    const channels = [];
+
+
+    const count =
+        Math.max(
+            1,
+            Math.min(
+                buffer.numberOfChannels || 1,
+                2
+            )
+        );
+
+
+    for (
+        let channel = 0;
+        channel < count;
+        channel++
+    ) {
+
+        channels.push(
+            new Float32Array(
+                buffer.getChannelData(
+                    channel
+                )
+            )
+        );
+    }
+
+
+    return channels;
 }
 
 
@@ -293,8 +887,7 @@ async function getFirefoxAudioBuffer(url) {
 
 
 /* =========================================================
-   تغيير سرعة مصدر Firefox الحالي
-   Firefox فقط
+   تغيير سرعة Firefox
 ========================================================= */
 
 function configureFirefoxSourceSpeed(
@@ -317,31 +910,21 @@ function configureFirefoxSourceSpeed(
         );
 
 
-    /*
-        Firefox فقط:
-
-        playbackRate هو المسؤول عن السرعة.
-
-        لا نستخدم detune هنا.
-
-        السبب:
-        detune ليس نظامًا مستقلًا للحفاظ على
-        النبرة مع تغيير السرعة، بل يدخل في
-        حساب معدل التشغيل النهائي.
-
-        لذلك استخدام detune المعاكس كان يلغي
-        تأثير السرعة تقريبًا في CODE 12.
-    */
-
     try {
 
-        source.playbackRate.value =
-            safeSpeed;
+        source.port.postMessage({
+
+            type:
+                "speed",
+
+            speed:
+                safeSpeed
+        });
 
     } catch (error) {
 
         console.warn(
-            "تعذر تغيير سرعة Firefox Web Audio:",
+            "تعذر تغيير سرعة Firefox:",
             error
         );
     }
@@ -360,11 +943,8 @@ function playAudioForCurrentBrowser(media) {
 
 
     /*
-        Firefox Web Audio يتم تشغيله
+        Firefox يستخدم AudioWorklet
         من startCurrentSegment.
-
-        هذه الدالة تبقى لمسار HTMLAudio
-        في الحالات الأخرى.
     */
 
     if (isFirefox) {
@@ -1214,17 +1794,10 @@ speedRange.addEventListener(
                 );
 
 
-            /*
-                Firefox:
-                لا نستخدم HTMLAudio playbackRate.
-
-                نغيّر مصدر Web Audio الحالي مباشرة.
-            */
-
             if (isFirefox) {
 
                 configureFirefoxSourceSpeed(
-                    firefoxSource,
+                    firefoxStretchNode,
                     state.session.speed
                 );
 
@@ -1430,6 +2003,16 @@ async function startMemorization() {
         playing:
             false
     };
+
+
+    /*
+        تجهيز AudioWorklet عند Firefox فقط.
+    */
+
+    if (isFirefox) {
+
+        await ensureFirefoxWorklet();
+    }
 
 
     await loadPausePoints();
@@ -1905,22 +2488,6 @@ function resetAudioElement() {
 
         stopFirefoxSource();
 
-        try {
-
-            if (
-                firefoxAudioContext &&
-                firefoxAudioContext.state ===
-                "running"
-            ) {
-
-                /*
-                    لا نغلق AudioContext هنا.
-                    نحتفظ به حتى يمكن إعادة التشغيل
-                    بسرعة ودون إنشاء Context جديد.
-                */
-            }
-
-        } catch (error) {}
     }
 
 
@@ -2138,11 +2705,6 @@ function configureAudioSpeed(
     }
 
 
-    /*
-        باقي المتصفحات:
-        نفس الكود السابق.
-    */
-
     try {
 
         media.preservesPitch =
@@ -2318,7 +2880,7 @@ function handleExternalAudioStop() {
 
 
 /* =========================================================
-   تشغيل الجزء الحالي - Firefox Web Audio
+   تشغيل Firefox باستخدام AudioWorklet
 ========================================================= */
 
 async function startFirefoxWebAudioSegment(
@@ -2369,11 +2931,6 @@ async function startFirefoxWebAudioSegment(
         }
 
 
-        /*
-            عند الضغط على زر التشغيل يكون
-            الـ AudioContext مسموحًا له بالعمل.
-        */
-
         const resumed =
             await resumeFirefoxAudioContext();
 
@@ -2393,6 +2950,18 @@ async function startFirefoxWebAudioSegment(
         ) {
 
             return;
+        }
+
+
+        const workletReady =
+            await ensureFirefoxWorklet();
+
+
+        if (!workletReady) {
+
+            throw new Error(
+                "تعذر تجهيز AudioWorklet في Firefox."
+            );
         }
 
 
@@ -2475,22 +3044,61 @@ async function startFirefoxWebAudioSegment(
 
 
         /*
-            مصدر جديد لكل جزء.
-
-            هذا مهم لأن AudioBufferSourceNode
-            لا يُعاد استخدامه بعد start().
+            إنشاء AudioWorklet جديد لهذا الجزء.
         */
 
-        const source =
-            context.createBufferSource();
+        const node =
+            new AudioWorkletNode(
+                context,
+                "tahfeez-time-stretch",
+                {
+                    numberOfInputs: 0,
+                    numberOfOutputs: 1,
+                    outputChannelCount: [2]
+                }
+            );
 
 
-        source.buffer =
-            buffer;
-
-
-        source.connect(
+        node.connect(
             firefoxGainNode
+        );
+
+
+        firefoxStretchNode =
+            node;
+
+
+        firefoxSource =
+            node;
+
+
+        const channels =
+            getFirefoxBufferChannels(
+                buffer
+            );
+
+
+        const channelArrays =
+            channels.map(
+                channel =>
+                    new Float32Array(
+                        channel
+                    )
+            );
+
+
+        node.port.postMessage(
+            {
+                type:
+                    "buffer",
+
+                channels:
+                    channelArrays
+            },
+            channelArrays.map(
+                channel =>
+                    channel.buffer
+            )
         );
 
 
@@ -2504,36 +3112,18 @@ async function startFirefoxWebAudioSegment(
             );
 
 
-        /*
-            =================================================
-            FIREFOX فقط
-            =================================================
-
-            نستخدم playbackRate فقط.
-
-            لا نستخدم detune.
-
-            هذا يجعل السرعة تتغير فعليًا:
-            0.75× = أبطأ
-            1.00× = طبيعية
-            1.25× = أسرع
-
-            ملاحظة:
-            في هذه النسخة التجريبية سيتغير Pitch
-            مع السرعة، لأن playbackRate وحده يغيّر
-            السرعة والنبرة معًا.
-
-            الهدف من CODE 13 هو التأكد أولًا أن
-            تغيير السرعة نفسه يعمل في Firefox
-            بدون التقطيع الذي ظهر سابقًا.
-        */
-
-        source.playbackRate.value =
-            actualSpeed;
+        const startFrame =
+            Math.floor(
+                start *
+                context.sampleRate
+            );
 
 
-        firefoxSource =
-            source;
+        const endFrame =
+            Math.floor(
+                end *
+                context.sampleRate
+            );
 
 
         let finished =
@@ -2573,44 +3163,77 @@ async function startFirefoxWebAudioSegment(
 
 
                 if (
-                    firefoxSource === source
+                    firefoxSource === node
                 ) {
 
                     firefoxSource =
+                        null;
+
+                    firefoxStretchNode =
                         null;
                 }
 
 
                 try {
-                    source.disconnect();
+                    node.disconnect();
                 } catch (error) {}
 
 
                 handleCurrentFirefoxSegmentFinished(
                     token,
-                    source,
+                    node,
                     end - start
                 );
             };
 
 
-        source.onended =
-            finishOnce;
+        node.port.onmessage =
+            event => {
+
+                if (
+                    event.data &&
+                    event.data.type ===
+                    "ended"
+                ) {
+
+                    finishOnce();
+                }
+            };
+
+
+        node.onprocessorerror =
+            error => {
+
+                console.error(
+                    "Firefox AudioWorklet processor error:",
+                    error
+                );
+
+
+                finishOnce();
+            };
+
+
+        node.port.postMessage({
+
+            type:
+                "start",
+
+            startFrame:
+                startFrame,
+
+            endFrame:
+                endFrame,
+
+            speed:
+                actualSpeed
+        });
 
 
         /*
-            نبدأ من نقطة الوقف الحقيقية.
-        */
-
-        source.start(
-            0,
-            start,
-            end - start
-        );
-
-
-        /*
-            مدة الجزء الفعلية في الزمن الحقيقي.
+            الزمن المتوقع للجزء.
+            نستخدم هامشًا إضافيًا لأن المعالجة
+            الحبيبية تحتاج إلى إنهاء آخر الحبيبات.
         */
 
         const wallTime =
@@ -2632,8 +3255,8 @@ async function startFirefoxWebAudioSegment(
             setTimeout(
                 finishOnce,
                 Math.max(
-                    50,
-                    wallTime + 150
+                    100,
+                    wallTime + 1000
                 )
             );
 
@@ -2658,7 +3281,6 @@ async function startFirefoxWebAudioSegment(
             } catch (error) {}
         }
 
-
     } catch (error) {
 
         if (
@@ -2671,7 +3293,7 @@ async function startFirefoxWebAudioSegment(
 
 
         console.error(
-            "Firefox Web Audio error:",
+            "Firefox AudioWorklet error:",
             error
         );
 
@@ -2681,6 +3303,9 @@ async function startFirefoxWebAudioSegment(
         ) {
 
             firefoxSource =
+                null;
+
+            firefoxStretchNode =
                 null;
         }
 
@@ -2729,13 +3354,11 @@ function handleCurrentFirefoxSegmentFinished(
 
         firefoxSource =
             null;
+
+        firefoxStretchNode =
+            null;
     }
 
-
-    /*
-        Teacher Mode:
-        normal → teacher
-    */
 
     if (
         state.session.teacherMode &&
@@ -2792,13 +3415,6 @@ function startCurrentSegment(
         =====================================================
         FIREFOX فقط
         =====================================================
-
-        Firefox يستخدم Web Audio.
-
-        في CODE 13:
-        playbackRate فقط.
-
-        detune لا يستخدم.
     */
 
     if (isFirefox) {
@@ -2816,6 +3432,7 @@ function startCurrentSegment(
     /*
         =====================================================
         باقي المتصفحات
+        نفس المسار السابق
         =====================================================
     */
 
