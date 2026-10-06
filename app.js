@@ -97,26 +97,28 @@ let firefoxStretchNode = null;
 
 
 /* =========================================================
-   كود AudioWorklet
+   Firefox WSOLA Time Stretch
 =========================================================
 
-   الفكرة:
+   مهم:
 
-   - لا نستخدم playbackRate في Firefox.
-   - الصوت الأصلي يدخل إلى خوارزمية
-     Time Stretch.
-   - سرعة القراءة من الصوت تتغير،
-     بينما حجم الحبيبات الصوتية ثابت.
-   - بذلك نحاول الحفاظ على طبقة صوت الشيخ.
+   لا نستخدم playbackRate في Firefox.
 
-   تم أيضًا إضافة Normalize لعملية
-   Overlap-Add حتى لا ترتفع شدة الصوت
-   أو يحدث تشويه بسبب تراكب الحبيبات.
+   الهدف هو تغيير الزمن مع محاولة
+   المحافظة على طبقة الصوت.
+
+   الخوارزمية:
+   - تقسم الصوت إلى مقاطع.
+   - لا تعيد تشغيل المقطع بسرعة مختلفة.
+   - تبحث عن أفضل موضع مشابه للمقطع السابق.
+   - تستخدم Overlap-Add مع Hann Window.
+   - تطبع مستوى الصوت بعد الدمج.
+
 ========================================================= */
 
 const FIREFOX_WORKLET_CODE = `
 
-class TahfeezTimeStretchProcessor
+class TahfeezWSOLAProcessor
     extends AudioWorkletProcessor {
 
     constructor() {
@@ -161,48 +163,70 @@ class TahfeezTimeStretchProcessor
 
 
         /* =================================================
-           إعدادات الخوارزمية
-        =================================================
-
-           grainSize:
-           حجم الحبيبة.
-
-           hopOut:
-           المسافة بين بداية الحبيبات في المخرج.
-
-           grainHopIn:
-           المسافة الأساسية داخل المصدر.
-
-           speed تتحكم في سرعة تقدم
-           موضع القراءة من المصدر.
+           إعدادات WSOLA
         ================================================= */
+
+        /*
+            حجم المقطع.
+
+            لا نغير سرعة تشغيل هذا المقطع نفسه.
+            نستخدمه كما هو ثم نعيد ترتيب المقاطع.
+        */
 
         this.grainSize = 2048;
 
+
+        /*
+            المسافة الزمنية بين المقاطع
+            في الخرج.
+        */
+
         this.hopOut = 512;
 
-        this.grainHopIn = 512;
+
+        /*
+            منطقة البحث عن أفضل تطابق.
+
+            كلما زادت المنطقة:
+            - قد يتحسن التطابق.
+            - لكن يزداد الحمل على المعالج.
+
+        */
+
+        this.searchRadius = 256;
+
+
+        /*
+            عدد العينات المستخدمة
+            في مقارنة التشابه.
+        */
+
+        this.correlationSize = 512;
 
 
         /* =================================================
-           الحبيبات
+           مواضع القراءة والكتابة
         ================================================= */
-
-        this.grains = [];
-
-        this.nextGrainPosition = 0;
-
-        this.outputPosition = 0;
 
         this.inputPosition = 0;
 
+        this.outputPosition = 0;
+
+        this.nextOutputPosition = 0;
+
 
         /* =================================================
-           معامل إنهاء
+           آخر مقطع
         ================================================= */
 
-        this.endTail =
-            this.grainSize;
+        this.previousGrain = null;
+
+
+        /* =================================================
+           المقاطع الموجودة في الذاكرة
+        ================================================= */
+
+        this.grains = [];
 
 
         /* =================================================
@@ -291,8 +315,12 @@ class TahfeezTimeStretchProcessor
                     0;
 
 
-                this.nextGrainPosition =
+                this.nextOutputPosition =
                     0;
+
+
+                this.previousGrain =
+                    null;
 
 
                 this.grains =
@@ -355,6 +383,10 @@ class TahfeezTimeStretchProcessor
                     [];
 
 
+                this.previousGrain =
+                    null;
+
+
                 return;
             }
         };
@@ -362,19 +394,20 @@ class TahfeezTimeStretchProcessor
 
 
     /* =====================================================
-       إنشاء Hann Window
+       Hann Window
     ===================================================== */
 
-    getWindow(index, length) {
+    getWindow(
+        index,
+        length
+    ) {
 
-        if (length <= 1) {
+        if (
+            length <= 1
+        ) {
+
             return 1;
         }
-
-
-        const phase =
-            index /
-            (length - 1);
 
 
         return (
@@ -383,14 +416,249 @@ class TahfeezTimeStretchProcessor
             Math.cos(
                 2 *
                 Math.PI *
-                phase
+                index /
+                (length - 1)
             )
         );
     }
 
 
     /* =====================================================
-       إنشاء حبيبة صوتية
+       البحث عن أفضل تطابق
+    ===================================================== */
+
+    findBestPosition(
+        expectedPosition
+    ) {
+
+        if (
+            !this.buffer ||
+            !this.buffer[0]
+        ) {
+
+            return expectedPosition;
+        }
+
+
+        /*
+            إذا لم يوجد مقطع سابق،
+            لا يوجد شيء نقارنه به.
+        */
+
+        if (
+            !this.previousGrain
+        ) {
+
+            return expectedPosition;
+        }
+
+
+        const source =
+            this.buffer[0];
+
+
+        const previous =
+            this.previousGrain;
+
+
+        const overlap =
+            Math.min(
+                this.correlationSize,
+                this.grainSize -
+                    this.hopOut
+            );
+
+
+        if (
+            overlap <= 16
+        ) {
+
+            return expectedPosition;
+        }
+
+
+        /*
+            نبدأ من موضع متوقع،
+            ثم نبحث حوله.
+        */
+
+        const minimum =
+            Math.max(
+                this.startFrame,
+                Math.floor(
+                    expectedPosition -
+                    this.searchRadius
+                )
+            );
+
+
+        const maximum =
+            Math.min(
+                this.endFrame -
+                    this.grainSize,
+                Math.ceil(
+                    expectedPosition +
+                    this.searchRadius
+                )
+            );
+
+
+        if (
+            maximum < minimum
+        ) {
+
+            return Math.max(
+                this.startFrame,
+                Math.min(
+                    expectedPosition,
+                    this.endFrame -
+                        this.grainSize
+                )
+            );
+        }
+
+
+        let bestPosition =
+            Math.max(
+                minimum,
+                Math.min(
+                    expectedPosition,
+                    maximum
+                )
+            );
+
+
+        let bestScore =
+            -Infinity;
+
+
+        /*
+            نبحث كل 8 عينات.
+
+            هذا يقلل الحمل مقارنة
+            بالبحث في كل عينة.
+        */
+
+        for (
+            let candidate =
+                minimum;
+
+            candidate <=
+                maximum;
+
+            candidate += 8
+        ) {
+
+            let numerator = 0;
+
+            let energyA = 0;
+
+            let energyB = 0;
+
+
+            for (
+                let i = 0;
+                i < overlap;
+                i++
+            ) {
+
+                /*
+                    الجزء الأخير من grain السابق
+                    هو الذي نقارنه ببداية
+                    grain الجديد.
+                */
+
+                const previousIndex =
+                    previous.length -
+                    overlap +
+                    i;
+
+
+                const currentIndex =
+                    candidate +
+                    i;
+
+
+                if (
+                    previousIndex < 0 ||
+                    previousIndex >=
+                        previous.length ||
+                    currentIndex < 0 ||
+                    currentIndex >=
+                        source.length
+                ) {
+
+                    break;
+                }
+
+
+                const a =
+                    previous[
+                        previousIndex
+                    ];
+
+
+                const b =
+                    source[
+                        currentIndex
+                    ];
+
+
+                numerator +=
+                    a * b;
+
+
+                energyA +=
+                    a * a;
+
+
+                energyB +=
+                    b * b;
+            }
+
+
+            const denominator =
+                Math.sqrt(
+                    energyA *
+                    energyB
+                );
+
+
+            if (
+                denominator <=
+                0.000001
+            ) {
+
+                continue;
+            }
+
+
+            const score =
+                numerator /
+                denominator;
+
+
+            if (
+                score >
+                bestScore
+            ) {
+
+                bestScore =
+                    score;
+
+
+                bestPosition =
+                    candidate;
+            }
+        }
+
+
+        return bestPosition;
+    }
+
+
+    /* =====================================================
+       إنشاء Grain
     ===================================================== */
 
     createGrain() {
@@ -405,14 +673,30 @@ class TahfeezTimeStretchProcessor
         }
 
 
-        const grainStart =
+        let expectedPosition =
             Math.floor(
                 this.inputPosition
             );
 
 
+        /*
+            إذا كان لدينا grain سابق،
+            نبحث عن موضع صوتي مشابه.
+        */
+
         if (
-            grainStart >=
+            this.previousGrain
+        ) {
+
+            expectedPosition =
+                this.findBestPosition(
+                    expectedPosition
+                );
+        }
+
+
+        if (
+            expectedPosition >=
             this.endFrame
         ) {
 
@@ -422,7 +706,7 @@ class TahfeezTimeStretchProcessor
 
         const remaining =
             this.endFrame -
-            grainStart;
+            expectedPosition;
 
 
         const length =
@@ -432,7 +716,10 @@ class TahfeezTimeStretchProcessor
             );
 
 
-        if (length <= 0) {
+        if (
+            length <= 0
+        ) {
+
             return null;
         }
 
@@ -440,21 +727,22 @@ class TahfeezTimeStretchProcessor
         const grain = {
 
             start:
-                grainStart,
+                expectedPosition,
 
             length:
-
                 length,
 
             outputStart:
-
-                this.nextGrainPosition,
+                this.nextOutputPosition,
 
             data:
-
                 []
         };
 
+
+        /*
+            نسخ بيانات القنوات.
+        */
 
         for (
             let channel = 0;
@@ -480,7 +768,8 @@ class TahfeezTimeStretchProcessor
 
                 samples[i] =
                     source[
-                        grainStart + i
+                        expectedPosition +
+                        i
                     ] || 0;
             }
 
@@ -492,22 +781,32 @@ class TahfeezTimeStretchProcessor
 
 
         /*
-            السرعة هنا تغير سرعة
-            تقدم القراءة من المصدر.
+            نحتفظ بالقناة الأولى
+            للمقارنة مع grain التالي.
+        */
 
-            لكن حجم الحبيبة نفسه
-            لا يتغير.
+        this.previousGrain =
+            grain.data[0];
 
-            لذلك نحاول إبقاء
-            طبقة الصوت ثابتة.
+
+        /*
+            هنا يتم التحكم في الزمن.
+
+            لا نغير playbackRate.
+
+            المقطع نفسه لا يصبح أعلى
+            أو أوطأ.
+
+            فقط موضع القراءة من التسجيل
+            يتقدم بمعدل مختلف.
         */
 
         this.inputPosition +=
-            this.grainHopIn *
+            this.hopOut *
             this.speed;
 
 
-        this.nextGrainPosition +=
+        this.nextOutputPosition +=
             this.hopOut;
 
 
@@ -519,7 +818,10 @@ class TahfeezTimeStretchProcessor
        المعالجة
     ===================================================== */
 
-    process(inputs, outputs) {
+    process(
+        inputs,
+        outputs
+    ) {
 
         const output =
             outputs[0];
@@ -538,9 +840,9 @@ class TahfeezTimeStretchProcessor
             output[0].length;
 
 
-        /*
-            تنظيف المخرج
-        */
+        /* =================================================
+           تنظيف المخرج
+        ================================================= */
 
         for (
             let channel = 0;
@@ -552,9 +854,9 @@ class TahfeezTimeStretchProcessor
         }
 
 
-        /*
-            إذا لم يكن هناك تشغيل
-        */
+        /* =================================================
+           لا يوجد تشغيل
+        ================================================= */
 
         if (
             !this.active ||
@@ -567,7 +869,7 @@ class TahfeezTimeStretchProcessor
 
 
         /* =================================================
-           إنشاء حبيبات كافية
+           إنشاء مقاطع كافية
         ================================================= */
 
         const requiredEnd =
@@ -577,7 +879,7 @@ class TahfeezTimeStretchProcessor
 
 
         while (
-            this.nextGrainPosition <
+            this.nextOutputPosition <
             requiredEnd
         ) {
 
@@ -597,9 +899,7 @@ class TahfeezTimeStretchProcessor
 
 
         /* =================================================
-           حساب الطاقة المتراكمة
-           لتجنب ارتفاع الصوت بسبب
-           Overlap-Add
+           مصفوفة التطبيع
         ================================================= */
 
         const normalization =
@@ -609,11 +909,12 @@ class TahfeezTimeStretchProcessor
 
 
         /* =================================================
-           تركيب الحبيبات
+           Overlap-Add
         ================================================= */
 
         for (
-            const grain of this.grains
+            const grain of
+                this.grains
         ) {
 
             const relativeStart =
@@ -628,12 +929,14 @@ class TahfeezTimeStretchProcessor
             ) {
 
                 const outIndex =
-                    relativeStart + i;
+                    relativeStart +
+                    i;
 
 
                 if (
                     outIndex < 0 ||
-                    outIndex >= outputLength
+                    outIndex >=
+                        outputLength
                 ) {
 
                     continue;
@@ -647,12 +950,6 @@ class TahfeezTimeStretchProcessor
                     );
 
 
-                /*
-                    نجمع وزن النافذة
-                    لاستخدامه لاحقًا
-                    في التطبيع.
-                */
-
                 normalization[
                     outIndex
                 ] += window;
@@ -660,18 +957,22 @@ class TahfeezTimeStretchProcessor
 
                 for (
                     let channel = 0;
-                    channel < output.length;
+                    channel <
+                        output.length;
                     channel++
                 ) {
 
                     const sourceChannel =
                         Math.min(
                             channel,
-                            grain.data.length - 1
+                            grain.data.length -
+                                1
                         );
 
 
-                    output[channel][outIndex] +=
+                    output[channel][
+                        outIndex
+                    ] +=
                         grain.data[
                             sourceChannel
                         ][i] *
@@ -695,16 +996,19 @@ class TahfeezTimeStretchProcessor
                 normalization[i];
 
 
-            if (weight > 0.0001) {
+            if (
+                weight >
+                0.0001
+            ) {
 
                 const inverse =
-                    1 /
-                    weight;
+                    1 / weight;
 
 
                 for (
                     let channel = 0;
-                    channel < output.length;
+                    channel <
+                        output.length;
                     channel++
                 ) {
 
@@ -715,12 +1019,16 @@ class TahfeezTimeStretchProcessor
         }
 
 
+        /* =================================================
+           تقدم الخرج
+        ================================================= */
+
         this.outputPosition +=
             outputLength;
 
 
         /* =================================================
-           حذف الحبيبات القديمة
+           حذف المقاطع القديمة
         ================================================= */
 
         this.grains =
@@ -733,19 +1041,22 @@ class TahfeezTimeStretchProcessor
 
 
         /* =================================================
-           الوصول لنهاية الجزء
+           نهاية الجزء
         ================================================= */
 
         if (
             this.inputPosition >=
-            this.endFrame &&
+                this.endFrame &&
             this.grains.length === 0
         ) {
 
-            if (!this.finished) {
+            if (
+                !this.finished
+            ) {
 
                 this.finished =
                     true;
+
 
                 this.active =
                     false;
@@ -766,7 +1077,7 @@ class TahfeezTimeStretchProcessor
 
 registerProcessor(
     "tahfeez-time-stretch",
-    TahfeezTimeStretchProcessor
+    TahfeezWSOLAProcessor
 );
 
 `;
@@ -937,6 +1248,7 @@ function getFirefoxAudioContext() {
 
         firefoxAudioContext =
             null;
+
 
         firefoxGainNode =
             null;
@@ -2595,7 +2907,7 @@ async function navigateToAyah(
     if (
         !state.session ||
         navigationToken !==
-        playbackToken
+            playbackToken
     ) {
 
         return;
@@ -3343,7 +3655,7 @@ function handleExternalAudioStop() {
 
 
 /* =========================================================
-   Firefox AudioWorklet
+   Firefox WSOLA
 ========================================================= */
 
 async function startFirefoxWebAudioSegment(
@@ -3677,7 +3989,7 @@ async function startFirefoxWebAudioSegment(
                 if (
                     event.data &&
                     event.data.type ===
-                    "ended"
+                        "ended"
                 ) {
 
                     finishOnce();
@@ -3720,6 +4032,11 @@ async function startFirefoxWebAudioSegment(
 
         /*
             الزمن المتوقع.
+
+            هذا فقط لتأمين نهاية الجزء
+            في حالة عدم وصول رسالة ended.
+
+            لا يغير سرعة الصوت.
         */
 
         const wallTime =
@@ -3838,7 +4155,7 @@ function handleCurrentFirefoxSegmentFinished(
     if (
         finishedSource &&
         firefoxSource ===
-        finishedSource
+            finishedSource
     ) {
 
         firefoxSource =
