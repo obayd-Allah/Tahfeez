@@ -1,7 +1,3 @@
-/* =========================================================
-   TAHFEEZ CODE 09
-========================================================= */
-
 const state = {
     quran: [],
     surahs: [],
@@ -18,7 +14,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 09";
+const CODE_VERSION = "CODE 10";
 
 
 /* =========================================================
@@ -27,53 +23,25 @@ const CODE_VERSION = "CODE 09";
 
 (function createTemporaryVersionBox() {
 
-    const box =
-        document.createElement("div");
+    const box = document.createElement("div");
 
-    box.textContent =
-        CODE_VERSION;
+    box.textContent = CODE_VERSION;
 
-    box.id =
-        "temporaryCodeVersion";
+    box.id = "temporaryCodeVersion";
 
-    box.style.position =
-        "fixed";
-
-    box.style.top =
-        "8px";
-
-    box.style.left =
-        "8px";
-
-    box.style.zIndex =
-        "999999";
-
-    box.style.padding =
-        "4px 8px";
-
-    box.style.borderRadius =
-        "8px";
-
-    box.style.background =
-        "#222";
-
-    box.style.color =
-        "#fff";
-
-    box.style.fontSize =
-        "11px";
-
-    box.style.fontFamily =
-        "Arial, sans-serif";
-
-    box.style.fontWeight =
-        "bold";
-
-    box.style.opacity =
-        "0.85";
-
-    box.style.pointerEvents =
-        "none";
+    box.style.position = "fixed";
+    box.style.top = "8px";
+    box.style.left = "8px";
+    box.style.zIndex = "999999";
+    box.style.padding = "4px 8px";
+    box.style.borderRadius = "8px";
+    box.style.background = "#222";
+    box.style.color = "#fff";
+    box.style.fontSize = "11px";
+    box.style.fontFamily = "Arial, sans-serif";
+    box.style.fontWeight = "bold";
+    box.style.opacity = "0.85";
+    box.style.pointerEvents = "none";
 
     document.body.appendChild(box);
 
@@ -95,32 +63,28 @@ try {
 
 
 /* =========================================================
-   FIREFOX FIX
+   FIREFOX
 ========================================================= */
 
 const isFirefox =
     /firefox/i.test(navigator.userAgent);
 
 
-/*
-    تشغيل خاص بـ Firefox.
+/* =========================================================
+   تشغيل الصوت حسب المتصفح
+========================================================= */
 
-    Firefox قد يرفض play() إذا حدث بعد pause/انتظار
-    ولم يعد مرتبطًا مباشرة بضغطة المستخدم.
-
-    لذلك:
-    1. نجعل الصوت muted.
-    2. نستدعي play().
-    3. بعد نجاح التشغيل نعيد الصوت مسموعًا.
-
-    هذا المسار لا يستخدم في Chrome / Edge / غيرهما.
-*/
 function playAudioForCurrentBrowser(media) {
 
     if (!media) {
         return null;
     }
 
+
+    /*
+        باقي المتصفحات:
+        لا تغيير عليها إطلاقًا.
+    */
 
     if (!isFirefox) {
 
@@ -132,12 +96,17 @@ function playAudioForCurrentBrowser(media) {
     }
 
 
+    /*
+        Firefox فقط
+    */
+
     try {
         media.muted = true;
     } catch (error) {}
 
 
     let playPromise;
+
 
     try {
 
@@ -189,27 +158,12 @@ function playAudioForCurrentBrowser(media) {
 }
 
 
-/*
-    رقم يميز كل مقطع صوتي.
-*/
 let audioSegmentId = 0;
 
-
-/*
-    هذه القيمة لا تعني أن المستخدم ضغط Pause.
-*/
 let internalAudioAction = false;
 
-
-/*
-    عداد لحماية العمليات الداخلية المتداخلة.
-*/
 let internalAudioActionDepth = 0;
 
-
-/*
-    حماية تغيير currentTime الذي يقوم به التطبيق.
-*/
 let internalSeekAction = false;
 
 
@@ -226,13 +180,14 @@ let segmentIndex = 0;
 let currentAudioType = "normal";
 
 let waitTimer = null;
+
 let segmentTimer = null;
 
 let playbackToken = 0;
 
 
 /* =========================================================
-   أدوات العمليات الداخلية على Audio
+   أدوات العمليات الداخلية
 ========================================================= */
 
 function beginInternalAudioAction() {
@@ -263,9 +218,6 @@ function endInternalAudioActionSoon() {
 }
 
 
-/*
-    إزالة جميع أحداث عنصر الصوت.
-*/
 function detachAudioEvents() {
 
     audio.onplay = null;
@@ -325,43 +277,67 @@ const teacherMode =
     document.getElementById("teacherMode");
 
 const teacherModeDescription =
-    document.getElementById("teacherModeDescription");
+    document.getElementById(
+        "teacherModeDescription"
+    );
 
 const availabilityMessage =
-    document.getElementById("availabilityMessage");
+    document.getElementById(
+        "availabilityMessage"
+    );
 
 const startButton =
     document.getElementById("startButton");
 
 const playerSettingsButton =
-    document.getElementById("playerSettingsButton");
+    document.getElementById(
+        "playerSettingsButton"
+    );
 
 const currentSurahName =
-    document.getElementById("currentSurahName");
+    document.getElementById(
+        "currentSurahName"
+    );
 
 const currentAyahText =
-    document.getElementById("currentAyahText");
+    document.getElementById(
+        "currentAyahText"
+    );
 
 const blockRepeatInfo =
-    document.getElementById("blockRepeatInfo");
+    document.getElementById(
+        "blockRepeatInfo"
+    );
 
 const ayahRepeatInfo =
-    document.getElementById("ayahRepeatInfo");
+    document.getElementById(
+        "ayahRepeatInfo"
+    );
 
 const completionMessage =
-    document.getElementById("completionMessage");
+    document.getElementById(
+        "completionMessage"
+    );
 
 const previousAyahButton =
-    document.getElementById("previousAyahButton");
+    document.getElementById(
+        "previousAyahButton"
+    );
 
 const restartBlockButton =
-    document.getElementById("restartBlockButton");
+    document.getElementById(
+        "restartBlockButton"
+    );
 
 const playPauseButton =
-    document.getElementById("playPauseButton");
+    document.getElementById(
+        "playPauseButton"
+    );
 
 const nextAyahButton =
-    document.getElementById("nextAyahButton");
+    document.getElementById(
+        "nextAyahButton"
+    );
 
 
 /* =========================================================
@@ -376,7 +352,8 @@ function setMediaSessionNone() {
 
     try {
 
-        navigator.mediaSession.metadata = null;
+        navigator.mediaSession.metadata =
+            null;
 
         navigator.mediaSession.playbackState =
             "none";
@@ -496,7 +473,6 @@ function setupMediaSessionHandlers() {
 
         } catch (error) {}
 
-
     } catch (error) {
 
         console.warn(
@@ -513,7 +489,7 @@ setMediaSessionNone();
 
 
 /* =========================================================
-   حماية محاولة تغيير الموضع
+   محاولة تغيير الموضع خارجيًا
 ========================================================= */
 
 function handleExternalSeekAttempt() {
@@ -522,7 +498,9 @@ function handleExternalSeekAttempt() {
         return;
     }
 
+
     playbackToken++;
+
 
     if (waitTimer) {
 
@@ -531,6 +509,7 @@ function handleExternalSeekAttempt() {
         waitTimer = null;
     }
 
+
     if (segmentTimer) {
 
         clearTimeout(segmentTimer);
@@ -538,7 +517,9 @@ function handleExternalSeekAttempt() {
         segmentTimer = null;
     }
 
+
     resetAudioElement();
+
 
     segmentIndex = 0;
 
@@ -566,9 +547,7 @@ async function loadData() {
             quranResponse,
             recitersResponse
         ] = await Promise.all([
-
             fetch("./data/quran.json"),
-
             fetch("./data/reciters.json")
         ]);
 
@@ -659,14 +638,11 @@ function populateReciters() {
         const option =
             document.createElement("option");
 
-
         option.value =
             reciter.id;
 
-
         option.textContent =
             reciter.name;
-
 
         reciterSelect.appendChild(option);
     }
@@ -688,7 +664,8 @@ function populateSurahs() {
 
     if (!state.selectedReciter) {
 
-        surahSelect.disabled = true;
+        surahSelect.disabled =
+            true;
 
         return;
     }
@@ -732,7 +709,8 @@ function populateSurahs() {
     }
 
 
-    surahSelect.disabled = false;
+    surahSelect.disabled =
+        false;
 }
 
 
@@ -823,9 +801,11 @@ surahSelect.addEventListener(
                 `سورة ${state.selectedSurah.name} غير متوفرة بصوت ${state.selectedReciter.name} حاليًا.`
             );
 
+
             disableAyahInputs();
 
-            startButton.disabled = true;
+            startButton.disabled =
+                true;
 
             return;
         }
@@ -841,7 +821,6 @@ surahSelect.addEventListener(
 
         fromAyah.max =
             available.to;
-
 
         toAyah.min =
             available.from;
@@ -916,7 +895,6 @@ function validateAyahRange() {
 
     let from =
         Number(fromAyah.value);
-
 
     let to =
         Number(toAyah.value);
@@ -1126,7 +1104,6 @@ function validateSetup() {
     const from =
         Number(fromAyah.value);
 
-
     const to =
         Number(toAyah.value);
 
@@ -1162,7 +1139,6 @@ async function startMemorization() {
 
     const from =
         Number(fromAyah.value);
-
 
     const to =
         Number(toAyah.value);
@@ -1571,9 +1547,7 @@ async function loadPausePoints() {
         `${reciter.id}_${surahNumber}_${ayahNumber}`;
 
 
-    if (
-        pausePointsCache.has(cacheKey)
-    ) {
+    if (pausePointsCache.has(cacheKey)) {
 
         pausePoints =
             [
@@ -1632,7 +1606,9 @@ async function loadPausePoints() {
 
         if (
             ayahData &&
-            Array.isArray(ayahData.pauses)
+            Array.isArray(
+                ayahData.pauses
+            )
         ) {
 
             const points =
@@ -1659,14 +1635,12 @@ async function loadPausePoints() {
                 [...points];
         }
 
-
     } catch (error) {
 
         console.warn(
             "تعذر تحميل pauses.json",
             error
         );
-
 
         pausePoints = [];
     }
@@ -1689,9 +1663,7 @@ function resetAudioElement() {
 
 
     try {
-
         audio.pause();
-
     } catch (error) {}
 
 
@@ -1704,16 +1676,12 @@ function resetAudioElement() {
 
 
     try {
-
         audio.removeAttribute("src");
-
     } catch (error) {}
 
 
     try {
-
         audio.load();
-
     } catch (error) {}
 
 
@@ -1745,7 +1713,6 @@ function clearPlaybackResources() {
 
     resetAudioElement();
 
-
     setMediaSessionNone();
 }
 
@@ -1765,6 +1732,7 @@ function playCurrentAyah(
 
 
     playbackToken++;
+
 
     const token =
         playbackToken;
@@ -1882,8 +1850,8 @@ function sanitizePausePoints(duration) {
 
 
 /* =========================================================
-   CODE 09
-   إعداد سرعة الصوت
+   CODE 10
+   إعداد السرعة
 ========================================================= */
 
 function configureAudioSpeed(
@@ -1902,13 +1870,19 @@ function configureAudioSpeed(
 
 
     /*
-        Firefox:
+        =====================================================
+        FIREFOX فقط
+        =====================================================
 
-        لا نستخدم defaultPlaybackRate هنا.
-        playbackRate فقط.
+        في CODE 10 نجرب تعطيل الحفاظ على طبقة الصوت.
 
-        في CODE 09 يتم استدعاء هذه الدالة
-        بعد بدء التشغيل في Firefox.
+        السبب:
+        Firefox قد يسبب تقطيعًا عند:
+        playbackRate > 1
+        + preservesPitch = true
+
+        هذا التعديل لا يؤثر إطلاقًا على
+        Chrome / Edge / باقي المتصفحات.
     */
 
     if (isFirefox) {
@@ -1916,15 +1890,7 @@ function configureAudioSpeed(
         try {
 
             media.preservesPitch =
-                true;
-
-        } catch (error) {}
-
-
-        try {
-
-            media.webkitPreservesPitch =
-                true;
+                false;
 
         } catch (error) {}
 
@@ -1932,7 +1898,15 @@ function configureAudioSpeed(
         try {
 
             media.mozPreservesPitch =
-                true;
+                false;
+
+        } catch (error) {}
+
+
+        try {
+
+            media.webkitPreservesPitch =
+                false;
 
         } catch (error) {}
 
@@ -1956,8 +1930,10 @@ function configureAudioSpeed(
 
 
     /*
-        باقي المتصفحات:
-        نفس الطريقة السابقة.
+        =====================================================
+        باقي المتصفحات
+        بدون أي تغيير عن CODE 08
+    =====================================================
     */
 
     try {
@@ -2028,7 +2004,8 @@ function pauseAudioInternally(media) {
         media.onpause;
 
 
-    media.onpause = null;
+    media.onpause =
+        null;
 
 
     try {
@@ -2175,18 +2152,13 @@ function startCurrentSegment(
         audio;
 
 
-    /* =====================================================
-       FIREFOX ONLY
-    ===================================================== */
-
-    let firefoxWaitingForSeek = false;
-
-    let firefoxPlayAfterSeek = false;
+    let firefoxWaitingForSeek =
+        false;
 
 
-    /* =====================================================
-       تغيير المصدر بأمان
-    ===================================================== */
+    let firefoxPlayAfterSeek =
+        false;
+
 
     beginInternalAudioAction();
 
@@ -2195,9 +2167,7 @@ function startCurrentSegment(
 
 
     try {
-
         currentAudio.pause();
-
     } catch (error) {}
 
 
@@ -2210,18 +2180,12 @@ function startCurrentSegment(
 
 
     try {
-
-        currentAudio.removeAttribute(
-            "src"
-        );
-
+        currentAudio.removeAttribute("src");
     } catch (error) {}
 
 
     try {
-
         currentAudio.load();
-
     } catch (error) {}
 
 
@@ -2231,13 +2195,14 @@ function startCurrentSegment(
 
     /*
         =====================================================
-        CODE 09 — FIREFOX
+        السرعة
+        =====================================================
 
-        لا نضع 1.25× قبل بدء التشغيل.
+        Firefox:
+        نبدأ بسرعة 1× فقط.
 
-        Firefox يبدأ الملف أولًا بسرعة 1.00×،
-        وبعد حدث playing نضع السرعة المطلوبة.
-    =====================================================
+        باقي المتصفحات:
+        نفس النظام السابق.
     */
 
     const actualSpeed =
@@ -2258,6 +2223,7 @@ function startCurrentSegment(
                 1;
 
         } catch (error) {}
+
 
     } else {
 
@@ -2315,13 +2281,12 @@ function startCurrentSegment(
         beginInternalAudioAction();
 
 
-        currentAudio.onpause = null;
+        currentAudio.onpause =
+            null;
 
 
         try {
-
             currentAudio.pause();
-
         } catch (error) {}
 
 
@@ -2335,9 +2300,9 @@ function startCurrentSegment(
     }
 
 
-    /* -----------------------------------------------------
-       play
-    ----------------------------------------------------- */
+    /* =====================================================
+       onplay
+    ===================================================== */
 
     currentAudio.onplay =
         () => {
@@ -2369,9 +2334,9 @@ function startCurrentSegment(
         };
 
 
-    /* -----------------------------------------------------
-       playing
-    ----------------------------------------------------- */
+    /* =====================================================
+       onplaying
+    ===================================================== */
 
     currentAudio.onplaying =
         () => {
@@ -2382,14 +2347,9 @@ function startCurrentSegment(
 
 
             /*
-                =================================================
-                CODE 09 — FIREFOX
-
-                الآن فقط، بعد أن بدأ الصوت فعلًا،
-                نطبق السرعة المطلوبة.
-
-                هذه أهم نقطة في الإصدار الجديد.
-            =================================================
+                Firefox فقط:
+                بعد أن يبدأ الصوت فعلًا،
+                نضع السرعة المطلوبة.
             */
 
             if (isFirefox) {
@@ -2428,9 +2388,9 @@ function startCurrentSegment(
         };
 
 
-    /* -----------------------------------------------------
+    /* =====================================================
        loadedmetadata
-    ----------------------------------------------------- */
+    ===================================================== */
 
     currentAudio.onloadedmetadata =
         () => {
@@ -2526,12 +2486,6 @@ function startCurrentSegment(
                     return;
                 }
 
-
-                /*
-                    FIREFOX ONLY
-
-                    ننتظر seeked قبل التشغيل.
-                */
 
                 if (isFirefox) {
 
@@ -2650,6 +2604,7 @@ function startCurrentSegment(
                             }
                         };
 
+
                 } else {
 
                     setTimeout(
@@ -2666,10 +2621,11 @@ function startCurrentSegment(
 
 
             /*
-                CODE 09:
+                Firefox:
+                لا نضع السرعة هنا.
 
-                لا نعيد ضبط السرعة هنا في Firefox.
-                تم ضبطها في onplaying.
+                باقي المتصفحات:
+                نفس الكود القديم.
             */
 
             if (!isFirefox) {
@@ -2710,10 +2666,6 @@ function startCurrentSegment(
                 );
 
 
-            /*
-                Firefox ينتظر seeked.
-            */
-
             if (
                 isFirefox &&
                 firefoxWaitingForSeek
@@ -2722,11 +2674,6 @@ function startCurrentSegment(
                 return;
             }
 
-
-            /*
-                الجزء الأول بدأ بالفعل من play()
-                المباشر في ضغطة المستخدم.
-            */
 
             if (
                 userInitiated &&
@@ -2737,11 +2684,6 @@ function startCurrentSegment(
                 return;
             }
 
-
-            /*
-                إذا كان الصوت يعمل بالفعل،
-                لا داعي لإعادة play.
-            */
 
             if (!currentAudio.paused) {
                 return;
@@ -2780,6 +2722,7 @@ function startCurrentSegment(
 
 
                 setMediaSessionNone();
+
 
                 return;
             }
@@ -2840,9 +2783,9 @@ function startCurrentSegment(
         };
 
 
-    /* -----------------------------------------------------
-       مراقبة الموضع
-    ----------------------------------------------------- */
+    /* =====================================================
+       ontimeupdate
+    ===================================================== */
 
     currentAudio.ontimeupdate =
         () => {
@@ -2892,9 +2835,9 @@ function startCurrentSegment(
         };
 
 
-    /* -----------------------------------------------------
-       حماية السحب
-    ----------------------------------------------------- */
+    /* =====================================================
+       seeking
+    ===================================================== */
 
     currentAudio.onseeking =
         () => {
@@ -2918,9 +2861,9 @@ function startCurrentSegment(
         };
 
 
-    /* -----------------------------------------------------
-       نهاية الملف
-    ----------------------------------------------------- */
+    /* =====================================================
+       ended
+    ===================================================== */
 
     currentAudio.onended =
         () => {
@@ -2938,9 +2881,9 @@ function startCurrentSegment(
         };
 
 
-    /* -----------------------------------------------------
-       pause الخارجي
-    ----------------------------------------------------- */
+    /* =====================================================
+       pause
+    ===================================================== */
 
     currentAudio.onpause =
         () => {
@@ -2966,9 +2909,9 @@ function startCurrentSegment(
         null;
 
 
-    /* -----------------------------------------------------
-       خطأ الصوت
-    ----------------------------------------------------- */
+    /* =====================================================
+       error
+    ===================================================== */
 
     currentAudio.onerror =
         () => {
@@ -3020,7 +2963,7 @@ function startCurrentSegment(
 
 
     /* =====================================================
-       التشغيل المباشر لأول جزء
+       التشغيل المباشر
     ===================================================== */
 
     if (
@@ -3033,12 +2976,6 @@ function startCurrentSegment(
 
 
         try {
-
-            /*
-                Firefox يبدأ الآن بسرعة 1.00×
-                لأن configureAudioSpeed لم يتم استدعاؤه
-                قبل play().
-            */
 
             immediatePlayPromise =
                 playAudioForCurrentBrowser(
@@ -3100,11 +3037,6 @@ function startCurrentSegment(
                             return;
                         }
 
-
-                        /*
-                            في Firefox:
-                            السرعة سيتم تطبيقها في onplaying.
-                        */
 
                         if (isFirefox) {
 
@@ -3224,9 +3156,7 @@ function handleCurrentSegmentFinished(
 
     if (!bounds) {
 
-        finishAyah(
-            token
-        );
+        finishAyah(token);
 
         return;
     }
@@ -3239,16 +3169,6 @@ function handleCurrentSegmentFinished(
             bounds.start
         );
 
-
-    /*
-        Teacher Mode:
-
-        normal
-            ↓
-        teacher
-            ↓
-        wait
-    */
 
     if (
         state.session.teacherMode &&
@@ -3313,9 +3233,7 @@ function waitAfterSegment(
         segmentDuration <= 0
     ) {
 
-        continueAfterWait(
-            token
-        );
+        continueAfterWait(token);
 
         return;
     }
@@ -3362,9 +3280,8 @@ function waitAfterSegment(
                 }
 
 
-                continueAfterWait(
-                    token
-                );
+                continueAfterWait(token);
+
             },
             waitTime
         );
@@ -3409,9 +3326,7 @@ function continueAfterWait(token) {
     }
 
 
-    finishAyah(
-        token
-    );
+    finishAyah(token);
 }
 
 
@@ -3429,10 +3344,6 @@ function finishAyah(token) {
         return;
     }
 
-
-    /*
-        تكرار الآية.
-    */
 
     if (
         state.session.currentAyahRepeat <
@@ -3459,10 +3370,6 @@ function finishAyah(token) {
         1;
 
 
-    /*
-        توجد آية تالية.
-    */
-
     if (
         state.session.currentAyah <
         state.session.toAyah
@@ -3479,24 +3386,17 @@ function finishAyah(token) {
         state.session.playing =
             true;
 
+
         playPauseButton.textContent =
             "⏸️";
 
 
-        prepareNextAyahAndPlay(
-            token
-        );
+        prepareNextAyahAndPlay(token);
 
 
         return;
     }
 
-
-    /*
-        انتهت الآيات.
-
-        نكرر المقطع إذا لزم.
-    */
 
     if (
         state.session.currentBlockRepeat <
@@ -3522,13 +3422,12 @@ function finishAyah(token) {
         state.session.playing =
             true;
 
+
         playPauseButton.textContent =
             "⏸️";
 
 
-        prepareNextAyahAndPlay(
-            token
-        );
+        prepareNextAyahAndPlay(token);
 
 
         return;
@@ -3540,7 +3439,7 @@ function finishAyah(token) {
 
 
 /* =========================================================
-   تجهيز الآية التالية ثم تشغيلها
+   تجهيز الآية التالية
 ========================================================= */
 
 async function prepareNextAyahAndPlay(token) {
@@ -3556,6 +3455,7 @@ async function prepareNextAyahAndPlay(token) {
 
     state.session.playing =
         true;
+
 
     playPauseButton.textContent =
         "⏸️";
@@ -3610,7 +3510,7 @@ function finishMemorization() {
 
 
 /* =========================================================
-   زر ⏸️ داخل التطبيق
+   زر الإيقاف المؤقت
 ========================================================= */
 
 function pausePlayback() {
@@ -3787,10 +3687,6 @@ function restoreSettings() {
             JSON.parse(saved);
 
 
-        /*
-            الشيخ
-        */
-
         if (settings.reciter) {
 
             reciterSelect.value =
@@ -3812,10 +3708,6 @@ function restoreSettings() {
         updateTeacherMode();
 
 
-        /*
-            السورة
-        */
-
         if (settings.surah) {
 
             surahSelect.value =
@@ -3830,10 +3722,6 @@ function restoreSettings() {
                 ) || null;
         }
 
-
-        /*
-            الآيات
-        */
 
         if (state.selectedSurah) {
 
@@ -3883,10 +3771,6 @@ function restoreSettings() {
         }
 
 
-        /*
-            السرعة
-        */
-
         if (
             settings.speed !==
             undefined
@@ -3901,10 +3785,6 @@ function restoreSettings() {
         }
 
 
-        /*
-            تكرار الآية
-        */
-
         if (
             settings.ayahRepeat !==
             undefined
@@ -3914,10 +3794,6 @@ function restoreSettings() {
                 settings.ayahRepeat;
         }
 
-
-        /*
-            تكرار المقطع
-        */
 
         if (
             settings.blockRepeat !==
@@ -3929,10 +3805,6 @@ function restoreSettings() {
         }
 
 
-        /*
-            الانتظار
-        */
-
         if (
             settings.wait !==
             undefined
@@ -3942,10 +3814,6 @@ function restoreSettings() {
                 settings.wait;
         }
 
-
-        /*
-            وضع المعلم
-        */
 
         if (
             settings.teacherMode === true &&
@@ -3981,7 +3849,6 @@ function resetAyahInputs() {
 
     toAyah.value =
         1;
-
 
     disableAyahInputs();
 }
