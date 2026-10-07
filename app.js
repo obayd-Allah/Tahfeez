@@ -12,7 +12,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 21";
+const CODE_VERSION = "CODE 22";
 
 
 /* =========================================================
@@ -156,6 +156,12 @@ let currentAudioType = "normal";
 let waitTimer = null;
 
 let segmentTimer = null;
+
+/*
+    مؤقت احتياطي لنهاية الآية في Firefox.
+    بعض حالات pause/resume قد لا تعتمد على onended وحده.
+*/
+let firefoxEndTimer = null;
 
 let playbackToken = 0;
 
@@ -462,6 +468,11 @@ function handleExternalSeekAttempt() {
     if (segmentTimer) {
         clearTimeout(segmentTimer);
         segmentTimer = null;
+    }
+
+    if (firefoxEndTimer) {
+        clearTimeout(firefoxEndTimer);
+        firefoxEndTimer = null;
     }
 
     resetAudioElement();
@@ -1485,12 +1496,22 @@ function clearPlaybackResources() {
         waitTimer = null;
     }
 
+
     if (segmentTimer) {
 
         clearTimeout(segmentTimer);
 
         segmentTimer = null;
     }
+
+
+    if (firefoxEndTimer) {
+
+        clearTimeout(firefoxEndTimer);
+
+        firefoxEndTimer = null;
+    }
+
 
     resetAudioElement();
 
@@ -1780,6 +1801,11 @@ function handleExternalAudioStop() {
         segmentTimer = null;
     }
 
+    if (firefoxEndTimer) {
+        clearTimeout(firefoxEndTimer);
+        firefoxEndTimer = null;
+    }
+
     resetAudioElement();
 
     segmentIndex = 0;
@@ -1881,6 +1907,11 @@ function startCurrentSegmentFirefox(
         segmentTimer = null;
     }
 
+    if (firefoxEndTimer) {
+        clearTimeout(firefoxEndTimer);
+        firefoxEndTimer = null;
+    }
+
     try {
         currentAudio.pause();
     } catch (error) {}
@@ -1936,6 +1967,11 @@ function startCurrentSegmentFirefox(
         if (segmentTimer) {
             clearTimeout(segmentTimer);
             segmentTimer = null;
+        }
+
+        if (firefoxEndTimer) {
+            clearTimeout(firefoxEndTimer);
+            firefoxEndTimer = null;
         }
     }
 
@@ -2094,37 +2130,33 @@ function startCurrentSegmentFirefox(
     }
 
 
-    /* =====================================================
-       إنهاء آية Firefox
-    ===================================================== */
-
     function finishFirefoxAyah() {
 
-        if (finished || !isCurrent()) return;
+        if (
+            finished ||
+            !isCurrent()
+        ) {
+            return;
+        }
 
         finished = true;
+
         clearTimers();
 
-        // إنهاء الآية الحالية فقط، ثم ترك finishAyah
-        // يتولى الانتقال التلقائي للآية التالية.
         beginInternalAudioAction();
 
-        currentAudio.onplay = null;
-        currentAudio.onplaying = null;
         currentAudio.onpause = null;
-        currentAudio.ontimeupdate = null;
-        currentAudio.onended = null;
 
         try {
             currentAudio.pause();
         } catch (error) {}
 
-        try {
-            currentAudio.currentTime = 0;
-        } catch (error) {}
-
         endInternalAudioActionSoon();
 
+        /*
+            هنا فقط نعتبر الآية منتهية.
+            ثم تنتقل finishAyah() تلقائيًا إلى الآية التالية.
+        */
         finishAyah(token);
     }
 
@@ -2229,7 +2261,7 @@ function startCurrentSegmentFirefox(
                         لا src جديد.
                         لا load.
                         لا currentTime جديد.
-                        فقط تشغيل نفس الملف.
+                        فقط استئناف لنفس الملف.
                     */
 
                     playAgain();
@@ -2270,6 +2302,144 @@ function startCurrentSegmentFirefox(
         pauseIndex = 0;
 
         lastPausePoint = -1;
+
+
+        /* =====================================================
+           مؤقت احتياطي لنهاية الآية في Firefox
+
+           في بعض حالات pause/resume قد لا يصل onended كما
+           نتوقع، لذلك نراقب نهاية الملف أيضًا.
+        ===================================================== */
+
+        if (firefoxEndTimer) {
+
+            clearTimeout(
+                firefoxEndTimer
+            );
+
+            firefoxEndTimer = null;
+        }
+
+
+        firefoxEndTimer =
+            setTimeout(
+                () => {
+
+                    firefoxEndTimer = null;
+
+                    if (
+                        !isCurrent() ||
+                        finished
+                    ) {
+                        return;
+                    }
+
+                    const now =
+                        Number(
+                            currentAudio.currentTime
+                        );
+
+                    const currentDuration =
+                        Number(
+                            currentAudio.duration
+                        );
+
+
+                    if (
+                        currentAudio.ended ||
+                        (
+                            Number.isFinite(now) &&
+                            Number.isFinite(currentDuration) &&
+                            currentDuration > 0 &&
+                            now >=
+                                currentDuration - 0.25
+                        )
+                    ) {
+
+                        finishFirefoxAyah();
+
+                        return;
+                    }
+
+
+                    /*
+                        إذا كان Firefox متأخرًا قليلًا،
+                        نعيد الفحص بدل إنهاء الآية مبكرًا.
+                    */
+
+                    const remaining =
+                        Number.isFinite(
+                            currentDuration
+                        ) &&
+                        currentDuration > now
+
+                            ? Math.max(
+                                100,
+                                (
+                                    currentDuration -
+                                    now
+                                ) * 1000 +
+                                300
+                            )
+
+                            : 500;
+
+
+                    firefoxEndTimer =
+                        setTimeout(
+                            () => {
+
+                                firefoxEndTimer =
+                                    null;
+
+                                if (
+                                    !isCurrent() ||
+                                    finished
+                                ) {
+                                    return;
+                                }
+
+                                const finalNow =
+                                    Number(
+                                        currentAudio.currentTime
+                                    );
+
+                                const finalDuration =
+                                    Number(
+                                        currentAudio.duration
+                                    );
+
+
+                                if (
+                                    currentAudio.ended ||
+                                    (
+                                        Number.isFinite(
+                                            finalNow
+                                        ) &&
+                                        Number.isFinite(
+                                            finalDuration
+                                        ) &&
+                                        finalDuration > 0 &&
+                                        finalNow >=
+                                            finalDuration -
+                                            0.25
+                                    )
+                                ) {
+
+                                    finishFirefoxAyah();
+                                }
+
+                            },
+                            remaining
+                        );
+
+                },
+                Math.max(
+                    100,
+                    duration * 1000 + 500
+                )
+            );
+
 
         while (
             pauseIndex <
@@ -2359,6 +2529,26 @@ function startCurrentSegmentFirefox(
                 !Number.isFinite(duration) ||
                 duration <= 0
             ) {
+                return;
+            }
+
+
+            /* =================================================
+               احتياط إضافي لنهاية الآية
+
+               إذا وصل الصوت إلى نهاية الملف ولم يرسل Firefox
+               onended بعد، ننهي الآية هنا.
+            ================================================= */
+
+            if (
+                now >=
+                    duration - 0.08 &&
+                pauseIndex >=
+                    pausePoints.length
+            ) {
+
+                finishFirefoxAyah();
+
                 return;
             }
 
@@ -3451,6 +3641,13 @@ function pausePlayback() {
         clearTimeout(segmentTimer);
 
         segmentTimer = null;
+    }
+
+    if (firefoxEndTimer) {
+
+        clearTimeout(firefoxEndTimer);
+
+        firefoxEndTimer = null;
     }
 
     playbackToken++;
