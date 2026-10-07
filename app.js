@@ -12,7 +12,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 19";
+const CODE_VERSION = "CODE 20";
 
 
 /* =========================================================
@@ -69,7 +69,6 @@ const isFirefox =
 
 /* =========================================================
    إخفاء التحكم في السرعة في Firefox
-   Firefox فقط
 ========================================================= */
 
 function hideFirefoxSpeedControl() {
@@ -89,11 +88,6 @@ function hideFirefoxSpeedControl() {
             speedValue.style.display = "none";
         }
 
-        /*
-            نحاول إخفاء الحاوية الخاصة بالسرعة
-            دون التأثير على باقي الإعدادات.
-        */
-
         if (speedRange) {
 
             const candidates = [
@@ -111,9 +105,8 @@ function hideFirefoxSpeedControl() {
                     continue;
                 }
 
-                const text = (
-                    element.textContent || ""
-                ).trim();
+                const text =
+                    (element.textContent || "").trim();
 
                 if (
                     element === speedRange.parentElement ||
@@ -131,7 +124,6 @@ function hideFirefoxSpeedControl() {
             "تعذر إخفاء تحكم السرعة في Firefox:",
             error
         );
-
     }
 }
 
@@ -345,9 +337,7 @@ function setupMediaSessionHandlers() {
                 }
 
                 if (!state.session.playing) {
-
                     playCurrentAyah(true);
-
                 }
 
             }
@@ -363,9 +353,7 @@ function setupMediaSessionHandlers() {
                 }
 
                 if (state.session.playing) {
-
                     pausePlayback();
-
                 }
 
             }
@@ -467,13 +455,11 @@ function handleExternalSeekAttempt() {
     playbackToken++;
 
     if (waitTimer) {
-
         clearTimeout(waitTimer);
         waitTimer = null;
     }
 
     if (segmentTimer) {
-
         clearTimeout(segmentTimer);
         segmentTimer = null;
     }
@@ -508,62 +494,43 @@ async function loadData() {
             fetch("./data/reciters.json")
         ]);
 
-
         if (!quranResponse.ok) {
-
             throw new Error(
                 "تعذر تحميل quran.json"
             );
         }
 
-
         if (!recitersResponse.ok) {
-
             throw new Error(
                 "تعذر تحميل reciters.json"
             );
         }
 
-
         const quranData =
             await quranResponse.json();
-
 
         state.reciters =
             await recitersResponse.json();
 
-
         state.quran =
             quranData.map(
                 surah => ({
-
-                    number:
-                        surah.id,
-
-                    name:
-                        surah.name,
-
-                    ayahCount:
-                        surah.total_verses,
+                    number: surah.id,
+                    name: surah.name,
+                    ayahCount: surah.total_verses,
 
                     ayahs:
                         surah.verses.map(
                             ayah => ({
-
-                                number:
-                                    ayah.id,
-
-                                text:
-                                    ayah.text
+                                number: ayah.id,
+                                text: ayah.text
                             })
                         )
                 })
             );
 
-
         state.surahs =
             state.quran;
-
 
         populateReciters();
 
@@ -572,7 +539,6 @@ async function loadData() {
         if (isFirefox) {
             hideFirefoxSpeedControl();
         }
-
 
     } catch (error) {
 
@@ -597,10 +563,7 @@ function populateReciters() {
         </option>
     `;
 
-
-    for (
-        const reciter of state.reciters
-    ) {
+    for (const reciter of state.reciters) {
 
         const option =
             document.createElement("option");
@@ -628,17 +591,14 @@ function populateSurahs() {
         </option>
     `;
 
-
     if (!state.selectedReciter) {
 
         surahSelect.disabled = true;
         return;
     }
 
-
     const availableSurahs =
         state.selectedReciter.surahs || {};
-
 
     for (
         const number of Object.keys(availableSurahs)
@@ -651,11 +611,9 @@ function populateSurahs() {
                     String(number)
             );
 
-
         if (!surah) {
             continue;
         }
-
 
         const option =
             document.createElement("option");
@@ -668,7 +626,6 @@ function populateSurahs() {
 
         surahSelect.appendChild(option);
     }
-
 
     surahSelect.disabled = false;
 }
@@ -685,18 +642,14 @@ reciterSelect.addEventListener(
         const id =
             reciterSelect.value;
 
-
         state.selectedReciter =
             state.reciters.find(
                 reciter =>
                     reciter.id === id
             ) || null;
 
-
         pausePointsCache.clear();
-
         pausePoints = [];
-
 
         populateSurahs();
 
@@ -724,43 +677,34 @@ surahSelect.addEventListener(
         const number =
             Number(surahSelect.value);
 
-
         state.selectedSurah =
             state.surahs.find(
                 surah =>
                     surah.number === number
             ) || null;
 
-
         pausePointsCache.clear();
-
         pausePoints = [];
-
 
         if (!state.selectedSurah) {
 
             resetAyahInputs();
-
             hideAvailability();
-
             validateSetup();
 
             return;
         }
-
 
         const available =
             getAvailableSurah(
                 state.selectedSurah.number
             );
 
-
         if (!available) {
 
             showAvailability(
                 `سورة ${state.selectedSurah.name} غير متوفرة بصوت ${state.selectedReciter.name} حاليًا.`
             );
-
 
             disableAyahInputs();
 
@@ -769,11 +713,9 @@ surahSelect.addEventListener(
             return;
         }
 
-
         hideAvailability();
 
         enableAyahInputs();
-
 
         fromAyah.min =
             available.from;
@@ -787,13 +729,11 @@ surahSelect.addEventListener(
         toAyah.max =
             available.to;
 
-
         fromAyah.value =
             available.from;
 
         toAyah.value =
             available.to;
-
 
         validateSetup();
 
@@ -839,17 +779,14 @@ function validateAyahRange() {
         return;
     }
 
-
     const available =
         getAvailableSurah(
             state.selectedSurah.number
         );
 
-
     if (!available) {
         return;
     }
-
 
     let from =
         Number(fromAyah.value);
@@ -857,45 +794,34 @@ function validateAyahRange() {
     let to =
         Number(toAyah.value);
 
-
     if (
         !Number.isFinite(from) ||
         from < available.from
     ) {
-
-        from =
-            available.from;
+        from = available.from;
     }
-
 
     if (
         !Number.isFinite(to) ||
         to < available.from
     ) {
-
-        to =
-            available.from;
+        to = available.from;
     }
-
 
     if (from > available.to) {
         from = available.to;
     }
 
-
     if (to > available.to) {
         to = available.to;
     }
-
 
     if (to < from) {
         to = from;
     }
 
-
     fromAyah.value = from;
     toAyah.value = to;
-
 
     validateSetup();
 
@@ -914,10 +840,8 @@ speedRange.addEventListener(
         const speed =
             Number(speedRange.value);
 
-
         speedValue.textContent =
             `${speed.toFixed(2)}×`;
-
 
         if (
             state.session &&
@@ -926,12 +850,6 @@ speedRange.addEventListener(
         ) {
 
             if (isFirefox) {
-
-                /*
-                    Firefox:
-                    لا يوجد تحكم سرعة للمستخدم.
-                    السرعة ثابتة 1× لضمان استقرار التشغيل.
-                */
 
                 state.session.speed = 1;
 
@@ -951,14 +869,12 @@ speedRange.addEventListener(
                         )
                     );
 
-
                 configureAudioSpeed(
                     audio,
                     state.session.speed
                 );
             }
         }
-
 
         saveSettings();
     }
@@ -1001,12 +917,10 @@ function updateTeacherMode() {
             state.selectedReciter?.teacherMode
         );
 
-
     teacherMode.checked = false;
 
     teacherMode.disabled =
         !available;
-
 
     if (!available) {
 
@@ -1014,19 +928,15 @@ function updateTeacherMode() {
             "is-disabled"
         );
 
-
         teacherModeDescription.textContent =
             "غير متوفر لهذا الشيخ";
-
 
         return;
     }
 
-
     teacherModeField.classList.remove(
         "is-disabled"
     );
-
 
     teacherModeDescription.textContent =
         "يقرأ المحفّظ أولًا ثم يردد التسجيل التعليمي";
@@ -1048,12 +958,10 @@ function validateSetup() {
         return;
     }
 
-
     const available =
         getAvailableSurah(
             state.selectedSurah.number
         );
-
 
     if (!available) {
 
@@ -1061,13 +969,11 @@ function validateSetup() {
         return;
     }
 
-
     const from =
         Number(fromAyah.value);
 
     const to =
         Number(toAyah.value);
-
 
     startButton.disabled = !(
         from >= available.from &&
@@ -1093,17 +999,14 @@ async function startMemorization() {
         !state.selectedReciter ||
         !state.selectedSurah
     ) {
-
         return;
     }
-
 
     const from =
         Number(fromAyah.value);
 
     const to =
         Number(toAyah.value);
-
 
     state.session = {
 
@@ -1149,20 +1052,11 @@ async function startMemorization() {
             false
     };
 
-
-    /*
-        لا يوجد AudioWorklet في Firefox.
-        Firefox يستخدم HTMLAudio مباشرة.
-    */
-
-
     await loadPausePoints();
-
 
     if (!state.session) {
         return;
     }
-
 
     openMemorizationScreen();
 }
@@ -1180,19 +1074,15 @@ function openMemorizationScreen() {
 
     completionMessage.classList.add("hidden");
 
-
     currentSurahName.textContent =
         `سورة ${state.session.surah.name}`;
-
 
     renderCurrentAyah();
 
     updateSessionInfo();
 
-
     playPauseButton.textContent =
         "▶️";
-
 
     setMediaSessionNone();
 }
@@ -1208,7 +1098,6 @@ function getCurrentAyah() {
         return null;
     }
 
-
     const surah =
         state.quran.find(
             item =>
@@ -1216,11 +1105,9 @@ function getCurrentAyah() {
                 state.session.surah.number
         );
 
-
     if (!surah) {
         return null;
     }
-
 
     return surah.ayahs?.find(
         ayah =>
@@ -1235,7 +1122,6 @@ function renderCurrentAyah() {
     const ayah =
         getCurrentAyah();
 
-
     if (!ayah) {
 
         currentAyahText.textContent =
@@ -1243,7 +1129,6 @@ function renderCurrentAyah() {
 
         return;
     }
-
 
     currentAyahText.innerHTML =
         `${ayah.text} <span class="ayah-number">۝${ayah.number}</span>`;
@@ -1260,10 +1145,8 @@ function updateSessionInfo() {
         return;
     }
 
-
     blockRepeatInfo.textContent =
         `المقطع ${state.session.currentBlockRepeat} / ${state.session.blockRepeat}`;
-
 
     ayahRepeatInfo.textContent =
         `الآية ${state.session.currentAyahRepeat} / ${state.session.ayahRepeat}`;
@@ -1280,30 +1163,23 @@ async function navigateToAyah(targetAyah) {
         return;
     }
 
-
     const wasPlaying =
         state.session.playing;
 
-
     stopPlayback();
-
 
     state.session.currentAyah =
         targetAyah;
 
-
     state.session.currentAyahRepeat =
         1;
-
 
     renderCurrentAyah();
 
     updateSessionInfo();
 
-
     const navigationToken =
         playbackToken;
-
 
     if (wasPlaying) {
 
@@ -1313,18 +1189,14 @@ async function navigateToAyah(targetAyah) {
             "⏸️";
     }
 
-
     await loadPausePoints();
-
 
     if (
         !state.session ||
         navigationToken !== playbackToken
     ) {
-
         return;
     }
-
 
     if (wasPlaying) {
 
@@ -1357,7 +1229,6 @@ previousAyahButton.addEventListener(
             return;
         }
 
-
         if (
             state.session.currentAyah >
             state.session.fromAyah
@@ -1382,7 +1253,6 @@ nextAyahButton.addEventListener(
         if (!state.session) {
             return;
         }
-
 
         if (
             state.session.currentAyah <
@@ -1409,9 +1279,7 @@ restartBlockButton.addEventListener(
             return;
         }
 
-
         stopPlayback();
-
 
         state.session.currentAyah =
             state.session.fromAyah;
@@ -1422,22 +1290,17 @@ restartBlockButton.addEventListener(
         state.session.currentBlockRepeat =
             1;
 
-
         loadPausePoints();
-
 
         renderCurrentAyah();
 
         updateSessionInfo();
 
-
         state.session.playing =
             false;
 
-
         playPauseButton.textContent =
             "▶️";
-
 
         setMediaSessionNone();
     }
@@ -1455,7 +1318,6 @@ playPauseButton.addEventListener(
         if (!state.session) {
             return;
         }
-
 
         if (state.session.playing) {
 
@@ -1477,32 +1339,25 @@ async function loadPausePoints() {
 
     pausePoints = [];
 
-
     if (!state.session) {
         return;
     }
 
-
     const reciter =
         state.session.reciter;
-
 
     if (!reciter.audioBaseUrl) {
         return;
     }
 
-
     const surahNumber =
         state.session.surah.number;
-
 
     const ayahNumber =
         state.session.currentAyah;
 
-
     const cacheKey =
         `${reciter.id}_${surahNumber}_${ayahNumber}`;
-
 
     if (pausePointsCache.has(cacheKey)) {
 
@@ -1514,18 +1369,15 @@ async function loadPausePoints() {
         return;
     }
 
-
     try {
 
         const surahCacheKey =
             `${reciter.id}_${surahNumber}`;
 
-
         let allPauseData =
             pausePointsCache.get(
                 `SURAH_${surahCacheKey}`
             );
-
 
         if (!allPauseData) {
 
@@ -1534,15 +1386,12 @@ async function loadPausePoints() {
                     `${reciter.audioBaseUrl}/pauses/${surahNumber}.json`
                 );
 
-
             if (!response.ok) {
                 return;
             }
 
-
             allPauseData =
                 await response.json();
-
 
             pausePointsCache.set(
                 `SURAH_${surahCacheKey}`,
@@ -1550,14 +1399,12 @@ async function loadPausePoints() {
             );
         }
 
-
         const ayahData =
             allPauseData.find(
                 item =>
                     Number(item.ayah) ===
                     Number(ayahNumber)
             );
-
 
         if (
             ayahData &&
@@ -1576,12 +1423,10 @@ async function loadPausePoints() {
                         (a, b) => a - b
                     );
 
-
             pausePointsCache.set(
                 cacheKey,
                 points
             );
-
 
             pausePoints =
                 [...points];
@@ -1607,26 +1452,21 @@ function resetAudioElement() {
 
     audioSegmentId++;
 
-
     beginInternalAudioAction();
 
     detachAudioEvents();
-
 
     try {
         audio.pause();
     } catch (error) {}
 
-
     try {
         audio.removeAttribute("src");
     } catch (error) {}
 
-
     try {
         audio.load();
     } catch (error) {}
-
 
     endInternalAudioActionSoon();
 }
@@ -1645,14 +1485,12 @@ function clearPlaybackResources() {
         waitTimer = null;
     }
 
-
     if (segmentTimer) {
 
         clearTimeout(segmentTimer);
 
         segmentTimer = null;
     }
-
 
     resetAudioElement();
 
@@ -1673,16 +1511,12 @@ function playCurrentAyah(
         return;
     }
 
-
     playbackToken++;
-
 
     const token =
         playbackToken;
 
-
     clearPlaybackResources();
-
 
     if (preservePlayingVisual) {
 
@@ -1699,11 +1533,9 @@ function playCurrentAyah(
             "▶️";
     }
 
-
     segmentIndex = 0;
 
     currentAudioType = "normal";
-
 
     startCurrentSegment(
         token,
@@ -1721,15 +1553,12 @@ function getSegmentBounds(duration) {
     const totalSegments =
         pausePoints.length + 1;
 
-
     if (
         segmentIndex >=
         totalSegments
     ) {
-
         return null;
     }
-
 
     const start =
         segmentIndex === 0
@@ -1738,7 +1567,6 @@ function getSegmentBounds(duration) {
                 segmentIndex - 1
             ];
 
-
     const end =
         segmentIndex <
         pausePoints.length
@@ -1746,7 +1574,6 @@ function getSegmentBounds(duration) {
                 segmentIndex
             ]
             : duration;
-
 
     return {
 
@@ -1782,7 +1609,6 @@ function sanitizePausePoints(duration) {
 
 /* =========================================================
    سرعة Firefox
-   Firefox فقط
 ========================================================= */
 
 function configureFirefoxNativeAudioSpeed(
@@ -1790,66 +1616,30 @@ function configureFirefoxNativeAudioSpeed(
     speed
 ) {
 
-    const safeSpeed =
-        Math.min(
-            1.25,
-            Math.max(
-                0.75,
-                Number(speed) || 1
-            )
-        );
-
-
-    /*
-        Firefox يستخدم المعالجة الأصلية
-        للحفاظ على طبقة الصوت.
-    */
+    const safeSpeed = 1;
 
     try {
-
-        media.preservesPitch =
-            true;
-
+        media.preservesPitch = true;
     } catch (error) {}
 
-
     try {
-
-        media.mozPreservesPitch =
-            true;
-
+        media.mozPreservesPitch = true;
     } catch (error) {}
 
-
     try {
-
-        media.defaultPlaybackRate =
-            safeSpeed;
-
+        media.defaultPlaybackRate = safeSpeed;
     } catch (error) {}
 
-
     try {
-
-        media.playbackRate =
-            safeSpeed;
-
-    } catch (error) {
-
-        console.warn(
-            "تعذر ضبط سرعة Firefox:",
-            error
-        );
-    }
-
+        media.playbackRate = safeSpeed;
+    } catch (error) {}
 
     return safeSpeed;
 }
 
 
 /* =========================================================
-   إعداد السرعة - HTMLAudio
-   باقي المتصفحات فقط
+   إعداد السرعة - باقي المتصفحات
 ========================================================= */
 
 function configureAudioSpeed(
@@ -1866,68 +1656,38 @@ function configureAudioSpeed(
             )
         );
 
-
-    /*
-        Firefox لا يدخل هنا.
-    */
-
     if (isFirefox) {
         return safeSpeed;
     }
 
-
     try {
-
-        media.preservesPitch =
-            true;
-
+        media.preservesPitch = true;
     } catch (error) {}
 
-
     try {
-
-        media.webkitPreservesPitch =
-            true;
-
+        media.webkitPreservesPitch = true;
     } catch (error) {}
 
-
     try {
-
-        media.mozPreservesPitch =
-            true;
-
+        media.mozPreservesPitch = true;
     } catch (error) {}
 
-
     try {
-
         media.defaultPlaybackRate =
             safeSpeed;
-
     } catch (error) {}
 
-
     try {
-
         media.playbackRate =
             safeSpeed;
-
-    } catch (error) {
-
-        console.warn(
-            "تعذر ضبط سرعة التشغيل:",
-            error
-        );
-    }
-
+    } catch (error) {}
 
     return safeSpeed;
 }
 
 
 /* =========================================================
-   تشغيل الصوت حسب المتصفح
+   تشغيل الصوت
 ========================================================= */
 
 function playAudioForCurrentBrowser(media) {
@@ -1936,13 +1696,9 @@ function playAudioForCurrentBrowser(media) {
         return null;
     }
 
-
     try {
-
         return media.play();
-
     } catch (error) {
-
         throw error;
     }
 }
@@ -1958,23 +1714,16 @@ function pauseAudioInternally(media) {
         return;
     }
 
-
     beginInternalAudioAction();
-
 
     const oldPauseHandler =
         media.onpause;
 
-
     media.onpause = null;
 
-
     try {
-
         media.pause();
-
     } catch (error) {}
-
 
     setTimeout(
         () => {
@@ -1988,13 +1737,10 @@ function pauseAudioInternally(media) {
             } else {
 
                 try {
-
                     media.onpause =
                         oldPauseHandler;
-
                 } catch (error) {}
             }
-
 
             endInternalAudioActionSoon();
 
@@ -2005,7 +1751,7 @@ function pauseAudioInternally(media) {
 
 
 /* =========================================================
-   إيقاف خارجي من النظام
+   إيقاف خارجي
 ========================================================= */
 
 function handleExternalAudioStop() {
@@ -2014,36 +1760,27 @@ function handleExternalAudioStop() {
         return;
     }
 
-
     if (!state.session) {
         return;
     }
-
 
     if (!state.session.playing) {
         return;
     }
 
-
     playbackToken++;
 
-
     if (waitTimer) {
-
         clearTimeout(waitTimer);
         waitTimer = null;
     }
 
-
     if (segmentTimer) {
-
         clearTimeout(segmentTimer);
         segmentTimer = null;
     }
 
-
     resetAudioElement();
-
 
     segmentIndex = 0;
 
@@ -2053,10 +1790,8 @@ function handleExternalAudioStop() {
 
     state.session.playing = false;
 
-
     playPauseButton.textContent =
         "▶️";
-
 
     setMediaSessionNone();
 }
@@ -2081,7 +1816,6 @@ function startCurrentSegment(
         return;
     }
 
-
     startCurrentSegmentOtherBrowsers(
         token,
         userInitiated
@@ -2090,8 +1824,9 @@ function startCurrentSegment(
 
 
 /* =========================================================
-   تشغيل جزء الصوت في Firefox
-   Firefox فقط — HTMLAudio أصلي
+   Firefox
+   الآية كلها ملف واحد
+   pausePoint = pause / wait / resume
 ========================================================= */
 
 function startCurrentSegmentFirefox(
@@ -2116,54 +1851,63 @@ function startCurrentSegmentFirefox(
         state.session.currentAyah;
 
     const url =
-        `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
+        `${reciter.audioBaseUrl}/normal/${surahNumber}/${ayahNumber}.mp3`;
 
-    const thisSegmentId =
+    const thisAudioId =
         ++audioSegmentId;
 
     const currentAudio =
         audio;
 
+    let metadataReady = false;
+    let started = false;
     let finished = false;
-    let metadataHandled = false;
+    let pauseWaiting = false;
 
+    let pauseIndex = 0;
+    let lastPausePoint = -1;
 
     beginInternalAudioAction();
 
     detachAudioEvents();
 
+    if (waitTimer) {
+        clearTimeout(waitTimer);
+        waitTimer = null;
+    }
+
+    if (segmentTimer) {
+        clearTimeout(segmentTimer);
+        segmentTimer = null;
+    }
 
     try {
         currentAudio.pause();
     } catch (error) {}
 
-
     /*
-        في Firefox لا نحذف src أثناء الانتقال بين الأجزاء
-        إلا لأن الجزء الجديد قد يكون ملفًا آخر.
+        لا نغير src إذا كان هو نفس ملف الآية.
     */
 
     if (currentAudio.src !== url) {
 
         try {
+
             currentAudio.src = url;
+            currentAudio.load();
+
         } catch (error) {
 
             endInternalAudioActionSoon();
+
+            console.error(
+                "تعذر تحميل ملف الصوت في Firefox:",
+                error
+            );
+
             return;
         }
-
-
-        try {
-            currentAudio.load();
-        } catch (error) {}
     }
-
-
-    /*
-        Firefox يعمل هنا بسرعة ثابتة 1×.
-        زر السرعة مخفي أصلًا في Firefox.
-    */
 
     configureFirefoxNativeAudioSpeed(
         currentAudio,
@@ -2171,40 +1915,41 @@ function startCurrentSegmentFirefox(
     );
 
 
-    function isCurrentSegment() {
+    function isCurrent() {
 
         return (
             Boolean(state.session) &&
             token === playbackToken &&
             currentAudio === audio &&
-            thisSegmentId === audioSegmentId
+            thisAudioId === audioSegmentId
         );
     }
 
 
-    function clearSegmentTimer() {
+    function clearTimers() {
+
+        if (waitTimer) {
+            clearTimeout(waitTimer);
+            waitTimer = null;
+        }
 
         if (segmentTimer) {
-
             clearTimeout(segmentTimer);
-
             segmentTimer = null;
         }
     }
 
 
-    function markPlaying() {
+    function setPlaying() {
 
-        if (!isCurrentSegment()) {
+        if (!isCurrent()) {
             return;
         }
-
 
         state.session.playing = true;
 
         playPauseButton.textContent =
             "⏸️";
-
 
         if ("mediaSession" in navigator) {
 
@@ -2218,15 +1963,32 @@ function startCurrentSegmentFirefox(
     }
 
 
-    function playSegment() {
+    function setStopped() {
 
-        if (!isCurrentSegment()) {
+        if (!isCurrent()) {
             return;
         }
 
+        state.session.playing = false;
+
+        playPauseButton.textContent =
+            "▶️";
+
+        setMediaSessionNone();
+    }
+
+
+    function playAgain() {
+
+        if (
+            !isCurrent() ||
+            finished ||
+            pauseWaiting
+        ) {
+            return;
+        }
 
         let promise = null;
-
 
         try {
 
@@ -2235,356 +1997,296 @@ function startCurrentSegmentFirefox(
 
         } catch (error) {
 
-            console.error(
-                "تعذر تشغيل جزء Firefox:",
-                error
+            setTimeout(
+                () => {
+
+                    if (
+                        !isCurrent() ||
+                        finished ||
+                        pauseWaiting
+                    ) {
+                        return;
+                    }
+
+                    try {
+
+                        const retry =
+                            currentAudio.play();
+
+                        if (
+                            retry &&
+                            typeof retry.catch ===
+                                "function"
+                        ) {
+
+                            retry.catch(
+                                retryError => {
+
+                                    console.error(
+                                        "تعذر استئناف Firefox:",
+                                        retryError
+                                    );
+
+                                    setStopped();
+                                }
+                            );
+                        }
+
+                    } catch (retryError) {
+
+                        console.error(
+                            "تعذر استئناف Firefox:",
+                            retryError
+                        );
+
+                        setStopped();
+                    }
+
+                },
+                100
             );
-
-
-            retryPlay();
 
             return;
         }
 
-
         if (
             promise &&
-            typeof promise.then === "function"
+            typeof promise.catch ===
+                "function"
         ) {
 
-            promise.then(
-                () => {
-
-                    markPlaying();
-
-                },
+            promise.catch(
                 error => {
 
-                    /*
-                        Firefox قد يرفض play مؤقتًا أثناء
-                        تغيير الموضع أو المصدر.
-                    */
+                    if (!isCurrent()) {
+                        return;
+                    }
 
                     if (
                         error &&
                         (
-                            error.name === "AbortError" ||
-                            error.name === "NotAllowedError"
+                            error.name ===
+                                "AbortError" ||
+                            error.name ===
+                                "NotAllowedError"
                         )
                     ) {
 
-                        retryPlay();
-
-                        return;
-                    }
-
-
-                    console.error(
-                        "تعذر تشغيل جزء Firefox:",
-                        error
-                    );
-
-
-                    if (!isCurrentSegment()) {
-                        return;
-                    }
-
-
-                    state.session.playing = false;
-
-                    playPauseButton.textContent =
-                        "▶️";
-
-                    setMediaSessionNone();
-                }
-            );
-        }
-    }
-
-
-    function retryPlay() {
-
-        if (!isCurrentSegment()) {
-            return;
-        }
-
-
-        setTimeout(
-            () => {
-
-                if (!isCurrentSegment()) {
-                    return;
-                }
-
-
-                try {
-
-                    const promise =
-                        currentAudio.play();
-
-
-                    if (
-                        promise &&
-                        typeof promise.then ===
-                            "function"
-                    ) {
-
-                        promise.then(
-                            () => markPlaying(),
-
-                            error => {
-
-                                console.error(
-                                    "فشلت محاولة Firefox الثانية:",
-                                    error
-                                );
-
-
-                                if (!isCurrentSegment()) {
-                                    return;
-                                }
-
-
-                                state.session.playing =
-                                    false;
-
-                                playPauseButton.textContent =
-                                    "▶️";
-
-                                setMediaSessionNone();
-                            }
+                        setTimeout(
+                            () => {
+                                playAgain();
+                            },
+                            100
                         );
+
+                        return;
                     }
-
-
-                } catch (error) {
 
                     console.error(
                         "تعذر تشغيل Firefox:",
                         error
                     );
 
-
-                    if (!isCurrentSegment()) {
-                        return;
-                    }
-
-
-                    state.session.playing = false;
-
-                    playPauseButton.textContent =
-                        "▶️";
-
-                    setMediaSessionNone();
+                    setStopped();
                 }
-
-            },
-            80
-        );
+            );
+        }
     }
 
 
-    function finishOnce() {
+    function finishFirefoxAyah() {
 
-        if (finished) {
+        if (
+            finished ||
+            !isCurrent()
+        ) {
             return;
         }
-
 
         finished = true;
 
-
-        clearSegmentTimer();
-
-
-        if (!isCurrentSegment()) {
-            return;
-        }
-
-
-        /*
-            نُبقي الحارس الداخلي فعالًا حتى ينتهي حدث pause
-            نفسه. بعد ذلك فقط ننتقل إلى الجزء التالي.
-        */
+        clearTimers();
 
         beginInternalAudioAction();
 
-
         currentAudio.onpause = null;
 
-
         try {
-
             currentAudio.pause();
-
         } catch (error) {}
 
+        endInternalAudioActionSoon();
 
-        setTimeout(
-            () => {
+        /*
+            هنا فقط تنتهي الآية.
+        */
 
-                if (!isCurrentSegment()) {
-
-                    endInternalAudioActionSoon();
-
-                    return;
-                }
-
-
-                endInternalAudioActionSoon();
-
-
-                handleCurrentSegmentFinished(
-                    token,
-                    currentAudio
-                );
-
-            },
-            0
-        );
+        finishAyah(token);
     }
 
 
-    function configureSegment() {
+    function waitAtPause(point) {
 
         if (
-            !isCurrentSegment() ||
-            metadataHandled
+            pauseWaiting ||
+            finished ||
+            !isCurrent()
         ) {
+            return;
+        }
+
+        pauseWaiting = true;
+
+        if (segmentTimer) {
+            clearTimeout(segmentTimer);
+            segmentTimer = null;
+        }
+
+        beginInternalAudioAction();
+
+        currentAudio.onpause = null;
+
+        try {
+            currentAudio.pause();
+        } catch (error) {}
+
+        endInternalAudioActionSoon();
+
+
+        const previousPoint =
+            pauseIndex === 0
+                ? 0
+                : Number(
+                    pausePoints[
+                        pauseIndex - 1
+                    ]
+                );
+
+
+        const segmentDuration =
+            Math.max(
+                0,
+                Number(point) -
+                previousPoint
+            );
+
+
+        const multiplier =
+            Number(
+                state.session.wait
+            );
+
+
+        const waitTime =
+            (
+                Number.isFinite(multiplier) &&
+                multiplier > 0
+                    ? segmentDuration *
+                      multiplier *
+                      1000
+                    : 0
+            );
+
+
+        state.session.playing = true;
+
+        playPauseButton.textContent =
+            "⏸️";
+
+        setMediaSessionNone();
+
+
+        if (waitTime <= 0) {
+
+            pauseWaiting = false;
+
+            playAgain();
 
             return;
         }
 
 
-        const duration =
-            Number(currentAudio.duration);
+        waitTimer =
+            setTimeout(
+                () => {
 
+                    waitTimer = null;
+
+                    if (
+                        !isCurrent() ||
+                        finished
+                    ) {
+                        return;
+                    }
+
+                    pauseWaiting = false;
+
+                    /*
+                        لا src جديد.
+                        لا load.
+                        لا currentTime جديد.
+                        فقط تشغيل نفس الملف.
+                    */
+
+                    playAgain();
+
+                },
+                waitTime
+            );
+    }
+
+
+    function setupAudio() {
+
+        if (
+            !isCurrent() ||
+            metadataReady
+        ) {
+            return;
+        }
+
+        const duration =
+            Number(
+                currentAudio.duration
+            );
 
         if (
             !Number.isFinite(duration) ||
             duration <= 0
         ) {
-
             return;
         }
 
+        metadataReady = true;
 
-        metadataHandled = true;
+        sanitizePausePoints(
+            duration
+        );
 
+        pauseIndex = 0;
 
-        sanitizePausePoints(duration);
+        lastPausePoint = -1;
 
-
-        const bounds =
-            getSegmentBounds(duration);
-
-
-        if (!bounds) {
-
-            finishOnce();
-
-            return;
-        }
-
-
-        const start =
-            bounds.start;
-
-        const end =
-            bounds.end;
-
-
-        if (
-            !Number.isFinite(start) ||
-            !Number.isFinite(end) ||
-            end <= start
+        while (
+            pauseIndex <
+                pausePoints.length &&
+            Number(
+                pausePoints[pauseIndex]
+            ) <= 0
         ) {
 
-            finishOnce();
-
-            return;
+            pauseIndex++;
         }
-
-
-        /*
-            الوصول إلى بداية الجزء يتم مرة واحدة فقط.
-            لا نعيد تحميل الملف عند الوقفة.
-        */
-
-        if (
-            Math.abs(
-                currentAudio.currentTime -
-                start
-            ) > 0.02
-        ) {
-
-            internalSeekAction = true;
-
-
-            try {
-
-                currentAudio.currentTime =
-                    start;
-
-            } catch (error) {
-
-                internalSeekAction = false;
-
-                finishOnce();
-
-                return;
-            }
-
-
-            setTimeout(
-                () => {
-
-                    internalSeekAction = false;
-
-                },
-                0
-            );
-        }
-
 
         configureFirefoxNativeAudioSpeed(
             currentAudio,
             1
         );
 
+        endInternalAudioActionSoon();
 
-        const segmentDuration =
-            end - start;
-
-
-        /*
-            السرعة في Firefox ثابتة 1×،
-            لذلك زمن الجزء هو نفسه مدة الجزء.
-        */
-
-        const wallTime =
-            segmentDuration * 1000;
-
-
-        clearSegmentTimer();
-
-
-        segmentTimer =
-            setTimeout(
-                finishOnce,
-                Math.max(
-                    80,
-                    wallTime + 120
-                )
-            );
-
-
-        if (
-            !userInitiated &&
-            currentAudio.paused
-        ) {
-
-            playSegment();
+        if (userInitiated) {
+            playAgain();
         }
     }
 
@@ -2592,43 +2294,37 @@ function startCurrentSegmentFirefox(
     currentAudio.onplay =
         () => {
 
-            markPlaying();
+            if (!isCurrent()) {
+                return;
+            }
 
+            started = true;
+
+            setPlaying();
         };
 
 
     currentAudio.onplaying =
         () => {
 
-            markPlaying();
+            if (!isCurrent()) {
+                return;
+            }
 
+            started = true;
+
+            setPlaying();
         };
 
 
     currentAudio.onloadedmetadata =
         () => {
 
-            if (!isCurrentSegment()) {
+            if (!isCurrent()) {
                 return;
             }
 
-
-            configureSegment();
-
-
-            /*
-                بعد metadata، إذا كان هذا هو الجزء الأول
-                الذي بدأه المستخدم ولم يبدأ بعد، شغّله.
-            */
-
-            if (
-                userInitiated &&
-                segmentIndex === 0 &&
-                currentAudio.paused
-            ) {
-
-                playSegment();
-            }
+            setupAudio();
         };
 
 
@@ -2636,45 +2332,90 @@ function startCurrentSegmentFirefox(
         () => {
 
             if (
+                !isCurrent() ||
                 finished ||
-                !isCurrentSegment()
+                pauseWaiting ||
+                !started
             ) {
-
                 return;
             }
 
+            const now =
+                Number(
+                    currentAudio.currentTime
+                );
 
             const duration =
-                Number(currentAudio.duration);
-
+                Number(
+                    currentAudio.duration
+                );
 
             if (
+                !Number.isFinite(now) ||
                 !Number.isFinite(duration) ||
                 duration <= 0
             ) {
-
-                return;
-            }
-
-
-            const bounds =
-                getSegmentBounds(duration);
-
-
-            if (!bounds) {
-
-                finishOnce();
-
                 return;
             }
 
 
             if (
-                currentAudio.currentTime >=
-                bounds.end - 0.02
+                pauseIndex <
+                pausePoints.length
             ) {
 
-                finishOnce();
+                const point =
+                    Number(
+                        pausePoints[
+                            pauseIndex
+                        ]
+                    );
+
+                if (
+                    Number.isFinite(point) &&
+                    point > lastPausePoint &&
+                    now >= point - 0.025
+                ) {
+
+                    lastPausePoint =
+                        point;
+
+                    pauseIndex++;
+
+                    waitAtPause(point);
+                }
+            }
+        };
+
+
+    currentAudio.onended =
+        () => {
+
+            if (!isCurrent()) {
+                return;
+            }
+
+            finishFirefoxAyah();
+        };
+
+
+    currentAudio.onpause =
+        () => {
+
+            if (!isCurrent()) {
+                return;
+            }
+
+            if (
+                internalAudioAction ||
+                pauseWaiting
+            ) {
+                return;
+            }
+
+            if (state.session.playing) {
+
+                handleExternalAudioStop();
             }
         };
 
@@ -2686,88 +2427,39 @@ function startCurrentSegmentFirefox(
                 return;
             }
 
-
             if (internalAudioAction) {
                 return;
             }
 
-
-            if (!isCurrentSegment()) {
+            if (!isCurrent()) {
                 return;
             }
-
 
             handleExternalSeekAttempt();
-        };
-
-
-    currentAudio.onended =
-        () => {
-
-            if (
-                finished ||
-                !isCurrentSegment()
-            ) {
-
-                return;
-            }
-
-
-            finishOnce();
-        };
-
-
-    currentAudio.onpause =
-        () => {
-
-            /*
-                pause الناتج عن انتهاء الجزء أو الانتقال
-                بين الوقفات ليس إيقافًا خارجيًا.
-            */
-
-            if (internalAudioAction) {
-                return;
-            }
-
-
-            if (!isCurrentSegment()) {
-                return;
-            }
-
-
-            if (state.session.playing) {
-
-                handleExternalAudioStop();
-            }
         };
 
 
     currentAudio.onerror =
         () => {
 
-            if (!isCurrentSegment()) {
+            if (!isCurrent()) {
                 return;
             }
 
+            clearTimers();
 
-            clearSegmentTimer();
+            state.session.playing =
+                false;
 
+            playPauseButton.textContent =
+                "▶️";
+
+            setMediaSessionNone();
 
             console.error(
                 "خطأ في ملف الصوت في Firefox:",
                 currentAudio.error
             );
-
-
-            state.session.playing = false;
-
-
-            playPauseButton.textContent =
-                "▶️";
-
-
-            setMediaSessionNone();
-
 
             showAvailability(
                 "تعذر تشغيل ملف الصوت."
@@ -2775,36 +2467,35 @@ function startCurrentSegmentFirefox(
         };
 
 
-    endInternalAudioActionSoon();
-
-
     /*
-        إذا كانت البيانات موجودة بالفعل ولم يأتِ
-        loadedmetadata جديد، نضبط الجزء مباشرة.
+        إذا كانت metadata موجودة بالفعل.
     */
 
     if (
         Number.isFinite(
-            Number(currentAudio.duration)
+            Number(
+                currentAudio.duration
+            )
         ) &&
-        Number(currentAudio.duration) > 0
+        Number(
+            currentAudio.duration
+        ) > 0
     ) {
 
-        configureSegment();
+        setupAudio();
     }
 
 
     /*
-        أول تشغيل Firefox يحصل من ضغط المستخدم.
+        التشغيل الأول.
     */
 
     if (
         userInitiated &&
-        segmentIndex === 0 &&
-        currentAudioType === "normal"
+        metadataReady
     ) {
 
-        playSegment();
+        playAgain();
     }
 }
 
@@ -2822,83 +2513,63 @@ function startCurrentSegmentOtherBrowsers(
         !state.session ||
         token !== playbackToken
     ) {
-
         return;
     }
-
 
     const reciter =
         state.session.reciter;
 
-
     const surahNumber =
         state.session.surah.number;
-
 
     const ayahNumber =
         state.session.currentAyah;
 
-
     const url =
         `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
-
 
     const thisSegmentId =
         ++audioSegmentId;
 
-
     const currentAudio =
         audio;
-
 
     beginInternalAudioAction();
 
     detachAudioEvents();
 
-
     try {
-
         currentAudio.pause();
-
     } catch (error) {}
 
-
     try {
-
         currentAudio.removeAttribute("src");
-
     } catch (error) {}
-
 
     try {
-
         currentAudio.load();
-
     } catch (error) {}
-
 
     currentAudio.src =
         url;
-
 
     const actualSpeed =
         Math.min(
             1.25,
             Math.max(
                 0.75,
-                Number(state.session.speed) || 1
+                Number(
+                    state.session.speed
+                ) || 1
             )
         );
-
 
     configureAudioSpeed(
         currentAudio,
         actualSpeed
     );
 
-
     endInternalAudioActionSoon();
-
 
     let finished = false;
 
@@ -2920,38 +2591,30 @@ function startCurrentSegmentOtherBrowsers(
             return;
         }
 
-
         finished = true;
-
 
         if (segmentTimer) {
 
-            clearTimeout(segmentTimer);
+            clearTimeout(
+                segmentTimer
+            );
 
             segmentTimer = null;
         }
-
 
         if (!isCurrentSegment()) {
             return;
         }
 
-
         beginInternalAudioAction();
-
 
         currentAudio.onpause = null;
 
-
         try {
-
             currentAudio.pause();
-
         } catch (error) {}
 
-
         endInternalAudioActionSoon();
-
 
         handleCurrentSegmentFinished(
             token,
@@ -2967,13 +2630,10 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
-
             state.session.playing = true;
-
 
             playPauseButton.textContent =
                 "⏸️";
-
 
             if ("mediaSession" in navigator) {
 
@@ -2994,13 +2654,10 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
-
             state.session.playing = true;
-
 
             playPauseButton.textContent =
                 "⏸️";
-
 
             if ("mediaSession" in navigator) {
 
@@ -3021,10 +2678,10 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
-
             const duration =
-                Number(currentAudio.duration);
-
+                Number(
+                    currentAudio.duration
+                );
 
             if (
                 !Number.isFinite(duration) ||
@@ -3036,13 +2693,14 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
-
-            sanitizePausePoints(duration);
-
+            sanitizePausePoints(
+                duration
+            );
 
             const bounds =
-                getSegmentBounds(duration);
-
+                getSegmentBounds(
+                    duration
+                );
 
             if (!bounds) {
 
@@ -3051,14 +2709,11 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
-
             const start =
                 bounds.start;
 
-
             const end =
                 bounds.end;
-
 
             if (
                 !Number.isFinite(start) ||
@@ -3071,7 +2726,6 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
-
             if (
                 Math.abs(
                     currentAudio.currentTime -
@@ -3080,7 +2734,6 @@ function startCurrentSegmentOtherBrowsers(
             ) {
 
                 internalSeekAction = true;
-
 
                 try {
 
@@ -3096,7 +2749,6 @@ function startCurrentSegmentOtherBrowsers(
                     return;
                 }
 
-
                 setTimeout(
                     () => {
 
@@ -3108,16 +2760,13 @@ function startCurrentSegmentOtherBrowsers(
                 );
             }
 
-
             configureAudioSpeed(
                 currentAudio,
                 actualSpeed
             );
 
-
             const segmentDuration =
                 end - start;
-
 
             const wallTime =
                 (
@@ -3125,14 +2774,11 @@ function startCurrentSegmentOtherBrowsers(
                     actualSpeed
                 ) * 1000;
 
-
             if (segmentTimer) {
-
                 clearTimeout(
                     segmentTimer
                 );
             }
-
 
             segmentTimer =
                 setTimeout(
@@ -3143,24 +2789,19 @@ function startCurrentSegmentOtherBrowsers(
                     )
                 );
 
-
             if (
                 userInitiated &&
                 segmentIndex === 0 &&
                 currentAudioType === "normal"
             ) {
-
                 return;
             }
-
 
             if (!currentAudio.paused) {
                 return;
             }
 
-
             let playPromise;
-
 
             try {
 
@@ -3174,25 +2815,20 @@ function startCurrentSegmentOtherBrowsers(
                     error
                 );
 
-
                 if (!isCurrentSegment()) {
                     return;
                 }
 
-
-                state.session.playing = false;
-
+                state.session.playing =
+                    false;
 
                 playPauseButton.textContent =
                     "▶️";
 
-
                 setMediaSessionNone();
-
 
                 return;
             }
-
 
             if (
                 playPromise &&
@@ -3208,22 +2844,17 @@ function startCurrentSegmentOtherBrowsers(
                             error
                         );
 
-
                         if (!isCurrentSegment()) {
                             return;
                         }
 
-
                         state.session.playing =
                             false;
-
 
                         playPauseButton.textContent =
                             "▶️";
 
-
                         setMediaSessionNone();
-
 
                         if (
                             error &&
@@ -3248,32 +2879,29 @@ function startCurrentSegmentOtherBrowsers(
                 finished ||
                 !isCurrentSegment()
             ) {
-
                 return;
             }
 
-
             const duration =
-                Number(currentAudio.duration);
-
+                Number(
+                    currentAudio.duration
+                );
 
             if (
                 !Number.isFinite(duration) ||
                 duration <= 0
             ) {
-
                 return;
             }
 
-
             const bounds =
-                getSegmentBounds(duration);
-
+                getSegmentBounds(
+                    duration
+                );
 
             if (!bounds) {
                 return;
             }
-
 
             if (
                 currentAudio.currentTime >=
@@ -3292,16 +2920,13 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
-
             if (internalAudioAction) {
                 return;
             }
 
-
             if (!isCurrentSegment()) {
                 return;
             }
-
 
             handleExternalSeekAttempt();
         };
@@ -3314,10 +2939,8 @@ function startCurrentSegmentOtherBrowsers(
                 finished ||
                 !isCurrentSegment()
             ) {
-
                 return;
             }
-
 
             finishOnce();
         };
@@ -3330,14 +2953,11 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
-
             if (!isCurrentSegment()) {
                 return;
             }
 
-
             if (state.session.playing) {
-
                 handleExternalAudioStop();
             }
         };
@@ -3350,7 +2970,6 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
-
             if (segmentTimer) {
 
                 clearTimeout(
@@ -3360,32 +2979,24 @@ function startCurrentSegmentOtherBrowsers(
                 segmentTimer = null;
             }
 
-
-            state.session.playing = false;
-
+            state.session.playing =
+                false;
 
             playPauseButton.textContent =
                 "▶️";
 
-
             setMediaSessionNone();
-
 
             console.error(
                 "خطأ في ملف الصوت:",
                 currentAudio.error
             );
 
-
             showAvailability(
                 "تعذر تشغيل ملف الصوت."
             );
         };
 
-
-    /*
-        التشغيل المباشر بعد ضغط المستخدم.
-    */
 
     if (
         userInitiated &&
@@ -3394,7 +3005,6 @@ function startCurrentSegmentOtherBrowsers(
     ) {
 
         let immediatePlayPromise;
-
 
         try {
 
@@ -3408,25 +3018,20 @@ function startCurrentSegmentOtherBrowsers(
                 error
             );
 
-
-            state.session.playing = false;
-
+            state.session.playing =
+                false;
 
             playPauseButton.textContent =
                 "▶️";
 
-
             setMediaSessionNone();
-
 
             showAvailability(
                 "تعذر تشغيل ملف الصوت."
             );
 
-
             return;
         }
-
 
         if (
             immediatePlayPromise &&
@@ -3442,14 +3047,11 @@ function startCurrentSegmentOtherBrowsers(
                             return;
                         }
 
-
                         state.session.playing =
                             true;
 
-
                         playPauseButton.textContent =
                             "⏸️";
-
 
                         if (
                             "mediaSession" in
@@ -3473,22 +3075,17 @@ function startCurrentSegmentOtherBrowsers(
                             error
                         );
 
-
                         if (!isCurrentSegment()) {
                             return;
                         }
 
-
                         state.session.playing =
                             false;
-
 
                         playPauseButton.textContent =
                             "▶️";
 
-
                         setMediaSessionNone();
-
 
                         if (
                             error &&
@@ -3527,18 +3124,18 @@ function handleCurrentSegmentFinished(
         token !== playbackToken ||
         audio !== finishedAudio
     ) {
-
         return;
     }
 
-
     const duration =
-        Number(finishedAudio.duration);
-
+        Number(
+            finishedAudio.duration
+        );
 
     const bounds =
-        getSegmentBounds(duration);
-
+        getSegmentBounds(
+            duration
+        );
 
     if (!bounds) {
 
@@ -3547,13 +3144,11 @@ function handleCurrentSegmentFinished(
         return;
     }
 
-
     const segmentDuration =
         Math.max(
             0,
             bounds.end - bounds.start
         );
-
 
     if (
         state.session.teacherMode &&
@@ -3563,23 +3158,18 @@ function handleCurrentSegmentFinished(
         currentAudioType =
             "teacher";
 
-
         startCurrentSegment(
             token,
             false
         );
 
-
         return;
     }
-
 
     currentAudioType =
         "normal";
 
-
     segmentIndex++;
-
 
     waitAfterSegment(
         segmentDuration,
@@ -3601,14 +3191,13 @@ function waitAfterSegment(
         !state.session ||
         token !== playbackToken
     ) {
-
         return;
     }
 
-
     const multiplier =
-        Number(state.session.wait);
-
+        Number(
+            state.session.wait
+        );
 
     if (
         !Number.isFinite(multiplier) ||
@@ -3621,27 +3210,21 @@ function waitAfterSegment(
         return;
     }
 
-
     const waitTime =
         segmentDuration *
         multiplier *
         1000;
-
 
     state.session.playing = true;
 
     playPauseButton.textContent =
         "⏸️";
 
-
     setMediaSessionNone();
 
-
     if (waitTimer) {
-
         clearTimeout(waitTimer);
     }
-
 
     waitTimer =
         setTimeout(
@@ -3649,15 +3232,12 @@ function waitAfterSegment(
 
                 waitTimer = null;
 
-
                 if (
                     !state.session ||
                     token !== playbackToken
                 ) {
-
                     return;
                 }
-
 
                 continueAfterWait(token);
 
@@ -3677,14 +3257,11 @@ function continueAfterWait(token) {
         !state.session ||
         token !== playbackToken
     ) {
-
         return;
     }
 
-
     const totalSegments =
         pausePoints.length + 1;
-
 
     if (
         segmentIndex <
@@ -3694,16 +3271,13 @@ function continueAfterWait(token) {
         currentAudioType =
             "normal";
 
-
         startCurrentSegment(
             token,
             false
         );
 
-
         return;
     }
-
 
     finishAyah(token);
 }
@@ -3719,10 +3293,8 @@ function finishAyah(token) {
         !state.session ||
         token !== playbackToken
     ) {
-
         return;
     }
-
 
     if (
         state.session.currentAyahRepeat <
@@ -3731,23 +3303,18 @@ function finishAyah(token) {
 
         state.session.currentAyahRepeat++;
 
-
         updateSessionInfo();
-
 
         playCurrentAyah(
             false,
             true
         );
 
-
         return;
     }
 
-
     state.session.currentAyahRepeat =
         1;
-
 
     if (
         state.session.currentAyah <
@@ -3756,25 +3323,19 @@ function finishAyah(token) {
 
         state.session.currentAyah++;
 
-
         renderCurrentAyah();
 
         updateSessionInfo();
 
-
         state.session.playing = true;
-
 
         playPauseButton.textContent =
             "⏸️";
 
-
         prepareNextAyahAndPlay(token);
-
 
         return;
     }
-
 
     if (
         state.session.currentBlockRepeat <
@@ -3783,33 +3344,25 @@ function finishAyah(token) {
 
         state.session.currentBlockRepeat++;
 
-
         state.session.currentAyah =
             state.session.fromAyah;
 
-
         state.session.currentAyahRepeat =
             1;
-
 
         renderCurrentAyah();
 
         updateSessionInfo();
 
-
         state.session.playing = true;
-
 
         playPauseButton.textContent =
             "⏸️";
 
-
         prepareNextAyahAndPlay(token);
-
 
         return;
     }
-
 
     finishMemorization();
 }
@@ -3825,28 +3378,22 @@ async function prepareNextAyahAndPlay(token) {
         !state.session ||
         token !== playbackToken
     ) {
-
         return;
     }
-
 
     state.session.playing = true;
 
     playPauseButton.textContent =
         "⏸️";
 
-
     await loadPausePoints();
-
 
     if (
         !state.session ||
         token !== playbackToken
     ) {
-
         return;
     }
-
 
     playCurrentAyah(
         false,
@@ -3863,21 +3410,16 @@ function finishMemorization() {
 
     stopPlayback();
 
-
     completionMessage.classList.remove(
         "hidden"
     );
 
-
     if (state.session) {
-
         state.session.playing = false;
     }
 
-
     playPauseButton.textContent =
         "▶️";
-
 
     setMediaSessionNone();
 }
@@ -3893,14 +3435,12 @@ function pausePlayback() {
         return;
     }
 
-
     if (waitTimer) {
 
         clearTimeout(waitTimer);
 
         waitTimer = null;
     }
-
 
     if (segmentTimer) {
 
@@ -3909,24 +3449,18 @@ function pausePlayback() {
         segmentTimer = null;
     }
 
-
     playbackToken++;
 
-
     resetAudioElement();
-
 
     segmentIndex = 0;
 
     currentAudioType = "normal";
 
-
     state.session.playing = false;
-
 
     playPauseButton.textContent =
         "▶️";
-
 
     setMediaSessionNone();
 }
@@ -3940,24 +3474,18 @@ function stopPlayback() {
 
     playbackToken++;
 
-
     clearPlaybackResources();
-
 
     segmentIndex = 0;
 
     currentAudioType = "normal";
 
-
     if (state.session) {
-
         state.session.playing = false;
     }
 
-
     playPauseButton.textContent =
         "▶️";
-
 
     setMediaSessionNone();
 }
@@ -3973,11 +3501,9 @@ playerSettingsButton.addEventListener(
 
         stopPlayback();
 
-
         memorizationScreen.classList.add(
             "hidden"
         );
-
 
         setupScreen.classList.remove(
             "hidden"
@@ -4022,7 +3548,6 @@ function saveSettings() {
             teacherMode.checked
     };
 
-
     localStorage.setItem(
         "tahfeez-settings",
         JSON.stringify(settings)
@@ -4041,23 +3566,19 @@ function restoreSettings() {
             "tahfeez-settings"
         );
 
-
     if (!saved) {
         return;
     }
-
 
     try {
 
         const settings =
             JSON.parse(saved);
 
-
         if (settings.reciter) {
 
             reciterSelect.value =
                 settings.reciter;
-
 
             state.selectedReciter =
                 state.reciters.find(
@@ -4066,19 +3587,15 @@ function restoreSettings() {
                         settings.reciter
                 ) || null;
 
-
             populateSurahs();
         }
 
-
         updateTeacherMode();
-
 
         if (settings.surah) {
 
             surahSelect.value =
                 settings.surah;
-
 
             state.selectedSurah =
                 state.surahs.find(
@@ -4088,7 +3605,6 @@ function restoreSettings() {
                 ) || null;
         }
 
-
         if (state.selectedSurah) {
 
             const available =
@@ -4096,11 +3612,9 @@ function restoreSettings() {
                     state.selectedSurah.number
                 );
 
-
             if (available) {
 
                 enableAyahInputs();
-
 
                 fromAyah.min =
                     available.from;
@@ -4114,7 +3628,6 @@ function restoreSettings() {
                 toAyah.max =
                     available.to;
 
-
                 fromAyah.value =
                     settings.fromAyah ||
                     available.from;
@@ -4127,13 +3640,11 @@ function restoreSettings() {
 
                 disableAyahInputs();
 
-
                 showAvailability(
                     `سورة ${state.selectedSurah.name} غير متوفرة بصوت ${state.selectedReciter.name} حاليًا.`
                 );
             }
         }
-
 
         if (
             settings.speed !==
@@ -4143,13 +3654,11 @@ function restoreSettings() {
             speedRange.value =
                 settings.speed;
 
-
             speedValue.textContent =
                 `${Number(
                     settings.speed
                 ).toFixed(2)}×`;
         }
-
 
         if (
             settings.ayahRepeat !==
@@ -4160,7 +3669,6 @@ function restoreSettings() {
                 settings.ayahRepeat;
         }
 
-
         if (
             settings.blockRepeat !==
             undefined
@@ -4169,7 +3677,6 @@ function restoreSettings() {
             blockRepeat.value =
                 settings.blockRepeat;
         }
-
 
         if (
             settings.wait !==
@@ -4180,7 +3687,6 @@ function restoreSettings() {
                 settings.wait;
         }
 
-
         if (
             settings.teacherMode === true &&
             state.selectedReciter?.teacherMode
@@ -4189,9 +3695,7 @@ function restoreSettings() {
             teacherMode.checked = true;
         }
 
-
         validateSetup();
-
 
     } catch (error) {
 
@@ -4238,7 +3742,6 @@ function showAvailability(message) {
     availabilityMessage.textContent =
         message;
 
-
     availabilityMessage.classList.remove(
         "hidden"
     );
@@ -4249,7 +3752,6 @@ function hideAvailability() {
 
     availabilityMessage.textContent =
         "";
-
 
     availabilityMessage.classList.add(
         "hidden"
