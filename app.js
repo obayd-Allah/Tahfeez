@@ -12,7 +12,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 20";
+const CODE_VERSION = "CODE 21";
 
 
 /* =========================================================
@@ -2094,32 +2094,36 @@ function startCurrentSegmentFirefox(
     }
 
 
+    /* =====================================================
+       إنهاء آية Firefox
+    ===================================================== */
+
     function finishFirefoxAyah() {
 
-        if (
-            finished ||
-            !isCurrent()
-        ) {
-            return;
-        }
+        if (finished || !isCurrent()) return;
 
         finished = true;
-
         clearTimers();
 
+        // إنهاء الآية الحالية فقط، ثم ترك finishAyah
+        // يتولى الانتقال التلقائي للآية التالية.
         beginInternalAudioAction();
 
+        currentAudio.onplay = null;
+        currentAudio.onplaying = null;
         currentAudio.onpause = null;
+        currentAudio.ontimeupdate = null;
+        currentAudio.onended = null;
 
         try {
             currentAudio.pause();
         } catch (error) {}
 
-        endInternalAudioActionSoon();
+        try {
+            currentAudio.currentTime = 0;
+        } catch (error) {}
 
-        /*
-            هنا فقط تنتهي الآية.
-        */
+        endInternalAudioActionSoon();
 
         finishAyah(token);
     }
