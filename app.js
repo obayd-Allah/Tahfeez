@@ -12,7 +12,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 23";
+const CODE_VERSION = "CODE 25";
 
 
 /* =========================================================
@@ -65,6 +65,16 @@ try {
 
 const isFirefox =
     /firefox/i.test(navigator.userAgent);
+
+
+/* =========================================================
+   MI BROWSER
+========================================================= */
+
+const isMiBrowser =
+    /MiuiBrowser|Mi Browser/i.test(
+        navigator.userAgent
+    );
 
 
 /* =========================================================
@@ -202,6 +212,9 @@ function detachAudioEvents() {
     audio.onplay = null;
     audio.onplaying = null;
     audio.onloadedmetadata = null;
+    audio.ondurationchange = null;
+    audio.onloadeddata = null;
+    audio.oncanplay = null;
     audio.ontimeupdate = null;
     audio.onended = null;
     audio.onerror = null;
@@ -1624,6 +1637,26 @@ function sanitizePausePoints(duration) {
             .sort(
                 (a, b) => a - b
             );
+
+    /*
+        إزالة أي نقاط مكررة تمامًا حتى لا يتكون
+        جزء طوله صفر.
+    */
+
+    pausePoints =
+        pausePoints.filter(
+            (point, index, array) => {
+
+                if (index === 0) {
+                    return true;
+                }
+
+                return Math.abs(
+                    point -
+                    array[index - 1]
+                ) > 0.001;
+            }
+        );
 }
 
 
@@ -1870,15 +1903,6 @@ function startCurrentSegmentFirefox(
         return;
     }
 
-    /*
-        في وضع المعلم نستخدم نفس نظام الأجزاء الموجود
-        في المتصفحات الأخرى، ولكن بسرعة Firefox الثابتة 1×.
-
-        أما الوضع العادي فيستمر باستخدام الملف كاملًا
-        لتجنب التقطيع الذي ظهر سابقًا عند تغيير src
-        أثناء الآية.
-    */
-
     if (state.session.teacherMode) {
 
         startCurrentSegmentFirefoxTeacher(
@@ -1942,10 +1966,6 @@ function startCurrentSegmentFirefox(
     try {
         currentAudio.pause();
     } catch (error) {}
-
-    /*
-        لا نغير src إذا كان هو نفس ملف الآية.
-    */
 
     if (currentAudio.src !== url) {
 
@@ -2161,7 +2181,8 @@ function startCurrentSegmentFirefox(
 
         if (
             finished ||
-            !isCurrent()
+            !isCurrent() ||
+            !started
         ) {
             return;
         }
@@ -2201,11 +2222,6 @@ function startCurrentSegmentFirefox(
             segmentTimer = null;
         }
 
-        /*
-            نحسب بداية الجزء قبل زيادة pauseIndex.
-            هذا مهم جدًا لأن أول نقطة وقف تبدأ من 0.
-        */
-
         const previousPoint =
             pauseIndex === 0
                 ? 0
@@ -2221,10 +2237,6 @@ function startCurrentSegmentFirefox(
                 Number(point) -
                 previousPoint
             );
-
-        /*
-            نزيد المؤشر الآن بعد حساب الجزء.
-        */
 
         pauseIndex++;
 
@@ -2332,10 +2344,6 @@ function startCurrentSegmentFirefox(
         lastPausePoint = -1;
 
 
-        /* =====================================================
-           مؤقت احتياطي لنهاية الآية في Firefox
-        ===================================================== */
-
         if (firefoxEndTimer) {
 
             clearTimeout(
@@ -2354,7 +2362,8 @@ function startCurrentSegmentFirefox(
 
                     if (
                         !isCurrent() ||
-                        finished
+                        finished ||
+                        !started
                     ) {
                         return;
                     }
@@ -2414,7 +2423,8 @@ function startCurrentSegmentFirefox(
 
                                 if (
                                     !isCurrent() ||
-                                    finished
+                                    finished ||
+                                    !started
                                 ) {
                                     return;
                                 }
@@ -2479,16 +2489,6 @@ function startCurrentSegmentFirefox(
 
         endInternalAudioActionSoon();
 
-
-        /*
-            أهم تعديل في CODE 23:
-
-            في الانتقال التلقائي لا تكون userInitiated = true،
-            لكن state.session.playing تكون true.
-
-            لذلك يجب أن يبدأ Firefox التشغيل إذا كانت الجلسة
-            يفترض أن تستمر، وليس فقط إذا ضغط المستخدم الزر.
-        */
 
         const shouldAutoPlay =
             userInitiated ||
@@ -2686,10 +2686,6 @@ function startCurrentSegmentFirefox(
         };
 
 
-    /*
-        إذا كانت metadata موجودة بالفعل.
-    */
-
     if (
         Number.isFinite(
             Number(
@@ -2704,10 +2700,6 @@ function startCurrentSegmentFirefox(
         setupAudio();
     }
 
-
-    /*
-        في حالة التشغيل المباشر.
-    */
 
     const shouldAutoPlay =
         userInitiated ||
@@ -2727,7 +2719,6 @@ function startCurrentSegmentFirefox(
 
 /* =========================================================
    Firefox - وضع المعلم
-   normal segment -> teacher segment
 ========================================================= */
 
 function startCurrentSegmentFirefoxTeacher(
@@ -2762,6 +2753,7 @@ function startCurrentSegmentFirefoxTeacher(
 
     let metadataReady = false;
     let finished = false;
+    let started = false;
 
 
     beginInternalAudioAction();
@@ -2788,11 +2780,6 @@ function startCurrentSegmentFirefoxTeacher(
         currentAudio.pause();
     } catch (error) {}
 
-
-    /*
-        في وضع المعلم نبدل بين ملف normal وملف teacher
-        لكل جزء بين نقطتي وقف.
-    */
 
     try {
 
@@ -2834,8 +2821,14 @@ function startCurrentSegmentFirefoxTeacher(
 
     function finishOnce() {
 
+        /*
+            الحماية الأساسية:
+            لا يمكن إنهاء الجزء قبل أن يبدأ الصوت فعلًا.
+        */
+
         if (
             finished ||
+            !started ||
             !isCurrentSegment()
         ) {
             return;
@@ -2866,6 +2859,204 @@ function startCurrentSegmentFirefoxTeacher(
             token,
             currentAudio
         );
+    }
+
+
+    function prepareFirefoxTeacherSegment() {
+
+        if (
+            !isCurrentSegment() ||
+            metadataReady ||
+            finished
+        ) {
+            return;
+        }
+
+        const duration =
+            Number(
+                currentAudio.duration
+            );
+
+        /*
+            مهم جدًا في Mi-like media engines:
+            إذا لم تصبح المدة جاهزة فلا نعتبر الجزء منتهيًا.
+        */
+
+        if (
+            !Number.isFinite(duration) ||
+            duration <= 0
+        ) {
+            return;
+        }
+
+        metadataReady = true;
+
+        sanitizePausePoints(
+            duration
+        );
+
+        const bounds =
+            getSegmentBounds(
+                duration
+            );
+
+        if (!bounds) {
+            return;
+        }
+
+        const start =
+            Number(bounds.start);
+
+        const end =
+            Number(bounds.end);
+
+        if (
+            !Number.isFinite(start) ||
+            !Number.isFinite(end) ||
+            end <= start
+        ) {
+            return;
+        }
+
+
+        if (
+            Math.abs(
+                currentAudio.currentTime -
+                start
+            ) > 0.02
+        ) {
+
+            internalSeekAction = true;
+
+            try {
+
+                currentAudio.currentTime =
+                    start;
+
+            } catch (error) {
+
+                internalSeekAction =
+                    false;
+
+                return;
+            }
+
+            setTimeout(
+                () => {
+                    internalSeekAction =
+                        false;
+                },
+                0
+            );
+        }
+
+
+        configureFirefoxNativeAudioSpeed(
+            currentAudio,
+            1
+        );
+
+
+        const segmentDuration =
+            Math.max(
+                0,
+                end - start
+            );
+
+
+        /*
+            لا نبدأ المؤقت إلا بعد onplaying.
+            هذا يمنع القفز السريع إذا كان المتصفح
+            يرسل metadata قبل بدء الصوت.
+        */
+
+        currentAudio._tahfeezSegmentDuration =
+            segmentDuration;
+
+
+        const shouldAutoPlay =
+            userInitiated ||
+            Boolean(
+                state.session?.playing
+            );
+
+
+        if (shouldAutoPlay) {
+            playAgain();
+        }
+    }
+
+
+    function armFirefoxTeacherTimer() {
+
+        if (
+            !metadataReady ||
+            !started ||
+            finished ||
+            !isCurrentSegment()
+        ) {
+            return;
+        }
+
+        const segmentDuration =
+            Number(
+                currentAudio._tahfeezSegmentDuration
+            );
+
+        if (
+            !Number.isFinite(segmentDuration) ||
+            segmentDuration <= 0
+        ) {
+            return;
+        }
+
+        if (segmentTimer) {
+            clearTimeout(segmentTimer);
+        }
+
+        segmentTimer =
+            setTimeout(
+                () => {
+
+                    if (
+                        !isCurrentSegment() ||
+                        finished ||
+                        !started
+                    ) {
+                        return;
+                    }
+
+                    const now =
+                        Number(
+                            currentAudio.currentTime
+                        );
+
+                    const duration =
+                        Number(
+                            currentAudio.duration
+                        );
+
+                    const bounds =
+                        getSegmentBounds(
+                            duration
+                        );
+
+                    if (
+                        bounds &&
+                        Number.isFinite(now) &&
+                        now >=
+                            bounds.end - 0.03
+                    ) {
+
+                        finishOnce();
+                    }
+
+                },
+                Math.max(
+                    100,
+                    segmentDuration * 1000 + 250
+                )
+            );
     }
 
 
@@ -3019,10 +3210,14 @@ function startCurrentSegmentFirefoxTeacher(
                 return;
             }
 
+            started = true;
+
             state.session.playing = true;
 
             playPauseButton.textContent =
                 "⏸️";
+
+            armFirefoxTeacherTimer();
 
             if ("mediaSession" in navigator) {
 
@@ -3043,10 +3238,14 @@ function startCurrentSegmentFirefoxTeacher(
                 return;
             }
 
+            started = true;
+
             state.session.playing = true;
 
             playPauseButton.textContent =
                 "⏸️";
+
+            armFirefoxTeacherTimer();
 
             if ("mediaSession" in navigator) {
 
@@ -3063,156 +3262,28 @@ function startCurrentSegmentFirefoxTeacher(
     currentAudio.onloadedmetadata =
         () => {
 
-            if (
-                !isCurrentSegment() ||
-                metadataReady
-            ) {
-                return;
-            }
-
-            const duration =
-                Number(
-                    currentAudio.duration
-                );
-
-            if (
-                !Number.isFinite(duration) ||
-                duration <= 0
-            ) {
-                finishOnce();
-                return;
-            }
-
-            metadataReady = true;
-
-            sanitizePausePoints(
-                duration
-            );
-
-            const bounds =
-                getSegmentBounds(
-                    duration
-                );
-
-            if (!bounds) {
-
-                finishOnce();
-
-                return;
-            }
-
-            const start =
-                Number(bounds.start);
-
-            const end =
-                Number(bounds.end);
-
-            if (
-                !Number.isFinite(start) ||
-                !Number.isFinite(end) ||
-                end <= start
-            ) {
-
-                finishOnce();
-
-                return;
-            }
+            prepareFirefoxTeacherSegment();
+        };
 
 
-            /*
-                نضع الصوت عند بداية الجزء الحقيقي.
-            */
+    currentAudio.ondurationchange =
+        () => {
 
-            if (
-                Math.abs(
-                    currentAudio.currentTime -
-                    start
-                ) > 0.02
-            ) {
-
-                internalSeekAction = true;
-
-                try {
-
-                    currentAudio.currentTime =
-                        start;
-
-                } catch (error) {
-
-                    internalSeekAction =
-                        false;
-
-                    finishOnce();
-
-                    return;
-                }
-
-                setTimeout(
-                    () => {
-                        internalSeekAction =
-                            false;
-                    },
-                    0
-                );
-            }
+            prepareFirefoxTeacherSegment();
+        };
 
 
-            configureFirefoxNativeAudioSpeed(
-                currentAudio,
-                1
-            );
+    currentAudio.onloadeddata =
+        () => {
+
+            prepareFirefoxTeacherSegment();
+        };
 
 
-            const segmentDuration =
-                Math.max(
-                    0,
-                    end - start
-                );
+    currentAudio.oncanplay =
+        () => {
 
-
-            /*
-                مؤقت احتياطي لنهاية الجزء.
-            */
-
-            if (segmentTimer) {
-
-                clearTimeout(
-                    segmentTimer
-                );
-            }
-
-
-            segmentTimer =
-                setTimeout(
-                    finishOnce,
-                    Math.max(
-                        50,
-                        segmentDuration * 1000 + 150
-                    )
-                );
-
-
-            /*
-                التشغيل التلقائي:
-
-                - أول تشغيل: userInitiated = true
-                - الانتقال من normal إلى teacher:
-                  الجلسة ما زالت playing
-                - الانتقال من teacher إلى الجزء التالي:
-                  الجلسة ما زالت playing
-            */
-
-            const shouldAutoPlay =
-                userInitiated ||
-                Boolean(
-                    state.session?.playing
-                );
-
-
-            if (shouldAutoPlay) {
-
-                playAgain();
-            }
+            prepareFirefoxTeacherSegment();
         };
 
 
@@ -3221,6 +3292,7 @@ function startCurrentSegmentFirefoxTeacher(
 
             if (
                 finished ||
+                !started ||
                 !isCurrentSegment()
             ) {
                 return;
@@ -3262,6 +3334,7 @@ function startCurrentSegmentFirefoxTeacher(
 
             if (
                 finished ||
+                !started ||
                 !isCurrentSegment()
             ) {
                 return;
@@ -3343,10 +3416,6 @@ function startCurrentSegmentFirefoxTeacher(
         };
 
 
-    /*
-        إذا كانت metadata جاهزة بالفعل.
-    */
-
     if (
         Number.isFinite(
             Number(
@@ -3358,7 +3427,7 @@ function startCurrentSegmentFirefoxTeacher(
         ) > 0
     ) {
 
-        currentAudio.onloadedmetadata();
+        prepareFirefoxTeacherSegment();
     }
 }
 
@@ -3436,6 +3505,19 @@ function startCurrentSegmentOtherBrowsers(
 
     let finished = false;
 
+    /*
+        CODE 25:
+        لا نسمح بأي انتقال قبل أن يبدأ الصوت فعلًا.
+    */
+
+    let audioActuallyStarted = false;
+
+    let metadataReady = false;
+
+    let preparedSegmentDuration = 0;
+
+    let segmentStartedAt = 0;
+
 
     function isCurrentSegment() {
 
@@ -3450,8 +3532,59 @@ function startCurrentSegmentOtherBrowsers(
 
     function finishOnce() {
 
-        if (finished) {
+        if (
+            finished ||
+            !isCurrentSegment()
+        ) {
             return;
+        }
+
+        /*
+            حماية Mi Browser:
+            onloadedmetadata / onended / timer قد يحدث
+            قبل أن يبدأ الصوت الحقيقي.
+
+            في هذه الحالة لا ننتقل إلى الآية التالية.
+        */
+
+        if (!audioActuallyStarted) {
+            return;
+        }
+
+        /*
+            حماية إضافية:
+            إذا كان المتصفح يحاول إنهاء الجزء مباشرة بعد
+            onplaying بسبب حدث غير صحيح، ننتظر الحد الأدنى
+            من زمن التشغيل الحقيقي.
+        */
+
+        if (
+            segmentStartedAt > 0 &&
+            preparedSegmentDuration > 0
+        ) {
+
+            const expectedWallTime =
+                (
+                    preparedSegmentDuration /
+                    actualSpeed
+                ) * 1000;
+
+            const elapsed =
+                performance.now() -
+                segmentStartedAt;
+
+            const minimumAllowedTime =
+                Math.max(
+                    120,
+                    expectedWallTime * 0.35
+                );
+
+            if (
+                elapsed <
+                minimumAllowedTime
+            ) {
+                return;
+            }
         }
 
         finished = true;
@@ -3486,6 +3619,317 @@ function startCurrentSegmentOtherBrowsers(
     }
 
 
+    function prepareSegment() {
+
+        if (
+            !isCurrentSegment() ||
+            metadataReady ||
+            finished
+        ) {
+            return;
+        }
+
+        const duration =
+            Number(
+                currentAudio.duration
+            );
+
+        /*
+            أهم إصلاح في CODE 25:
+
+            لا ننادي finishOnce() عندما تكون duration
+            غير جاهزة.
+
+            Mi Browser قد يرسل loadedmetadata قبل أن
+            تصبح duration رقمًا صالحًا، وكان هذا يؤدي
+            إلى انتقال الآية وراء الآية بسرعة.
+        */
+
+        if (
+            !Number.isFinite(duration) ||
+            duration <= 0
+        ) {
+            return;
+        }
+
+        sanitizePausePoints(
+            duration
+        );
+
+        const bounds =
+            getSegmentBounds(
+                duration
+            );
+
+        if (!bounds) {
+            return;
+        }
+
+        const start =
+            Number(bounds.start);
+
+        const end =
+            Number(bounds.end);
+
+        if (
+            !Number.isFinite(start) ||
+            !Number.isFinite(end) ||
+            end <= start
+        ) {
+            return;
+        }
+
+        metadataReady = true;
+
+        preparedSegmentDuration =
+            Math.max(
+                0,
+                end - start
+            );
+
+
+        if (
+            Math.abs(
+                currentAudio.currentTime -
+                start
+            ) > 0.02
+        ) {
+
+            internalSeekAction = true;
+
+            try {
+
+                currentAudio.currentTime =
+                    start;
+
+            } catch (error) {
+
+                internalSeekAction = false;
+
+                return;
+            }
+
+            setTimeout(
+                () => {
+
+                    internalSeekAction =
+                        false;
+
+                },
+                0
+            );
+        }
+
+        configureAudioSpeed(
+            currentAudio,
+            actualSpeed
+        );
+
+
+        /*
+            لا نضع timer هنا.
+
+            سيتم وضعه بعد onplaying فقط.
+        */
+
+        if (
+            userInitiated &&
+            segmentIndex === 0 &&
+            currentAudioType === "normal"
+        ) {
+            return;
+        }
+
+        if (!currentAudio.paused) {
+            return;
+        }
+
+        playSegment();
+    }
+
+
+    function armSegmentTimer() {
+
+        if (
+            !isCurrentSegment() ||
+            finished ||
+            !audioActuallyStarted ||
+            !metadataReady
+        ) {
+            return;
+        }
+
+        const segmentDuration =
+            Number(
+                preparedSegmentDuration
+            );
+
+        if (
+            !Number.isFinite(segmentDuration) ||
+            segmentDuration <= 0
+        ) {
+            return;
+        }
+
+        const wallTime =
+            (
+                segmentDuration /
+                actualSpeed
+            ) * 1000;
+
+        if (segmentTimer) {
+
+            clearTimeout(
+                segmentTimer
+            );
+
+            segmentTimer = null;
+        }
+
+        segmentTimer =
+            setTimeout(
+                () => {
+
+                    if (
+                        !isCurrentSegment() ||
+                        finished ||
+                        !audioActuallyStarted
+                    ) {
+                        return;
+                    }
+
+                    const duration =
+                        Number(
+                            currentAudio.duration
+                        );
+
+                    const bounds =
+                        getSegmentBounds(
+                            duration
+                        );
+
+                    if (!bounds) {
+                        return;
+                    }
+
+                    const now =
+                        Number(
+                            currentAudio.currentTime
+                        );
+
+                    /*
+                        لا ننهي الجزء إلا إذا وصل الصوت فعلًا
+                        إلى نهايته.
+                    */
+
+                    if (
+                        Number.isFinite(now) &&
+                        now >=
+                            bounds.end - 0.03
+                    ) {
+
+                        finishOnce();
+
+                    } else {
+
+                        /*
+                            إذا انتهى المؤقت ولكن currentTime
+                            لم يصل للنهاية، نعطي المتصفح فرصة
+                            أخرى بدل الانتقال مباشرة.
+                        */
+
+                        armSegmentTimer();
+                    }
+
+                },
+                Math.max(
+                    150,
+                    wallTime + 180
+                )
+            );
+    }
+
+
+    function playSegment() {
+
+        if (
+            !isCurrentSegment() ||
+            finished
+        ) {
+            return;
+        }
+
+        let playPromise;
+
+        try {
+
+            playPromise =
+                currentAudio.play();
+
+        } catch (error) {
+
+            console.error(
+                "تعذر تشغيل الجزء:",
+                error
+            );
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+            state.session.playing =
+                false;
+
+            playPauseButton.textContent =
+                "▶️";
+
+            setMediaSessionNone();
+
+            return;
+        }
+
+        if (
+            playPromise &&
+            typeof playPromise.catch ===
+                "function"
+        ) {
+
+            playPromise.catch(
+                error => {
+
+                    console.error(
+                        "تعذر تشغيل الجزء بعد metadata:",
+                        error
+                    );
+
+                    if (!isCurrentSegment()) {
+                        return;
+                    }
+
+                    state.session.playing =
+                        false;
+
+                    playPauseButton.textContent =
+                        "▶️";
+
+                    setMediaSessionNone();
+
+                    if (
+                        error &&
+                        error.name ===
+                            "NotAllowedError"
+                    ) {
+
+                        showAvailability(
+                            "تعذر متابعة تشغيل الصوت."
+                        );
+                    }
+                }
+            );
+        }
+    }
+
+
     currentAudio.onplay =
         () => {
 
@@ -3493,10 +3937,17 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
+            audioActuallyStarted = true;
+
+            segmentStartedAt =
+                performance.now();
+
             state.session.playing = true;
 
             playPauseButton.textContent =
                 "⏸️";
+
+            armSegmentTimer();
 
             if ("mediaSession" in navigator) {
 
@@ -3517,10 +3968,20 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
+            audioActuallyStarted = true;
+
+            if (!segmentStartedAt) {
+
+                segmentStartedAt =
+                    performance.now();
+            }
+
             state.session.playing = true;
 
             playPauseButton.textContent =
                 "⏸️";
+
+            armSegmentTimer();
 
             if ("mediaSession" in navigator) {
 
@@ -3537,201 +3998,33 @@ function startCurrentSegmentOtherBrowsers(
     currentAudio.onloadedmetadata =
         () => {
 
-            if (!isCurrentSegment()) {
-                return;
-            }
+            prepareSegment();
+        };
 
-            const duration =
-                Number(
-                    currentAudio.duration
-                );
 
-            if (
-                !Number.isFinite(duration) ||
-                duration <= 0
-            ) {
+    /*
+        Mi Browser وبعض المتصفحات قد تحتاج حدثًا لاحقًا
+        حتى تصبح duration صالحة.
+    */
 
-                finishOnce();
+    currentAudio.ondurationchange =
+        () => {
 
-                return;
-            }
+            prepareSegment();
+        };
 
-            sanitizePausePoints(
-                duration
-            );
 
-            const bounds =
-                getSegmentBounds(
-                    duration
-                );
+    currentAudio.onloadeddata =
+        () => {
 
-            if (!bounds) {
+            prepareSegment();
+        };
 
-                finishOnce();
 
-                return;
-            }
+    currentAudio.oncanplay =
+        () => {
 
-            const start =
-                bounds.start;
-
-            const end =
-                bounds.end;
-
-            if (
-                !Number.isFinite(start) ||
-                !Number.isFinite(end) ||
-                end <= start
-            ) {
-
-                finishOnce();
-
-                return;
-            }
-
-            if (
-                Math.abs(
-                    currentAudio.currentTime -
-                    start
-                ) > 0.02
-            ) {
-
-                internalSeekAction = true;
-
-                try {
-
-                    currentAudio.currentTime =
-                        start;
-
-                } catch (error) {
-
-                    internalSeekAction = false;
-
-                    finishOnce();
-
-                    return;
-                }
-
-                setTimeout(
-                    () => {
-
-                        internalSeekAction =
-                            false;
-
-                    },
-                    0
-                );
-            }
-
-            configureAudioSpeed(
-                currentAudio,
-                actualSpeed
-            );
-
-            const segmentDuration =
-                end - start;
-
-            const wallTime =
-                (
-                    segmentDuration /
-                    actualSpeed
-                ) * 1000;
-
-            if (segmentTimer) {
-                clearTimeout(
-                    segmentTimer
-                );
-            }
-
-            segmentTimer =
-                setTimeout(
-                    finishOnce,
-                    Math.max(
-                        50,
-                        wallTime + 100
-                    )
-                );
-
-            if (
-                userInitiated &&
-                segmentIndex === 0 &&
-                currentAudioType === "normal"
-            ) {
-                return;
-            }
-
-            if (!currentAudio.paused) {
-                return;
-            }
-
-            let playPromise;
-
-            try {
-
-                playPromise =
-                    currentAudio.play();
-
-            } catch (error) {
-
-                console.error(
-                    "تعذر تشغيل الجزء:",
-                    error
-                );
-
-                if (!isCurrentSegment()) {
-                    return;
-                }
-
-                state.session.playing =
-                    false;
-
-                playPauseButton.textContent =
-                    "▶️";
-
-                setMediaSessionNone();
-
-                return;
-            }
-
-            if (
-                playPromise &&
-                typeof playPromise.catch ===
-                    "function"
-            ) {
-
-                playPromise.catch(
-                    error => {
-
-                        console.error(
-                            "تعذر تشغيل الجزء بعد metadata:",
-                            error
-                        );
-
-                        if (!isCurrentSegment()) {
-                            return;
-                        }
-
-                        state.session.playing =
-                            false;
-
-                        playPauseButton.textContent =
-                            "▶️";
-
-                        setMediaSessionNone();
-
-                        if (
-                            error &&
-                            error.name ===
-                                "NotAllowedError"
-                        ) {
-
-                            showAvailability(
-                                "تعذر متابعة تشغيل الصوت."
-                            );
-                        }
-                    }
-                );
-            }
+            prepareSegment();
         };
 
 
@@ -3740,7 +4033,8 @@ function startCurrentSegmentOtherBrowsers(
 
             if (
                 finished ||
-                !isCurrentSegment()
+                !isCurrentSegment() ||
+                !audioActuallyStarted
             ) {
                 return;
             }
@@ -3766,8 +4060,19 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
+            const now =
+                Number(
+                    currentAudio.currentTime
+                );
+
             if (
-                currentAudio.currentTime >=
+                !Number.isFinite(now)
+            ) {
+                return;
+            }
+
+            if (
+                now >=
                 bounds.end - 0.015
             ) {
 
@@ -3800,12 +4105,41 @@ function startCurrentSegmentOtherBrowsers(
 
             if (
                 finished ||
+                !audioActuallyStarted ||
                 !isCurrentSegment()
             ) {
                 return;
             }
 
-            finishOnce();
+            /*
+                onended الآن لا يكفي وحده.
+                نتأكد أن currentTime وصل بالفعل إلى نهاية الجزء.
+            */
+
+            const duration =
+                Number(
+                    currentAudio.duration
+                );
+
+            const bounds =
+                getSegmentBounds(
+                    duration
+                );
+
+            const now =
+                Number(
+                    currentAudio.currentTime
+                );
+
+            if (
+                bounds &&
+                Number.isFinite(now) &&
+                now >=
+                    bounds.end - 0.08
+            ) {
+
+                finishOnce();
+            }
         };
 
 
@@ -3861,114 +4195,37 @@ function startCurrentSegmentOtherBrowsers(
         };
 
 
+    /*
+        أول تشغيل عند ضغط المستخدم.
+        نبدأ play مباشرة حتى لا تمنع المتصفحات التشغيل.
+    */
+
     if (
         userInitiated &&
         segmentIndex === 0 &&
         currentAudioType === "normal"
     ) {
 
-        let immediatePlayPromise;
+        playSegment();
+    }
 
-        try {
 
-            immediatePlayPromise =
-                currentAudio.play();
+    /*
+        إذا كانت metadata جاهزة بالفعل.
+    */
 
-        } catch (error) {
+    if (
+        Number.isFinite(
+            Number(
+                currentAudio.duration
+            )
+        ) &&
+        Number(
+            currentAudio.duration
+        ) > 0
+    ) {
 
-            console.error(
-                "تعذر بدء الصوت:",
-                error
-            );
-
-            state.session.playing =
-                false;
-
-            playPauseButton.textContent =
-                "▶️";
-
-            setMediaSessionNone();
-
-            showAvailability(
-                "تعذر تشغيل ملف الصوت."
-            );
-
-            return;
-        }
-
-        if (
-            immediatePlayPromise &&
-            typeof immediatePlayPromise.then ===
-                "function"
-        ) {
-
-            immediatePlayPromise
-                .then(
-                    () => {
-
-                        if (!isCurrentSegment()) {
-                            return;
-                        }
-
-                        state.session.playing =
-                            true;
-
-                        playPauseButton.textContent =
-                            "⏸️";
-
-                        if (
-                            "mediaSession" in
-                            navigator
-                        ) {
-
-                            try {
-
-                                navigator.mediaSession.playbackState =
-                                    "playing";
-
-                            } catch (error) {}
-                        }
-                    }
-                )
-                .catch(
-                    error => {
-
-                        console.error(
-                            "تعذر تشغيل الصوت:",
-                            error
-                        );
-
-                        if (!isCurrentSegment()) {
-                            return;
-                        }
-
-                        state.session.playing =
-                            false;
-
-                        playPauseButton.textContent =
-                            "▶️";
-
-                        setMediaSessionNone();
-
-                        if (
-                            error &&
-                            error.name ===
-                                "NotAllowedError"
-                        ) {
-
-                            showAvailability(
-                                "اضغط زر التشغيل مرة أخرى للسماح بتشغيل الصوت."
-                            );
-
-                        } else {
-
-                            showAvailability(
-                                "تعذر تشغيل ملف الصوت."
-                            );
-                        }
-                    }
-                );
-        }
+        prepareSegment();
     }
 }
 
