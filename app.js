@@ -12,7 +12,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 25";
+const CODE_VERSION = "CODE 26";
 
 
 /* =========================================================
@@ -1638,11 +1638,6 @@ function sanitizePausePoints(duration) {
                 (a, b) => a - b
             );
 
-    /*
-        إزالة أي نقاط مكررة تمامًا حتى لا يتكون
-        جزء طوله صفر.
-    */
-
     pausePoints =
         pausePoints.filter(
             (point, index, array) => {
@@ -2755,6 +2750,9 @@ function startCurrentSegmentFirefoxTeacher(
     let finished = false;
     let started = false;
 
+    let waitingForSeek = false;
+    let seekTarget = 0;
+
 
     beginInternalAudioAction();
 
@@ -2821,11 +2819,6 @@ function startCurrentSegmentFirefoxTeacher(
 
     function finishOnce() {
 
-        /*
-            الحماية الأساسية:
-            لا يمكن إنهاء الجزء قبل أن يبدأ الصوت فعلًا.
-        */
-
         if (
             finished ||
             !started ||
@@ -2862,209 +2855,12 @@ function startCurrentSegmentFirefoxTeacher(
     }
 
 
-    function prepareFirefoxTeacherSegment() {
-
-        if (
-            !isCurrentSegment() ||
-            metadataReady ||
-            finished
-        ) {
-            return;
-        }
-
-        const duration =
-            Number(
-                currentAudio.duration
-            );
-
-        /*
-            مهم جدًا في Mi-like media engines:
-            إذا لم تصبح المدة جاهزة فلا نعتبر الجزء منتهيًا.
-        */
-
-        if (
-            !Number.isFinite(duration) ||
-            duration <= 0
-        ) {
-            return;
-        }
-
-        metadataReady = true;
-
-        sanitizePausePoints(
-            duration
-        );
-
-        const bounds =
-            getSegmentBounds(
-                duration
-            );
-
-        if (!bounds) {
-            return;
-        }
-
-        const start =
-            Number(bounds.start);
-
-        const end =
-            Number(bounds.end);
-
-        if (
-            !Number.isFinite(start) ||
-            !Number.isFinite(end) ||
-            end <= start
-        ) {
-            return;
-        }
-
-
-        if (
-            Math.abs(
-                currentAudio.currentTime -
-                start
-            ) > 0.02
-        ) {
-
-            internalSeekAction = true;
-
-            try {
-
-                currentAudio.currentTime =
-                    start;
-
-            } catch (error) {
-
-                internalSeekAction =
-                    false;
-
-                return;
-            }
-
-            setTimeout(
-                () => {
-                    internalSeekAction =
-                        false;
-                },
-                0
-            );
-        }
-
-
-        configureFirefoxNativeAudioSpeed(
-            currentAudio,
-            1
-        );
-
-
-        const segmentDuration =
-            Math.max(
-                0,
-                end - start
-            );
-
-
-        /*
-            لا نبدأ المؤقت إلا بعد onplaying.
-            هذا يمنع القفز السريع إذا كان المتصفح
-            يرسل metadata قبل بدء الصوت.
-        */
-
-        currentAudio._tahfeezSegmentDuration =
-            segmentDuration;
-
-
-        const shouldAutoPlay =
-            userInitiated ||
-            Boolean(
-                state.session?.playing
-            );
-
-
-        if (shouldAutoPlay) {
-            playAgain();
-        }
-    }
-
-
-    function armFirefoxTeacherTimer() {
-
-        if (
-            !metadataReady ||
-            !started ||
-            finished ||
-            !isCurrentSegment()
-        ) {
-            return;
-        }
-
-        const segmentDuration =
-            Number(
-                currentAudio._tahfeezSegmentDuration
-            );
-
-        if (
-            !Number.isFinite(segmentDuration) ||
-            segmentDuration <= 0
-        ) {
-            return;
-        }
-
-        if (segmentTimer) {
-            clearTimeout(segmentTimer);
-        }
-
-        segmentTimer =
-            setTimeout(
-                () => {
-
-                    if (
-                        !isCurrentSegment() ||
-                        finished ||
-                        !started
-                    ) {
-                        return;
-                    }
-
-                    const now =
-                        Number(
-                            currentAudio.currentTime
-                        );
-
-                    const duration =
-                        Number(
-                            currentAudio.duration
-                        );
-
-                    const bounds =
-                        getSegmentBounds(
-                            duration
-                        );
-
-                    if (
-                        bounds &&
-                        Number.isFinite(now) &&
-                        now >=
-                            bounds.end - 0.03
-                    ) {
-
-                        finishOnce();
-                    }
-
-                },
-                Math.max(
-                    100,
-                    segmentDuration * 1000 + 250
-                )
-            );
-    }
-
-
     function playAgain() {
 
         if (
             !isCurrentSegment() ||
-            finished
+            finished ||
+            waitingForSeek
         ) {
             return;
         }
@@ -3083,7 +2879,8 @@ function startCurrentSegmentFirefoxTeacher(
 
                     if (
                         !isCurrentSegment() ||
-                        finished
+                        finished ||
+                        waitingForSeek
                     ) {
                         return;
                     }
@@ -3203,6 +3000,277 @@ function startCurrentSegmentFirefoxTeacher(
     }
 
 
+    function prepareTeacherSegment() {
+
+        if (
+            !isCurrentSegment() ||
+            finished ||
+            metadataReady
+        ) {
+            return;
+        }
+
+        const duration =
+            Number(
+                currentAudio.duration
+            );
+
+        if (
+            !Number.isFinite(duration) ||
+            duration <= 0
+        ) {
+            return;
+        }
+
+        sanitizePausePoints(
+            duration
+        );
+
+        const bounds =
+            getSegmentBounds(
+                duration
+            );
+
+        if (!bounds) {
+            return;
+        }
+
+        const start =
+            Number(bounds.start);
+
+        const end =
+            Number(bounds.end);
+
+        if (
+            !Number.isFinite(start) ||
+            !Number.isFinite(end) ||
+            end <= start
+        ) {
+            return;
+        }
+
+        metadataReady = true;
+
+        if (
+            Math.abs(
+                currentAudio.currentTime -
+                start
+            ) > 0.02
+        ) {
+
+            waitingForSeek = true;
+            seekTarget = start;
+
+            internalSeekAction = true;
+
+            try {
+
+                currentAudio.currentTime =
+                    start;
+
+            } catch (error) {
+
+                waitingForSeek = false;
+                internalSeekAction = false;
+
+                return;
+            }
+
+            setTimeout(
+                () => {
+
+                    internalSeekAction =
+                        false;
+
+                },
+                0
+            );
+
+            return;
+        }
+
+        const segmentDuration =
+            Math.max(
+                0,
+                end - start
+            );
+
+        currentAudio._tahfeezSegmentDuration =
+            segmentDuration;
+
+        const shouldAutoPlay =
+            userInitiated ||
+            Boolean(
+                state.session?.playing
+            );
+
+        if (shouldAutoPlay) {
+            playAgain();
+        }
+    }
+
+
+    function continueAfterTeacherSeek() {
+
+        if (
+            !isCurrentSegment() ||
+            finished
+        ) {
+            return;
+        }
+
+        waitingForSeek = false;
+
+        const duration =
+            Number(
+                currentAudio.duration
+            );
+
+        const bounds =
+            getSegmentBounds(
+                duration
+            );
+
+        if (!bounds) {
+            return;
+        }
+
+        const start =
+            Number(bounds.start);
+
+        const end =
+            Number(bounds.end);
+
+        const actualPosition =
+            Number(
+                currentAudio.currentTime
+            );
+
+        /*
+            في Mi/Firefox-like engines لا نثق في حدث
+            seeked وحده إذا لم يصل currentTime للمكان المطلوب.
+        */
+
+        if (
+            !Number.isFinite(actualPosition) ||
+            Math.abs(
+                actualPosition -
+                seekTarget
+            ) > 0.15
+        ) {
+
+            waitingForSeek = true;
+
+            internalSeekAction = true;
+
+            try {
+                currentAudio.currentTime =
+                    seekTarget;
+            } catch (error) {}
+
+            setTimeout(
+                () => {
+                    internalSeekAction =
+                        false;
+                },
+                0
+            );
+
+            return;
+        }
+
+        currentAudio._tahfeezSegmentDuration =
+            Math.max(
+                0,
+                end - start
+            );
+
+        const shouldAutoPlay =
+            userInitiated ||
+            Boolean(
+                state.session?.playing
+            );
+
+        if (shouldAutoPlay) {
+            playAgain();
+        }
+    }
+
+
+    function armFirefoxTeacherTimer() {
+
+        if (
+            !metadataReady ||
+            !started ||
+            finished ||
+            waitingForSeek ||
+            !isCurrentSegment()
+        ) {
+            return;
+        }
+
+        const segmentDuration =
+            Number(
+                currentAudio._tahfeezSegmentDuration
+            );
+
+        if (
+            !Number.isFinite(segmentDuration) ||
+            segmentDuration <= 0
+        ) {
+            return;
+        }
+
+        if (segmentTimer) {
+            clearTimeout(segmentTimer);
+        }
+
+        segmentTimer =
+            setTimeout(
+                () => {
+
+                    if (
+                        !isCurrentSegment() ||
+                        finished ||
+                        !started
+                    ) {
+                        return;
+                    }
+
+                    const now =
+                        Number(
+                            currentAudio.currentTime
+                        );
+
+                    const duration =
+                        Number(
+                            currentAudio.duration
+                        );
+
+                    const bounds =
+                        getSegmentBounds(
+                            duration
+                        );
+
+                    if (
+                        bounds &&
+                        Number.isFinite(now) &&
+                        now >=
+                            bounds.end - 0.03
+                    ) {
+
+                        finishOnce();
+                    }
+
+                },
+                Math.max(
+                    100,
+                    segmentDuration * 1000 + 250
+                )
+            );
+    }
+
+
     currentAudio.onplay =
         () => {
 
@@ -3262,28 +3330,42 @@ function startCurrentSegmentFirefoxTeacher(
     currentAudio.onloadedmetadata =
         () => {
 
-            prepareFirefoxTeacherSegment();
+            prepareTeacherSegment();
         };
 
 
     currentAudio.ondurationchange =
         () => {
 
-            prepareFirefoxTeacherSegment();
+            prepareTeacherSegment();
         };
 
 
     currentAudio.onloadeddata =
         () => {
 
-            prepareFirefoxTeacherSegment();
+            prepareTeacherSegment();
         };
 
 
     currentAudio.oncanplay =
         () => {
 
-            prepareFirefoxTeacherSegment();
+            prepareTeacherSegment();
+        };
+
+
+    currentAudio.onseeked =
+        () => {
+
+            if (
+                !isCurrentSegment() ||
+                !waitingForSeek
+            ) {
+                return;
+            }
+
+            continueAfterTeacherSeek();
         };
 
 
@@ -3293,6 +3375,7 @@ function startCurrentSegmentFirefoxTeacher(
             if (
                 finished ||
                 !started ||
+                waitingForSeek ||
                 !isCurrentSegment()
             ) {
                 return;
@@ -3319,9 +3402,15 @@ function startCurrentSegmentFirefoxTeacher(
                 return;
             }
 
+            const now =
+                Number(
+                    currentAudio.currentTime
+                );
+
             if (
-                currentAudio.currentTime >=
-                bounds.end - 0.02
+                Number.isFinite(now) &&
+                now >=
+                    bounds.end - 0.02
             ) {
 
                 finishOnce();
@@ -3335,12 +3424,36 @@ function startCurrentSegmentFirefoxTeacher(
             if (
                 finished ||
                 !started ||
+                waitingForSeek ||
                 !isCurrentSegment()
             ) {
                 return;
             }
 
-            finishOnce();
+            const duration =
+                Number(
+                    currentAudio.duration
+                );
+
+            const bounds =
+                getSegmentBounds(
+                    duration
+                );
+
+            const now =
+                Number(
+                    currentAudio.currentTime
+                );
+
+            if (
+                bounds &&
+                Number.isFinite(now) &&
+                now >=
+                    bounds.end - 0.08
+            ) {
+
+                finishOnce();
+            }
         };
 
 
@@ -3351,7 +3464,10 @@ function startCurrentSegmentFirefoxTeacher(
                 return;
             }
 
-            if (internalAudioAction) {
+            if (
+                internalAudioAction ||
+                waitingForSeek
+            ) {
                 return;
             }
 
@@ -3427,7 +3543,7 @@ function startCurrentSegmentFirefoxTeacher(
         ) > 0
     ) {
 
-        prepareFirefoxTeacherSegment();
+        prepareTeacherSegment();
     }
 }
 
@@ -3447,6 +3563,31 @@ function startCurrentSegmentOtherBrowsers(
     ) {
         return;
     }
+
+
+    /* =====================================================
+       MI BROWSER - وضع المعلم
+       نستخدم نظامًا خاصًا لأن Mi Browser قد يبدأ ملف
+       الطفل من الثانية 0 قبل اكتمال seek.
+    ===================================================== */
+
+    if (
+        isMiBrowser &&
+        state.session.teacherMode
+    ) {
+
+        startCurrentSegmentMiBrowserTeacher(
+            token,
+            userInitiated
+        );
+
+        return;
+    }
+
+
+    /* =====================================================
+       باقي المتصفحات
+    ===================================================== */
 
     const reciter =
         state.session.reciter;
@@ -3505,11 +3646,6 @@ function startCurrentSegmentOtherBrowsers(
 
     let finished = false;
 
-    /*
-        CODE 25:
-        لا نسمح بأي انتقال قبل أن يبدأ الصوت فعلًا.
-    */
-
     let audioActuallyStarted = false;
 
     let metadataReady = false;
@@ -3539,24 +3675,9 @@ function startCurrentSegmentOtherBrowsers(
             return;
         }
 
-        /*
-            حماية Mi Browser:
-            onloadedmetadata / onended / timer قد يحدث
-            قبل أن يبدأ الصوت الحقيقي.
-
-            في هذه الحالة لا ننتقل إلى الآية التالية.
-        */
-
         if (!audioActuallyStarted) {
             return;
         }
-
-        /*
-            حماية إضافية:
-            إذا كان المتصفح يحاول إنهاء الجزء مباشرة بعد
-            onplaying بسبب حدث غير صحيح، ننتظر الحد الأدنى
-            من زمن التشغيل الحقيقي.
-        */
 
         if (
             segmentStartedAt > 0 &&
@@ -3591,9 +3712,7 @@ function startCurrentSegmentOtherBrowsers(
 
         if (segmentTimer) {
 
-            clearTimeout(
-                segmentTimer
-            );
+            clearTimeout(segmentTimer);
 
             segmentTimer = null;
         }
@@ -3633,17 +3752,6 @@ function startCurrentSegmentOtherBrowsers(
             Number(
                 currentAudio.duration
             );
-
-        /*
-            أهم إصلاح في CODE 25:
-
-            لا ننادي finishOnce() عندما تكون duration
-            غير جاهزة.
-
-            Mi Browser قد يرسل loadedmetadata قبل أن
-            تصبح duration رقمًا صالحًا، وكان هذا يؤدي
-            إلى انتقال الآية وراء الآية بسرعة.
-        */
 
         if (
             !Number.isFinite(duration) ||
@@ -3725,12 +3833,6 @@ function startCurrentSegmentOtherBrowsers(
             actualSpeed
         );
 
-
-        /*
-            لا نضع timer هنا.
-
-            سيتم وضعه بعد onplaying فقط.
-        */
 
         if (
             userInitiated &&
@@ -3817,11 +3919,6 @@ function startCurrentSegmentOtherBrowsers(
                             currentAudio.currentTime
                         );
 
-                    /*
-                        لا ننهي الجزء إلا إذا وصل الصوت فعلًا
-                        إلى نهايته.
-                    */
-
                     if (
                         Number.isFinite(now) &&
                         now >=
@@ -3831,12 +3928,6 @@ function startCurrentSegmentOtherBrowsers(
                         finishOnce();
 
                     } else {
-
-                        /*
-                            إذا انتهى المؤقت ولكن currentTime
-                            لم يصل للنهاية، نعطي المتصفح فرصة
-                            أخرى بدل الانتقال مباشرة.
-                        */
 
                         armSegmentTimer();
                     }
@@ -4002,11 +4093,6 @@ function startCurrentSegmentOtherBrowsers(
         };
 
 
-    /*
-        Mi Browser وبعض المتصفحات قد تحتاج حدثًا لاحقًا
-        حتى تصبح duration صالحة.
-    */
-
     currentAudio.ondurationchange =
         () => {
 
@@ -4111,11 +4197,6 @@ function startCurrentSegmentOtherBrowsers(
                 return;
             }
 
-            /*
-                onended الآن لا يكفي وحده.
-                نتأكد أن currentTime وصل بالفعل إلى نهاية الجزء.
-            */
-
             const duration =
                 Number(
                     currentAudio.duration
@@ -4195,11 +4276,6 @@ function startCurrentSegmentOtherBrowsers(
         };
 
 
-    /*
-        أول تشغيل عند ضغط المستخدم.
-        نبدأ play مباشرة حتى لا تمنع المتصفحات التشغيل.
-    */
-
     if (
         userInitiated &&
         segmentIndex === 0 &&
@@ -4208,6 +4284,1005 @@ function startCurrentSegmentOtherBrowsers(
 
         playSegment();
     }
+
+
+    if (
+        Number.isFinite(
+            Number(
+                currentAudio.duration
+            )
+        ) &&
+        Number(
+            currentAudio.duration
+        ) > 0
+    ) {
+
+        prepareSegment();
+    }
+}
+
+
+/* =========================================================
+   MI BROWSER - وضع المعلم
+========================================================= */
+
+function startCurrentSegmentMiBrowserTeacher(
+    token,
+    userInitiated = false
+) {
+
+    if (
+        !state.session ||
+        token !== playbackToken
+    ) {
+        return;
+    }
+
+
+    const reciter =
+        state.session.reciter;
+
+    const surahNumber =
+        state.session.surah.number;
+
+    const ayahNumber =
+        state.session.currentAyah;
+
+
+    const url =
+        `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
+
+
+    const thisSegmentId =
+        ++audioSegmentId;
+
+
+    const currentAudio =
+        audio;
+
+
+    let finished = false;
+
+    let started = false;
+
+    let metadataReady = false;
+
+    let waitingForSeek = false;
+
+    let seekTarget = 0;
+
+    let preparedStart = 0;
+
+    let preparedEnd = 0;
+
+    let segmentStartedAt = 0;
+
+
+    const actualSpeed =
+        Math.min(
+            1.25,
+            Math.max(
+                0.75,
+                Number(
+                    state.session.speed
+                ) || 1
+            )
+        );
+
+
+    beginInternalAudioAction();
+
+    detachAudioEvents();
+
+
+    if (waitTimer) {
+        clearTimeout(waitTimer);
+        waitTimer = null;
+    }
+
+    if (segmentTimer) {
+        clearTimeout(segmentTimer);
+        segmentTimer = null;
+    }
+
+
+    try {
+        currentAudio.pause();
+    } catch (error) {}
+
+
+    try {
+
+        currentAudio.removeAttribute("src");
+        currentAudio.load();
+
+        currentAudio.src =
+            url;
+
+        currentAudio.load();
+
+    } catch (error) {
+
+        endInternalAudioActionSoon();
+
+        console.error(
+            "تعذر تحميل ملف الصوت في Mi Browser:",
+            error
+        );
+
+        return;
+    }
+
+
+    configureAudioSpeed(
+        currentAudio,
+        actualSpeed
+    );
+
+
+    endInternalAudioActionSoon();
+
+
+    function isCurrentSegment() {
+
+        return (
+            Boolean(state.session) &&
+            token === playbackToken &&
+            currentAudio === audio &&
+            thisSegmentId === audioSegmentId
+        );
+    }
+
+
+    function finishOnce() {
+
+        if (
+            finished ||
+            !started ||
+            waitingForSeek ||
+            !isCurrentSegment()
+        ) {
+            return;
+        }
+
+
+        /*
+            لا نسمح بالانتقال إلا إذا كان currentTime
+            وصل فعلًا إلى نهاية الجزء الحالي.
+        */
+
+        const now =
+            Number(
+                currentAudio.currentTime
+            );
+
+
+        if (
+            !Number.isFinite(now) ||
+            !Number.isFinite(preparedEnd)
+        ) {
+            return;
+        }
+
+
+        if (
+            now <
+            preparedEnd - 0.04
+        ) {
+            return;
+        }
+
+
+        /*
+            حماية من إنهاء الجزء فورًا بعد onplaying.
+        */
+
+        if (segmentStartedAt > 0) {
+
+            const expectedDuration =
+                Math.max(
+                    0,
+                    preparedEnd -
+                    preparedStart
+                );
+
+
+            const expectedWallTime =
+                (
+                    expectedDuration /
+                    actualSpeed
+                ) * 1000;
+
+
+            const elapsed =
+                performance.now() -
+                segmentStartedAt;
+
+
+            const minimumAllowedTime =
+                Math.max(
+                    120,
+                    expectedWallTime * 0.30
+                );
+
+
+            if (
+                elapsed <
+                minimumAllowedTime
+            ) {
+                return;
+            }
+        }
+
+
+        finished = true;
+
+
+        if (segmentTimer) {
+
+            clearTimeout(
+                segmentTimer
+            );
+
+            segmentTimer = null;
+        }
+
+
+        beginInternalAudioAction();
+
+        currentAudio.onpause = null;
+
+
+        try {
+            currentAudio.pause();
+        } catch (error) {}
+
+
+        endInternalAudioActionSoon();
+
+
+        handleCurrentSegmentFinished(
+            token,
+            currentAudio
+        );
+    }
+
+
+    function playWhenReady() {
+
+        if (
+            !isCurrentSegment() ||
+            finished ||
+            waitingForSeek
+        ) {
+            return;
+        }
+
+
+        if (
+            !metadataReady
+        ) {
+            return;
+        }
+
+
+        let promise;
+
+
+        try {
+
+            promise =
+                currentAudio.play();
+
+        } catch (error) {
+
+            console.error(
+                "تعذر تشغيل Mi Browser:",
+                error
+            );
+
+            state.session.playing =
+                false;
+
+            playPauseButton.textContent =
+                "▶️";
+
+            setMediaSessionNone();
+
+            return;
+        }
+
+
+        if (
+            promise &&
+            typeof promise.catch ===
+                "function"
+        ) {
+
+            promise.catch(
+                error => {
+
+                    if (!isCurrentSegment()) {
+                        return;
+                    }
+
+
+                    console.error(
+                        "تعذر تشغيل Mi Browser:",
+                        error
+                    );
+
+
+                    state.session.playing =
+                        false;
+
+                    playPauseButton.textContent =
+                        "▶️";
+
+                    setMediaSessionNone();
+
+                }
+            );
+        }
+    }
+
+
+    function prepareSegment() {
+
+        if (
+            !isCurrentSegment() ||
+            finished
+        ) {
+            return;
+        }
+
+
+        const duration =
+            Number(
+                currentAudio.duration
+            );
+
+
+        if (
+            !Number.isFinite(duration) ||
+            duration <= 0
+        ) {
+            return;
+        }
+
+
+        sanitizePausePoints(
+            duration
+        );
+
+
+        const bounds =
+            getSegmentBounds(
+                duration
+            );
+
+
+        if (!bounds) {
+            return;
+        }
+
+
+        const start =
+            Number(
+                bounds.start
+            );
+
+
+        const end =
+            Number(
+                bounds.end
+            );
+
+
+        if (
+            !Number.isFinite(start) ||
+            !Number.isFinite(end) ||
+            end <= start
+        ) {
+            return;
+        }
+
+
+        preparedStart =
+            start;
+
+
+        preparedEnd =
+            end;
+
+
+        metadataReady =
+            true;
+
+
+        configureAudioSpeed(
+            currentAudio,
+            actualSpeed
+        );
+
+
+        /*
+            =================================================
+            أهم جزء في إصلاح Mi Browser:
+
+            لا نقول للمتصفح:
+                currentTime = start
+                ثم play مباشرة.
+
+            بل:
+                1. نوقف التشغيل.
+                2. نطلب seek.
+                3. ننتظر seeked.
+                4. نتأكد أن currentTime أصبح قريبًا
+                   من start.
+                5. بعدها فقط نشغل.
+            =================================================
+        */
+
+
+        const currentPosition =
+            Number(
+                currentAudio.currentTime
+            );
+
+
+        if (
+            Math.abs(
+                currentPosition -
+                start
+            ) > 0.03
+        ) {
+
+            waitingForSeek =
+                true;
+
+
+            seekTarget =
+                start;
+
+
+            internalSeekAction =
+                true;
+
+
+            try {
+
+                currentAudio.pause();
+
+            } catch (error) {}
+
+
+            try {
+
+                currentAudio.currentTime =
+                    start;
+
+            } catch (error) {
+
+                waitingForSeek =
+                    false;
+
+                internalSeekAction =
+                    false;
+
+                return;
+            }
+
+
+            setTimeout(
+                () => {
+
+                    internalSeekAction =
+                        false;
+
+                },
+                0
+            );
+
+
+            /*
+                بعض إصدارات Mi Browser قد لا ترسل seeked
+                في كل مرة؛ لذلك نتحقق مرة أخرى قليلًا
+                بعد ذلك.
+            */
+
+            setTimeout(
+                () => {
+
+                    if (
+                        !isCurrentSegment() ||
+                        finished ||
+                        !waitingForSeek
+                    ) {
+                        return;
+                    }
+
+
+                    const position =
+                        Number(
+                            currentAudio.currentTime
+                        );
+
+
+                    if (
+                        Number.isFinite(position) &&
+                        Math.abs(
+                            position -
+                            seekTarget
+                        ) <= 0.15
+                    ) {
+
+                        waitingForSeek =
+                            false;
+
+                        playWhenReady();
+
+                    }
+
+                },
+                80
+            );
+
+
+            return;
+        }
+
+
+        waitingForSeek =
+            false;
+
+
+        const shouldAutoPlay =
+            userInitiated ||
+            Boolean(
+                state.session?.playing
+            );
+
+
+        if (shouldAutoPlay) {
+
+            playWhenReady();
+
+        }
+    }
+
+
+    function armSegmentTimer() {
+
+        if (
+            !isCurrentSegment() ||
+            finished ||
+            !started ||
+            waitingForSeek ||
+            !metadataReady
+        ) {
+            return;
+        }
+
+
+        const segmentDuration =
+            Math.max(
+                0,
+                preparedEnd -
+                preparedStart
+            );
+
+
+        if (
+            !Number.isFinite(segmentDuration) ||
+            segmentDuration <= 0
+        ) {
+            return;
+        }
+
+
+        if (segmentTimer) {
+
+            clearTimeout(
+                segmentTimer
+            );
+
+            segmentTimer = null;
+        }
+
+
+        const wallTime =
+            (
+                segmentDuration /
+                actualSpeed
+            ) * 1000;
+
+
+        segmentTimer =
+            setTimeout(
+                () => {
+
+                    if (
+                        !isCurrentSegment() ||
+                        finished ||
+                        !started ||
+                        waitingForSeek
+                    ) {
+                        return;
+                    }
+
+
+                    const now =
+                        Number(
+                            currentAudio.currentTime
+                        );
+
+
+                    if (
+                        Number.isFinite(now) &&
+                        now >=
+                            preparedEnd - 0.04
+                    ) {
+
+                        finishOnce();
+
+                    } else {
+
+                        armSegmentTimer();
+
+                    }
+
+                },
+                Math.max(
+                    150,
+                    wallTime + 220
+                )
+            );
+    }
+
+
+    currentAudio.onplay =
+        () => {
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+
+            started =
+                true;
+
+
+            segmentStartedAt =
+                performance.now();
+
+
+            state.session.playing =
+                true;
+
+
+            playPauseButton.textContent =
+                "⏸️";
+
+
+            armSegmentTimer();
+
+
+            if ("mediaSession" in navigator) {
+
+                try {
+
+                    navigator.mediaSession.playbackState =
+                        "playing";
+
+                } catch (error) {}
+            }
+        };
+
+
+    currentAudio.onplaying =
+        () => {
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+
+            started =
+                true;
+
+
+            if (!segmentStartedAt) {
+
+                segmentStartedAt =
+                    performance.now();
+
+            }
+
+
+            state.session.playing =
+                true;
+
+
+            playPauseButton.textContent =
+                "⏸️";
+
+
+            armSegmentTimer();
+
+
+            if ("mediaSession" in navigator) {
+
+                try {
+
+                    navigator.mediaSession.playbackState =
+                        "playing";
+
+                } catch (error) {}
+            }
+        };
+
+
+    currentAudio.onloadedmetadata =
+        () => {
+
+            prepareSegment();
+
+        };
+
+
+    currentAudio.ondurationchange =
+        () => {
+
+            prepareSegment();
+
+        };
+
+
+    currentAudio.onloadeddata =
+        () => {
+
+            prepareSegment();
+
+        };
+
+
+    currentAudio.oncanplay =
+        () => {
+
+            prepareSegment();
+
+        };
+
+
+    currentAudio.onseeked =
+        () => {
+
+            if (
+                !isCurrentSegment() ||
+                !waitingForSeek
+            ) {
+                return;
+            }
+
+
+            const position =
+                Number(
+                    currentAudio.currentTime
+                );
+
+
+            if (
+                !Number.isFinite(position)
+            ) {
+                return;
+            }
+
+
+            /*
+                لا نعتبر seek ناجحًا إلا إذا وصلنا
+                فعلًا إلى نقطة البداية المطلوبة.
+            */
+
+            if (
+                Math.abs(
+                    position -
+                    seekTarget
+                ) > 0.15
+            ) {
+
+                return;
+            }
+
+
+            waitingForSeek =
+                false;
+
+
+            internalSeekAction =
+                true;
+
+
+            setTimeout(
+                () => {
+
+                    internalSeekAction =
+                        false;
+
+                },
+                0
+            );
+
+
+            playWhenReady();
+        };
+
+
+    currentAudio.ontimeupdate =
+        () => {
+
+            if (
+                finished ||
+                !started ||
+                waitingForSeek ||
+                !isCurrentSegment()
+            ) {
+                return;
+            }
+
+
+            const now =
+                Number(
+                    currentAudio.currentTime
+                );
+
+
+            if (
+                !Number.isFinite(now)
+            ) {
+                return;
+            }
+
+
+            /*
+                لا نعتمد على duration هنا.
+                نحن نستخدم preparedEnd الخاصة بالجزء.
+            */
+
+            if (
+                now >=
+                preparedEnd - 0.02
+            ) {
+
+                finishOnce();
+
+            }
+        };
+
+
+    currentAudio.onended =
+        () => {
+
+            if (
+                finished ||
+                !started ||
+                waitingForSeek ||
+                !isCurrentSegment()
+            ) {
+                return;
+            }
+
+
+            const now =
+                Number(
+                    currentAudio.currentTime
+                );
+
+
+            /*
+                إذا انتهى الملف كاملًا قبل نقطة الوقف،
+                لا نقفز للجزء التالي بشكل خاطئ.
+            */
+
+            if (
+                Number.isFinite(now) &&
+                now >=
+                    preparedEnd - 0.08
+            ) {
+
+                finishOnce();
+
+            }
+
+        };
+
+
+    currentAudio.onpause =
+        () => {
+
+            if (
+                internalAudioAction ||
+                waitingForSeek
+            ) {
+                return;
+            }
+
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+
+            if (state.session.playing) {
+
+                handleExternalAudioStop();
+
+            }
+
+        };
+
+
+    currentAudio.onseeking =
+        () => {
+
+            if (internalSeekAction) {
+                return;
+            }
+
+
+            if (internalAudioAction) {
+                return;
+            }
+
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+
+            handleExternalSeekAttempt();
+        };
+
+
+    currentAudio.onerror =
+        () => {
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+
+            if (segmentTimer) {
+
+                clearTimeout(
+                    segmentTimer
+                );
+
+                segmentTimer = null;
+            }
+
+
+            state.session.playing =
+                false;
+
+
+            playPauseButton.textContent =
+                "▶️";
+
+
+            setMediaSessionNone();
+
+
+            console.error(
+                "خطأ في ملف الصوت في Mi Browser:",
+                currentAudio.error
+            );
+
+
+            showAvailability(
+                "تعذر تشغيل ملف الصوت."
+            );
+        };
 
 
     /*
@@ -4226,6 +5301,46 @@ function startCurrentSegmentOtherBrowsers(
     ) {
 
         prepareSegment();
+
+    }
+
+
+    /*
+        عند الضغط الأول على التشغيل:
+        prepareSegment ستقوم بالتشغيل بعد التأكد
+        من الموضع الصحيح.
+    */
+
+    if (
+        userInitiated &&
+        segmentIndex === 0 &&
+        currentAudioType === "normal"
+    ) {
+
+        setTimeout(
+            () => {
+
+                if (
+                    !isCurrentSegment() ||
+                    finished
+                ) {
+                    return;
+                }
+
+
+                if (
+                    metadataReady &&
+                    !waitingForSeek &&
+                    currentAudio.paused
+                ) {
+
+                    playWhenReady();
+
+                }
+
+            },
+            0
+        );
     }
 }
 
