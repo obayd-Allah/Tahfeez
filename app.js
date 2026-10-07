@@ -12,7 +12,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 22";
+const CODE_VERSION = "CODE 23";
 
 
 /* =========================================================
@@ -159,7 +159,6 @@ let segmentTimer = null;
 
 /*
     مؤقت احتياطي لنهاية الآية في Firefox.
-    بعض حالات pause/resume قد لا تعتمد على onended وحده.
 */
 let firefoxEndTimer = null;
 
@@ -1851,8 +1850,12 @@ function startCurrentSegment(
 
 /* =========================================================
    Firefox
+   الوضع العادي:
    الآية كلها ملف واحد
    pausePoint = pause / wait / resume
+
+   وضع المعلم:
+   normal segment -> teacher segment
 ========================================================= */
 
 function startCurrentSegmentFirefox(
@@ -1866,6 +1869,30 @@ function startCurrentSegmentFirefox(
     ) {
         return;
     }
+
+    /*
+        في وضع المعلم نستخدم نفس نظام الأجزاء الموجود
+        في المتصفحات الأخرى، ولكن بسرعة Firefox الثابتة 1×.
+
+        أما الوضع العادي فيستمر باستخدام الملف كاملًا
+        لتجنب التقطيع الذي ظهر سابقًا عند تغيير src
+        أثناء الآية.
+    */
+
+    if (state.session.teacherMode) {
+
+        startCurrentSegmentFirefoxTeacher(
+            token,
+            userInitiated
+        );
+
+        return;
+    }
+
+
+    /* =====================================================
+       Firefox - الوضع العادي
+    ===================================================== */
 
     const reciter =
         state.session.reciter;
@@ -2153,10 +2180,6 @@ function startCurrentSegmentFirefox(
 
         endInternalAudioActionSoon();
 
-        /*
-            هنا فقط نعتبر الآية منتهية.
-            ثم تنتقل finishAyah() تلقائيًا إلى الآية التالية.
-        */
         finishAyah(token);
     }
 
@@ -2178,16 +2201,10 @@ function startCurrentSegmentFirefox(
             segmentTimer = null;
         }
 
-        beginInternalAudioAction();
-
-        currentAudio.onpause = null;
-
-        try {
-            currentAudio.pause();
-        } catch (error) {}
-
-        endInternalAudioActionSoon();
-
+        /*
+            نحسب بداية الجزء قبل زيادة pauseIndex.
+            هذا مهم جدًا لأن أول نقطة وقف تبدأ من 0.
+        */
 
         const previousPoint =
             pauseIndex === 0
@@ -2198,13 +2215,31 @@ function startCurrentSegmentFirefox(
                     ]
                 );
 
-
         const segmentDuration =
             Math.max(
                 0,
                 Number(point) -
                 previousPoint
             );
+
+        /*
+            نزيد المؤشر الآن بعد حساب الجزء.
+        */
+
+        pauseIndex++;
+
+        lastPausePoint =
+            Number(point);
+
+        beginInternalAudioAction();
+
+        currentAudio.onpause = null;
+
+        try {
+            currentAudio.pause();
+        } catch (error) {}
+
+        endInternalAudioActionSoon();
 
 
         const multiplier =
@@ -2257,13 +2292,6 @@ function startCurrentSegmentFirefox(
 
                     pauseWaiting = false;
 
-                    /*
-                        لا src جديد.
-                        لا load.
-                        لا currentTime جديد.
-                        فقط استئناف لنفس الملف.
-                    */
-
                     playAgain();
 
                 },
@@ -2306,9 +2334,6 @@ function startCurrentSegmentFirefox(
 
         /* =====================================================
            مؤقت احتياطي لنهاية الآية في Firefox
-
-           في بعض حالات pause/resume قد لا يصل onended كما
-           نتوقع، لذلك نراقب نهاية الملف أيضًا.
         ===================================================== */
 
         if (firefoxEndTimer) {
@@ -2361,11 +2386,6 @@ function startCurrentSegmentFirefox(
                         return;
                     }
 
-
-                    /*
-                        إذا كان Firefox متأخرًا قليلًا،
-                        نعيد الفحص بدل إنهاء الآية مبكرًا.
-                    */
 
                     const remaining =
                         Number.isFinite(
@@ -2459,7 +2479,24 @@ function startCurrentSegmentFirefox(
 
         endInternalAudioActionSoon();
 
-        if (userInitiated) {
+
+        /*
+            أهم تعديل في CODE 23:
+
+            في الانتقال التلقائي لا تكون userInitiated = true،
+            لكن state.session.playing تكون true.
+
+            لذلك يجب أن يبدأ Firefox التشغيل إذا كانت الجلسة
+            يفترض أن تستمر، وليس فقط إذا ضغط المستخدم الزر.
+        */
+
+        const shouldAutoPlay =
+            userInitiated ||
+            Boolean(
+                state.session?.playing
+            );
+
+        if (shouldAutoPlay) {
             playAgain();
         }
     }
@@ -2533,13 +2570,6 @@ function startCurrentSegmentFirefox(
             }
 
 
-            /* =================================================
-               احتياط إضافي لنهاية الآية
-
-               إذا وصل الصوت إلى نهاية الملف ولم يرسل Firefox
-               onended بعد، ننهي الآية هنا.
-            ================================================= */
-
             if (
                 now >=
                     duration - 0.08 &&
@@ -2570,11 +2600,6 @@ function startCurrentSegmentFirefox(
                     point > lastPausePoint &&
                     now >= point - 0.025
                 ) {
-
-                    lastPausePoint =
-                        point;
-
-                    pauseIndex++;
 
                     waitAtPause(point);
                 }
@@ -2681,15 +2706,659 @@ function startCurrentSegmentFirefox(
 
 
     /*
-        التشغيل الأول.
+        في حالة التشغيل المباشر.
     */
 
+    const shouldAutoPlay =
+        userInitiated ||
+        Boolean(
+            state.session?.playing
+        );
+
     if (
-        userInitiated &&
+        shouldAutoPlay &&
         metadataReady
     ) {
 
         playAgain();
+    }
+}
+
+
+/* =========================================================
+   Firefox - وضع المعلم
+   normal segment -> teacher segment
+========================================================= */
+
+function startCurrentSegmentFirefoxTeacher(
+    token,
+    userInitiated = false
+) {
+
+    if (
+        !state.session ||
+        token !== playbackToken
+    ) {
+        return;
+    }
+
+    const reciter =
+        state.session.reciter;
+
+    const surahNumber =
+        state.session.surah.number;
+
+    const ayahNumber =
+        state.session.currentAyah;
+
+    const url =
+        `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
+
+    const thisSegmentId =
+        ++audioSegmentId;
+
+    const currentAudio =
+        audio;
+
+    let metadataReady = false;
+    let finished = false;
+
+
+    beginInternalAudioAction();
+
+    detachAudioEvents();
+
+    if (waitTimer) {
+        clearTimeout(waitTimer);
+        waitTimer = null;
+    }
+
+    if (segmentTimer) {
+        clearTimeout(segmentTimer);
+        segmentTimer = null;
+    }
+
+    if (firefoxEndTimer) {
+        clearTimeout(firefoxEndTimer);
+        firefoxEndTimer = null;
+    }
+
+
+    try {
+        currentAudio.pause();
+    } catch (error) {}
+
+
+    /*
+        في وضع المعلم نبدل بين ملف normal وملف teacher
+        لكل جزء بين نقطتي وقف.
+    */
+
+    try {
+
+        currentAudio.removeAttribute("src");
+        currentAudio.load();
+
+        currentAudio.src = url;
+        currentAudio.load();
+
+    } catch (error) {
+
+        endInternalAudioActionSoon();
+
+        console.error(
+            "تعذر تحميل ملف Firefox في وضع المعلم:",
+            error
+        );
+
+        return;
+    }
+
+
+    configureFirefoxNativeAudioSpeed(
+        currentAudio,
+        1
+    );
+
+
+    function isCurrentSegment() {
+
+        return (
+            Boolean(state.session) &&
+            token === playbackToken &&
+            currentAudio === audio &&
+            thisSegmentId === audioSegmentId
+        );
+    }
+
+
+    function finishOnce() {
+
+        if (
+            finished ||
+            !isCurrentSegment()
+        ) {
+            return;
+        }
+
+        finished = true;
+
+        if (segmentTimer) {
+
+            clearTimeout(
+                segmentTimer
+            );
+
+            segmentTimer = null;
+        }
+
+        beginInternalAudioAction();
+
+        currentAudio.onpause = null;
+
+        try {
+            currentAudio.pause();
+        } catch (error) {}
+
+        endInternalAudioActionSoon();
+
+        handleCurrentSegmentFinished(
+            token,
+            currentAudio
+        );
+    }
+
+
+    function playAgain() {
+
+        if (
+            !isCurrentSegment() ||
+            finished
+        ) {
+            return;
+        }
+
+        let promise = null;
+
+        try {
+
+            promise =
+                currentAudio.play();
+
+        } catch (error) {
+
+            setTimeout(
+                () => {
+
+                    if (
+                        !isCurrentSegment() ||
+                        finished
+                    ) {
+                        return;
+                    }
+
+                    try {
+
+                        const retry =
+                            currentAudio.play();
+
+                        if (
+                            retry &&
+                            typeof retry.catch ===
+                                "function"
+                        ) {
+
+                            retry.catch(
+                                retryError => {
+
+                                    console.error(
+                                        "تعذر تشغيل Firefox في وضع المعلم:",
+                                        retryError
+                                    );
+
+                                    if (
+                                        isCurrentSegment()
+                                    ) {
+
+                                        state.session.playing =
+                                            false;
+
+                                        playPauseButton.textContent =
+                                            "▶️";
+
+                                        setMediaSessionNone();
+                                    }
+                                }
+                            );
+                        }
+
+                    } catch (retryError) {
+
+                        console.error(
+                            "تعذر تشغيل Firefox في وضع المعلم:",
+                            retryError
+                        );
+
+                        if (
+                            isCurrentSegment()
+                        ) {
+
+                            state.session.playing =
+                                false;
+
+                            playPauseButton.textContent =
+                                "▶️";
+
+                            setMediaSessionNone();
+                        }
+                    }
+
+                },
+                100
+            );
+
+            return;
+        }
+
+
+        if (
+            promise &&
+            typeof promise.catch ===
+                "function"
+        ) {
+
+            promise.catch(
+                error => {
+
+                    if (!isCurrentSegment()) {
+                        return;
+                    }
+
+                    if (
+                        error &&
+                        (
+                            error.name ===
+                                "AbortError" ||
+                            error.name ===
+                                "NotAllowedError"
+                        )
+                    ) {
+
+                        setTimeout(
+                            () => {
+                                playAgain();
+                            },
+                            100
+                        );
+
+                        return;
+                    }
+
+                    console.error(
+                        "تعذر تشغيل Firefox في وضع المعلم:",
+                        error
+                    );
+
+                    state.session.playing =
+                        false;
+
+                    playPauseButton.textContent =
+                        "▶️";
+
+                    setMediaSessionNone();
+                }
+            );
+        }
+    }
+
+
+    currentAudio.onplay =
+        () => {
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+            state.session.playing = true;
+
+            playPauseButton.textContent =
+                "⏸️";
+
+            if ("mediaSession" in navigator) {
+
+                try {
+
+                    navigator.mediaSession.playbackState =
+                        "playing";
+
+                } catch (error) {}
+            }
+        };
+
+
+    currentAudio.onplaying =
+        () => {
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+            state.session.playing = true;
+
+            playPauseButton.textContent =
+                "⏸️";
+
+            if ("mediaSession" in navigator) {
+
+                try {
+
+                    navigator.mediaSession.playbackState =
+                        "playing";
+
+                } catch (error) {}
+            }
+        };
+
+
+    currentAudio.onloadedmetadata =
+        () => {
+
+            if (
+                !isCurrentSegment() ||
+                metadataReady
+            ) {
+                return;
+            }
+
+            const duration =
+                Number(
+                    currentAudio.duration
+                );
+
+            if (
+                !Number.isFinite(duration) ||
+                duration <= 0
+            ) {
+                finishOnce();
+                return;
+            }
+
+            metadataReady = true;
+
+            sanitizePausePoints(
+                duration
+            );
+
+            const bounds =
+                getSegmentBounds(
+                    duration
+                );
+
+            if (!bounds) {
+
+                finishOnce();
+
+                return;
+            }
+
+            const start =
+                Number(bounds.start);
+
+            const end =
+                Number(bounds.end);
+
+            if (
+                !Number.isFinite(start) ||
+                !Number.isFinite(end) ||
+                end <= start
+            ) {
+
+                finishOnce();
+
+                return;
+            }
+
+
+            /*
+                نضع الصوت عند بداية الجزء الحقيقي.
+            */
+
+            if (
+                Math.abs(
+                    currentAudio.currentTime -
+                    start
+                ) > 0.02
+            ) {
+
+                internalSeekAction = true;
+
+                try {
+
+                    currentAudio.currentTime =
+                        start;
+
+                } catch (error) {
+
+                    internalSeekAction =
+                        false;
+
+                    finishOnce();
+
+                    return;
+                }
+
+                setTimeout(
+                    () => {
+                        internalSeekAction =
+                            false;
+                    },
+                    0
+                );
+            }
+
+
+            configureFirefoxNativeAudioSpeed(
+                currentAudio,
+                1
+            );
+
+
+            const segmentDuration =
+                Math.max(
+                    0,
+                    end - start
+                );
+
+
+            /*
+                مؤقت احتياطي لنهاية الجزء.
+            */
+
+            if (segmentTimer) {
+
+                clearTimeout(
+                    segmentTimer
+                );
+            }
+
+
+            segmentTimer =
+                setTimeout(
+                    finishOnce,
+                    Math.max(
+                        50,
+                        segmentDuration * 1000 + 150
+                    )
+                );
+
+
+            /*
+                التشغيل التلقائي:
+
+                - أول تشغيل: userInitiated = true
+                - الانتقال من normal إلى teacher:
+                  الجلسة ما زالت playing
+                - الانتقال من teacher إلى الجزء التالي:
+                  الجلسة ما زالت playing
+            */
+
+            const shouldAutoPlay =
+                userInitiated ||
+                Boolean(
+                    state.session?.playing
+                );
+
+
+            if (shouldAutoPlay) {
+
+                playAgain();
+            }
+        };
+
+
+    currentAudio.ontimeupdate =
+        () => {
+
+            if (
+                finished ||
+                !isCurrentSegment()
+            ) {
+                return;
+            }
+
+            const duration =
+                Number(
+                    currentAudio.duration
+                );
+
+            if (
+                !Number.isFinite(duration) ||
+                duration <= 0
+            ) {
+                return;
+            }
+
+            const bounds =
+                getSegmentBounds(
+                    duration
+                );
+
+            if (!bounds) {
+                return;
+            }
+
+            if (
+                currentAudio.currentTime >=
+                bounds.end - 0.02
+            ) {
+
+                finishOnce();
+            }
+        };
+
+
+    currentAudio.onended =
+        () => {
+
+            if (
+                finished ||
+                !isCurrentSegment()
+            ) {
+                return;
+            }
+
+            finishOnce();
+        };
+
+
+    currentAudio.onpause =
+        () => {
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+            if (internalAudioAction) {
+                return;
+            }
+
+            if (state.session.playing) {
+
+                handleExternalAudioStop();
+            }
+        };
+
+
+    currentAudio.onseeking =
+        () => {
+
+            if (internalSeekAction) {
+                return;
+            }
+
+            if (internalAudioAction) {
+                return;
+            }
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+            handleExternalSeekAttempt();
+        };
+
+
+    currentAudio.onerror =
+        () => {
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+            if (segmentTimer) {
+
+                clearTimeout(
+                    segmentTimer
+                );
+
+                segmentTimer = null;
+            }
+
+            state.session.playing =
+                false;
+
+            playPauseButton.textContent =
+                "▶️";
+
+            setMediaSessionNone();
+
+            console.error(
+                "خطأ في ملف الصوت في Firefox - وضع المعلم:",
+                currentAudio.error
+            );
+
+            showAvailability(
+                "تعذر تشغيل ملف الصوت."
+            );
+        };
+
+
+    /*
+        إذا كانت metadata جاهزة بالفعل.
+    */
+
+    if (
+        Number.isFinite(
+            Number(
+                currentAudio.duration
+            )
+        ) &&
+        Number(
+            currentAudio.duration
+        ) > 0
+    ) {
+
+        currentAudio.onloadedmetadata();
     }
 }
 
