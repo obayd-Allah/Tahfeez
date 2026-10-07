@@ -12,7 +12,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 18";
+const CODE_VERSION = "CODE 19";
 
 
 /* =========================================================
@@ -65,6 +65,75 @@ try {
 
 const isFirefox =
     /firefox/i.test(navigator.userAgent);
+
+
+/* =========================================================
+   إخفاء التحكم في السرعة في Firefox
+   Firefox فقط
+========================================================= */
+
+function hideFirefoxSpeedControl() {
+
+    if (!isFirefox) {
+        return;
+    }
+
+    try {
+
+        if (speedRange) {
+            speedRange.style.display = "none";
+            speedRange.disabled = true;
+        }
+
+        if (speedValue) {
+            speedValue.style.display = "none";
+        }
+
+        /*
+            نحاول إخفاء الحاوية الخاصة بالسرعة
+            دون التأثير على باقي الإعدادات.
+        */
+
+        if (speedRange) {
+
+            const candidates = [
+                speedRange.closest("label"),
+                speedRange.closest(".setting"),
+                speedRange.closest(".setting-item"),
+                speedRange.closest(".control-group"),
+                speedRange.closest(".form-group"),
+                speedRange.parentElement
+            ];
+
+            for (const element of candidates) {
+
+                if (!element) {
+                    continue;
+                }
+
+                const text = (
+                    element.textContent || ""
+                ).trim();
+
+                if (
+                    element === speedRange.parentElement ||
+                    /سرعة|speed/i.test(text)
+                ) {
+                    element.style.display = "none";
+                    break;
+                }
+            }
+        }
+
+    } catch (error) {
+
+        console.warn(
+            "تعذر إخفاء تحكم السرعة في Firefox:",
+            error
+        );
+
+    }
+}
 
 
 /* =========================================================
@@ -173,6 +242,10 @@ const speedRange =
 
 const speedValue =
     document.getElementById("speedValue");
+
+if (isFirefox) {
+    hideFirefoxSpeedControl();
+}
 
 const ayahRepeat =
     document.getElementById("ayahRepeat");
@@ -495,6 +568,10 @@ async function loadData() {
         populateReciters();
 
         restoreSettings();
+
+        if (isFirefox) {
+            hideFirefoxSpeedControl();
+        }
 
 
     } catch (error) {
@@ -848,24 +925,32 @@ speedRange.addEventListener(
             Number.isFinite(speed)
         ) {
 
-            state.session.speed =
-                Math.min(
-                    1.25,
-                    Math.max(
-                        0.75,
-                        speed
-                    )
-                );
-
-
             if (isFirefox) {
+
+                /*
+                    Firefox:
+                    لا يوجد تحكم سرعة للمستخدم.
+                    السرعة ثابتة 1× لضمان استقرار التشغيل.
+                */
+
+                state.session.speed = 1;
 
                 configureFirefoxNativeAudioSpeed(
                     audio,
-                    state.session.speed
+                    1
                 );
 
             } else {
+
+                state.session.speed =
+                    Math.min(
+                        1.25,
+                        Math.max(
+                            0.75,
+                            speed
+                        )
+                    );
+
 
                 configureAudioSpeed(
                     audio,
@@ -1050,7 +1135,9 @@ async function startMemorization() {
             1,
 
         speed:
-            Number(speedRange.value),
+            isFirefox
+                ? 1
+                : Number(speedRange.value),
 
         wait:
             Number(waitSelect.value),
@@ -1064,7 +1151,7 @@ async function startMemorization() {
 
 
     /*
-        لا يوجد هنا AudioWorklet في Firefox.
+        لا يوجد AudioWorklet في Firefox.
         Firefox يستخدم HTMLAudio مباشرة.
     */
 
@@ -1966,8 +2053,10 @@ function handleExternalAudioStop() {
 
     state.session.playing = false;
 
+
     playPauseButton.textContent =
         "▶️";
+
 
     setMediaSessionNone();
 }
@@ -1975,10 +2064,756 @@ function handleExternalAudioStop() {
 
 /* =========================================================
    تشغيل الجزء الحالي
-   Firefox + باقي المتصفحات
 ========================================================= */
 
 function startCurrentSegment(
+    token,
+    userInitiated = false
+) {
+
+    if (isFirefox) {
+
+        startCurrentSegmentFirefox(
+            token,
+            userInitiated
+        );
+
+        return;
+    }
+
+
+    startCurrentSegmentOtherBrowsers(
+        token,
+        userInitiated
+    );
+}
+
+
+/* =========================================================
+   تشغيل جزء الصوت في Firefox
+   Firefox فقط — HTMLAudio أصلي
+========================================================= */
+
+function startCurrentSegmentFirefox(
+    token,
+    userInitiated = false
+) {
+
+    if (
+        !state.session ||
+        token !== playbackToken
+    ) {
+        return;
+    }
+
+    const reciter =
+        state.session.reciter;
+
+    const surahNumber =
+        state.session.surah.number;
+
+    const ayahNumber =
+        state.session.currentAyah;
+
+    const url =
+        `${reciter.audioBaseUrl}/${currentAudioType}/${surahNumber}/${ayahNumber}.mp3`;
+
+    const thisSegmentId =
+        ++audioSegmentId;
+
+    const currentAudio =
+        audio;
+
+    let finished = false;
+    let metadataHandled = false;
+
+
+    beginInternalAudioAction();
+
+    detachAudioEvents();
+
+
+    try {
+        currentAudio.pause();
+    } catch (error) {}
+
+
+    /*
+        في Firefox لا نحذف src أثناء الانتقال بين الأجزاء
+        إلا لأن الجزء الجديد قد يكون ملفًا آخر.
+    */
+
+    if (currentAudio.src !== url) {
+
+        try {
+            currentAudio.src = url;
+        } catch (error) {
+
+            endInternalAudioActionSoon();
+            return;
+        }
+
+
+        try {
+            currentAudio.load();
+        } catch (error) {}
+    }
+
+
+    /*
+        Firefox يعمل هنا بسرعة ثابتة 1×.
+        زر السرعة مخفي أصلًا في Firefox.
+    */
+
+    configureFirefoxNativeAudioSpeed(
+        currentAudio,
+        1
+    );
+
+
+    function isCurrentSegment() {
+
+        return (
+            Boolean(state.session) &&
+            token === playbackToken &&
+            currentAudio === audio &&
+            thisSegmentId === audioSegmentId
+        );
+    }
+
+
+    function clearSegmentTimer() {
+
+        if (segmentTimer) {
+
+            clearTimeout(segmentTimer);
+
+            segmentTimer = null;
+        }
+    }
+
+
+    function markPlaying() {
+
+        if (!isCurrentSegment()) {
+            return;
+        }
+
+
+        state.session.playing = true;
+
+        playPauseButton.textContent =
+            "⏸️";
+
+
+        if ("mediaSession" in navigator) {
+
+            try {
+
+                navigator.mediaSession.playbackState =
+                    "playing";
+
+            } catch (error) {}
+        }
+    }
+
+
+    function playSegment() {
+
+        if (!isCurrentSegment()) {
+            return;
+        }
+
+
+        let promise = null;
+
+
+        try {
+
+            promise =
+                currentAudio.play();
+
+        } catch (error) {
+
+            console.error(
+                "تعذر تشغيل جزء Firefox:",
+                error
+            );
+
+
+            retryPlay();
+
+            return;
+        }
+
+
+        if (
+            promise &&
+            typeof promise.then === "function"
+        ) {
+
+            promise.then(
+                () => {
+
+                    markPlaying();
+
+                },
+                error => {
+
+                    /*
+                        Firefox قد يرفض play مؤقتًا أثناء
+                        تغيير الموضع أو المصدر.
+                    */
+
+                    if (
+                        error &&
+                        (
+                            error.name === "AbortError" ||
+                            error.name === "NotAllowedError"
+                        )
+                    ) {
+
+                        retryPlay();
+
+                        return;
+                    }
+
+
+                    console.error(
+                        "تعذر تشغيل جزء Firefox:",
+                        error
+                    );
+
+
+                    if (!isCurrentSegment()) {
+                        return;
+                    }
+
+
+                    state.session.playing = false;
+
+                    playPauseButton.textContent =
+                        "▶️";
+
+                    setMediaSessionNone();
+                }
+            );
+        }
+    }
+
+
+    function retryPlay() {
+
+        if (!isCurrentSegment()) {
+            return;
+        }
+
+
+        setTimeout(
+            () => {
+
+                if (!isCurrentSegment()) {
+                    return;
+                }
+
+
+                try {
+
+                    const promise =
+                        currentAudio.play();
+
+
+                    if (
+                        promise &&
+                        typeof promise.then ===
+                            "function"
+                    ) {
+
+                        promise.then(
+                            () => markPlaying(),
+
+                            error => {
+
+                                console.error(
+                                    "فشلت محاولة Firefox الثانية:",
+                                    error
+                                );
+
+
+                                if (!isCurrentSegment()) {
+                                    return;
+                                }
+
+
+                                state.session.playing =
+                                    false;
+
+                                playPauseButton.textContent =
+                                    "▶️";
+
+                                setMediaSessionNone();
+                            }
+                        );
+                    }
+
+
+                } catch (error) {
+
+                    console.error(
+                        "تعذر تشغيل Firefox:",
+                        error
+                    );
+
+
+                    if (!isCurrentSegment()) {
+                        return;
+                    }
+
+
+                    state.session.playing = false;
+
+                    playPauseButton.textContent =
+                        "▶️";
+
+                    setMediaSessionNone();
+                }
+
+            },
+            80
+        );
+    }
+
+
+    function finishOnce() {
+
+        if (finished) {
+            return;
+        }
+
+
+        finished = true;
+
+
+        clearSegmentTimer();
+
+
+        if (!isCurrentSegment()) {
+            return;
+        }
+
+
+        /*
+            نُبقي الحارس الداخلي فعالًا حتى ينتهي حدث pause
+            نفسه. بعد ذلك فقط ننتقل إلى الجزء التالي.
+        */
+
+        beginInternalAudioAction();
+
+
+        currentAudio.onpause = null;
+
+
+        try {
+
+            currentAudio.pause();
+
+        } catch (error) {}
+
+
+        setTimeout(
+            () => {
+
+                if (!isCurrentSegment()) {
+
+                    endInternalAudioActionSoon();
+
+                    return;
+                }
+
+
+                endInternalAudioActionSoon();
+
+
+                handleCurrentSegmentFinished(
+                    token,
+                    currentAudio
+                );
+
+            },
+            0
+        );
+    }
+
+
+    function configureSegment() {
+
+        if (
+            !isCurrentSegment() ||
+            metadataHandled
+        ) {
+
+            return;
+        }
+
+
+        const duration =
+            Number(currentAudio.duration);
+
+
+        if (
+            !Number.isFinite(duration) ||
+            duration <= 0
+        ) {
+
+            return;
+        }
+
+
+        metadataHandled = true;
+
+
+        sanitizePausePoints(duration);
+
+
+        const bounds =
+            getSegmentBounds(duration);
+
+
+        if (!bounds) {
+
+            finishOnce();
+
+            return;
+        }
+
+
+        const start =
+            bounds.start;
+
+        const end =
+            bounds.end;
+
+
+        if (
+            !Number.isFinite(start) ||
+            !Number.isFinite(end) ||
+            end <= start
+        ) {
+
+            finishOnce();
+
+            return;
+        }
+
+
+        /*
+            الوصول إلى بداية الجزء يتم مرة واحدة فقط.
+            لا نعيد تحميل الملف عند الوقفة.
+        */
+
+        if (
+            Math.abs(
+                currentAudio.currentTime -
+                start
+            ) > 0.02
+        ) {
+
+            internalSeekAction = true;
+
+
+            try {
+
+                currentAudio.currentTime =
+                    start;
+
+            } catch (error) {
+
+                internalSeekAction = false;
+
+                finishOnce();
+
+                return;
+            }
+
+
+            setTimeout(
+                () => {
+
+                    internalSeekAction = false;
+
+                },
+                0
+            );
+        }
+
+
+        configureFirefoxNativeAudioSpeed(
+            currentAudio,
+            1
+        );
+
+
+        const segmentDuration =
+            end - start;
+
+
+        /*
+            السرعة في Firefox ثابتة 1×،
+            لذلك زمن الجزء هو نفسه مدة الجزء.
+        */
+
+        const wallTime =
+            segmentDuration * 1000;
+
+
+        clearSegmentTimer();
+
+
+        segmentTimer =
+            setTimeout(
+                finishOnce,
+                Math.max(
+                    80,
+                    wallTime + 120
+                )
+            );
+
+
+        if (
+            !userInitiated &&
+            currentAudio.paused
+        ) {
+
+            playSegment();
+        }
+    }
+
+
+    currentAudio.onplay =
+        () => {
+
+            markPlaying();
+
+        };
+
+
+    currentAudio.onplaying =
+        () => {
+
+            markPlaying();
+
+        };
+
+
+    currentAudio.onloadedmetadata =
+        () => {
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+
+            configureSegment();
+
+
+            /*
+                بعد metadata، إذا كان هذا هو الجزء الأول
+                الذي بدأه المستخدم ولم يبدأ بعد، شغّله.
+            */
+
+            if (
+                userInitiated &&
+                segmentIndex === 0 &&
+                currentAudio.paused
+            ) {
+
+                playSegment();
+            }
+        };
+
+
+    currentAudio.ontimeupdate =
+        () => {
+
+            if (
+                finished ||
+                !isCurrentSegment()
+            ) {
+
+                return;
+            }
+
+
+            const duration =
+                Number(currentAudio.duration);
+
+
+            if (
+                !Number.isFinite(duration) ||
+                duration <= 0
+            ) {
+
+                return;
+            }
+
+
+            const bounds =
+                getSegmentBounds(duration);
+
+
+            if (!bounds) {
+
+                finishOnce();
+
+                return;
+            }
+
+
+            if (
+                currentAudio.currentTime >=
+                bounds.end - 0.02
+            ) {
+
+                finishOnce();
+            }
+        };
+
+
+    currentAudio.onseeking =
+        () => {
+
+            if (internalSeekAction) {
+                return;
+            }
+
+
+            if (internalAudioAction) {
+                return;
+            }
+
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+
+            handleExternalSeekAttempt();
+        };
+
+
+    currentAudio.onended =
+        () => {
+
+            if (
+                finished ||
+                !isCurrentSegment()
+            ) {
+
+                return;
+            }
+
+
+            finishOnce();
+        };
+
+
+    currentAudio.onpause =
+        () => {
+
+            /*
+                pause الناتج عن انتهاء الجزء أو الانتقال
+                بين الوقفات ليس إيقافًا خارجيًا.
+            */
+
+            if (internalAudioAction) {
+                return;
+            }
+
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+
+            if (state.session.playing) {
+
+                handleExternalAudioStop();
+            }
+        };
+
+
+    currentAudio.onerror =
+        () => {
+
+            if (!isCurrentSegment()) {
+                return;
+            }
+
+
+            clearSegmentTimer();
+
+
+            console.error(
+                "خطأ في ملف الصوت في Firefox:",
+                currentAudio.error
+            );
+
+
+            state.session.playing = false;
+
+
+            playPauseButton.textContent =
+                "▶️";
+
+
+            setMediaSessionNone();
+
+
+            showAvailability(
+                "تعذر تشغيل ملف الصوت."
+            );
+        };
+
+
+    endInternalAudioActionSoon();
+
+
+    /*
+        إذا كانت البيانات موجودة بالفعل ولم يأتِ
+        loadedmetadata جديد، نضبط الجزء مباشرة.
+    */
+
+    if (
+        Number.isFinite(
+            Number(currentAudio.duration)
+        ) &&
+        Number(currentAudio.duration) > 0
+    ) {
+
+        configureSegment();
+    }
+
+
+    /*
+        أول تشغيل Firefox يحصل من ضغط المستخدم.
+    */
+
+    if (
+        userInitiated &&
+        segmentIndex === 0 &&
+        currentAudioType === "normal"
+    ) {
+
+        playSegment();
+    }
+}
+
+
+/* =========================================================
+   تشغيل الجزء - باقي المتصفحات
+========================================================= */
+
+function startCurrentSegmentOtherBrowsers(
     token,
     userInitiated = false
 ) {
@@ -2022,17 +2857,23 @@ function startCurrentSegment(
 
 
     try {
+
         currentAudio.pause();
+
     } catch (error) {}
 
 
     try {
+
         currentAudio.removeAttribute("src");
+
     } catch (error) {}
 
 
     try {
+
         currentAudio.load();
+
     } catch (error) {}
 
 
@@ -2050,28 +2891,10 @@ function startCurrentSegment(
         );
 
 
-    /*
-        Firefox:
-        HTMLAudio الأصلي + pitch preservation.
-
-        باقي المتصفحات:
-        نفس الدالة القديمة.
-    */
-
-    if (isFirefox) {
-
-        configureFirefoxNativeAudioSpeed(
-            currentAudio,
-            actualSpeed
-        );
-
-    } else {
-
-        configureAudioSpeed(
-            currentAudio,
-            actualSpeed
-        );
-    }
+    configureAudioSpeed(
+        currentAudio,
+        actualSpeed
+    );
 
 
     endInternalAudioActionSoon();
@@ -2121,7 +2944,9 @@ function startCurrentSegment(
 
 
         try {
+
             currentAudio.pause();
+
         } catch (error) {}
 
 
@@ -2144,6 +2969,7 @@ function startCurrentSegment(
 
 
             state.session.playing = true;
+
 
             playPauseButton.textContent =
                 "⏸️";
@@ -2170,6 +2996,7 @@ function startCurrentSegment(
 
 
             state.session.playing = true;
+
 
             playPauseButton.textContent =
                 "⏸️";
@@ -2282,20 +3109,10 @@ function startCurrentSegment(
             }
 
 
-            if (isFirefox) {
-
-                configureFirefoxNativeAudioSpeed(
-                    currentAudio,
-                    actualSpeed
-                );
-
-            } else {
-
-                configureAudioSpeed(
-                    currentAudio,
-                    actualSpeed
-                );
-            }
+            configureAudioSpeed(
+                currentAudio,
+                actualSpeed
+            );
 
 
             const segmentDuration =
@@ -2365,10 +3182,13 @@ function startCurrentSegment(
 
                 state.session.playing = false;
 
+
                 playPauseButton.textContent =
                     "▶️";
 
+
                 setMediaSessionNone();
+
 
                 return;
             }
@@ -2543,8 +3363,10 @@ function startCurrentSegment(
 
             state.session.playing = false;
 
+
             playPauseButton.textContent =
                 "▶️";
+
 
             setMediaSessionNone();
 
@@ -2563,10 +3385,6 @@ function startCurrentSegment(
 
     /*
         التشغيل المباشر بعد ضغط المستخدم.
-
-        مهم جدًا في Firefox:
-        play() هنا يحدث نتيجة ضغط المستخدم
-        فلا ننتظر metadata حتى نبدأ.
     */
 
     if (
@@ -2593,8 +3411,10 @@ function startCurrentSegment(
 
             state.session.playing = false;
 
+
             playPauseButton.textContent =
                 "▶️";
+
 
             setMediaSessionNone();
 
@@ -2944,11 +3764,13 @@ function finishAyah(token) {
 
         state.session.playing = true;
 
+
         playPauseButton.textContent =
             "⏸️";
 
 
         prepareNextAyahAndPlay(token);
+
 
         return;
     }
@@ -2977,11 +3799,13 @@ function finishAyah(token) {
 
         state.session.playing = true;
 
+
         playPauseButton.textContent =
             "⏸️";
 
 
         prepareNextAyahAndPlay(token);
+
 
         return;
     }
@@ -3096,10 +3920,13 @@ function pausePlayback() {
 
     currentAudioType = "normal";
 
+
     state.session.playing = false;
+
 
     playPauseButton.textContent =
         "▶️";
+
 
     setMediaSessionNone();
 }
