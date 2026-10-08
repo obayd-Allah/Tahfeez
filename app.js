@@ -12,7 +12,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 26";
+const CODE_VERSION = "CODE 31";
 
 
 /* =========================================================
@@ -665,10 +665,16 @@ reciterSelect.addEventListener(
         const id =
             reciterSelect.value;
 
+        /*
+            إصلاح CODE 31:
+            قيمة select تكون نصًا دائمًا،
+            بينما id في reciters.json قد يكون رقمًا.
+        */
         state.selectedReciter =
             state.reciters.find(
                 reciter =>
-                    reciter.id === id
+                    String(reciter.id) ===
+                    String(id)
             ) || null;
 
         pausePointsCache.clear();
@@ -5822,11 +5828,16 @@ function restoreSettings() {
             reciterSelect.value =
                 settings.reciter;
 
+            /*
+                إصلاح CODE 31:
+                localStorage يخزن القيمة كنص،
+                بينما id في reciters.json قد يكون رقمًا.
+            */
             state.selectedReciter =
                 state.reciters.find(
                     reciter =>
-                        reciter.id ===
-                        settings.reciter
+                        String(reciter.id) ===
+                        String(settings.reciter)
                 ) || null;
 
             populateSurahs();
