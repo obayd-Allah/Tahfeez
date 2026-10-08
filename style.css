@@ -2,7 +2,17 @@
    Tahfeez
    Base Styles
 ========================================= */
+/* =========================================
+   Quran Font — Uthmanic Hafs V22
+========================================= */
 
+@font-face {
+    font-family: "UthmanicHafs";
+    src: url("./fonts/uthmanic-hafs-v22.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
 :root {
     --bg: #0d1512;
     --surface: #14201b;
@@ -55,11 +65,7 @@ body {
 
     color: var(--text);
 
-    font-family:
-        "Noto Sans Arabic",
-        "Noto Sans",
-        Arial,
-        sans-serif;
+    font-family: "UthmanicHafs", serif;
 
     -webkit-font-smoothing: antialiased;
 }
