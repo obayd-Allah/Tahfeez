@@ -12,7 +12,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 31";
+const CODE_VERSION = "CODE 32";
 
 
 /* =========================================================
@@ -506,20 +506,18 @@ function handleExternalSeekAttempt() {
 ========================================================= */
 
 async function loadData() {
-
     try {
-
         const [
             quranResponse,
             recitersResponse
         ] = await Promise.all([
-            fetch("./data/quran.json"),
+            fetch("./data/quran-kareem.json"),
             fetch("./data/reciters.json")
         ]);
 
         if (!quranResponse.ok) {
             throw new Error(
-                "تعذر تحميل quran.json"
+                "تعذر تحميل quran-kareem.json"
             );
         }
 
@@ -535,25 +533,28 @@ async function loadData() {
         state.reciters =
             await recitersResponse.json();
 
-        state.quran =
-            quranData.map(
-                surah => ({
-                    number: surah.id,
-                    name: surah.name,
-                    ayahCount: surah.total_verses,
-
-                    ayahs:
-                        surah.verses.map(
-                            ayah => ({
-                                number: ayah.id,
-                                text: ayah.text
-                            })
-                        )
-                })
+        if (
+            !quranData ||
+            !Array.isArray(quranData.surahs)
+        ) {
+            throw new Error(
+                "بنية ملف القرآن غير صحيحة"
             );
+        }
 
-        state.surahs =
-            state.quran;
+        state.quran =
+            quranData.surahs.map(surah => ({
+                number: Number(surah.number),
+                name: surah.name_ar,
+                ayahCount: surah.ayahs.length,
+
+                ayahs: surah.ayahs.map(ayah => ({
+                    number: Number(ayah.ayah),
+                    text: ayah.text
+                }))
+            }));
+
+        state.surahs = state.quran;
 
         populateReciters();
 
@@ -564,7 +565,6 @@ async function loadData() {
         }
 
     } catch (error) {
-
         console.error(error);
 
         showAvailability(
