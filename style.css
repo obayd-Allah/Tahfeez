@@ -572,11 +572,8 @@ input:not(:disabled):focus {
 
     color: var(--text);
 
-    font-family:
-        "Noto Naskh Arabic",
-        "Amiri",
-        "Noto Sans Arabic",
-        serif;
+    font-family: "UthmanicHafs", serif;
+
 
     font-size: clamp(1.65rem, 7vw, 3rem);
 
