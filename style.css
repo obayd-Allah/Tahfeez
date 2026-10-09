@@ -2,17 +2,19 @@
    Tahfeez
    Base Styles
 ========================================= */
+
 /* =========================================
-   Quran Font — Uthmanic Hafs V22
+   Quran Font — Scheherazade New
 ========================================= */
 
 @font-face {
-    font-family: "UthmanicHafs";
-    src: url("./fonts/uthmanic-hafs-v22.woff2") format("woff2");
+    font-family: "Scheherazade New";
+    src: url("./fonts/ScheherazadeNew-Regular.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
 }
+
 :root {
     --bg: #0d1512;
     --surface: #14201b;
@@ -66,11 +68,11 @@ body {
     color: var(--text);
 
     font-family:
-    "Noto Sans Arabic",
-    "Noto Sans",
-    Arial,
-    sans-serif;
-   
+        "Noto Sans Arabic",
+        "Noto Sans",
+        Arial,
+        sans-serif;
+
     -webkit-font-smoothing: antialiased;
 }
 
@@ -576,8 +578,8 @@ input:not(:disabled):focus {
 
     color: var(--text);
 
-    font-family: "UthmanicHafs", serif;
-
+    /* الخط الجديد للنص القرآني */
+    font-family: "Scheherazade New", serif;
 
     font-size: clamp(1.65rem, 7vw, 3rem);
 
@@ -748,22 +750,25 @@ input:not(:disabled):focus {
     }
 
 }
+
+
 /* =========================================
-   رقم الآية داخل النص القرآني
+   Ayah Number
 ========================================= */
 
 .ayah-number {
     color: var(--primary);
 
     font-family:
-        "Noto Naskh Arabic",
-        "Amiri",
+        "Scheherazade New",
         serif;
 
     font-size: 0.72em;
 
     white-space: nowrap;
 }
+
+
 /* =========================================
    Download
 ========================================= */
