@@ -65,8 +65,12 @@ body {
 
     color: var(--text);
 
-    font-family: "UthmanicHafs", serif;
-
+    font-family:
+    "Noto Sans Arabic",
+    "Noto Sans",
+    Arial,
+    sans-serif;
+   
     -webkit-font-smoothing: antialiased;
 }
 
