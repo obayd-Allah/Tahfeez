@@ -520,71 +520,61 @@ startButton.addEventListener(
 
 
 async function startMemorization() {
+    if (!state.selectedReciter || !state.selectedSurah) {
+        showAvailability("اختر الشيخ والسورة أولًا.");
+        return;
+    }
+
+    const available = getAvailableSurah(
+        state.selectedSurah.number
+    );
+
+    const from = Number(fromAyah.value);
+    const to = Number(toAyah.value);
 
     if (
-        !state.selectedReciter ||
-        !state.selectedSurah
+        !available ||
+        !Number.isFinite(from) ||
+        !Number.isFinite(to) ||
+        from < available.from ||
+        to > available.to ||
+        from > to
     ) {
+        showAvailability(
+            "تأكد من أن نطاق الآيات صحيح ومتاح لهذا الشيخ."
+        );
+        validateSetup();
         return;
     }
 
-    const from =
-        Number(fromAyah.value);
-
-    const to =
-        Number(toAyah.value);
+    hideAvailability();
 
     state.session = {
-
-        reciter:
-            state.selectedReciter,
-
-        surah:
-            state.selectedSurah,
-
-        fromAyah:
-            from,
-
-        toAyah:
-            to,
-
-        currentAyah:
-            from,
-
-        ayahRepeat:
-            Number(ayahRepeat.value),
-
-        blockRepeat:
-            Number(blockRepeat.value),
-
-        currentAyahRepeat:
-            1,
-
-        currentBlockRepeat:
-            1,
-
-        speed:
-            isFirefox
-                ? 1
-                : Number(speedRange.value),
-
-        wait:
-            Number(waitSelect.value),
-
-        teacherMode:
-            teacherMode.checked,
-
-        playing:
-            false
+        reciter: state.selectedReciter,
+        surah: state.selectedSurah,
+        fromAyah: from,
+        toAyah: to,
+        currentAyah: from,
+        ayahRepeat: Number(ayahRepeat.value),
+        blockRepeat: Number(blockRepeat.value),
+        currentAyahRepeat: 1,
+        currentBlockRepeat: 1,
+        speed: isFirefox ? 1 : Number(speedRange.value),
+        wait: Number(waitSelect.value),
+        teacherMode: teacherMode.checked,
+        playing: false
     };
 
-    await loadPausePoints();
-
-    if (!state.session) {
-        return;
-    }
-
+    // افتح شاشة التحفيظ دون انتظار طلب الشبكة
     openMemorizationScreen();
+
+    // حمّل نقاط الوقف في الخلفية
+    try {
+        await loadPausePoints();
+    } catch (error) {
+        console.error(
+            "تعذر تحميل نقاط الوقف:",
+            error
+        );
+    }
 }
-
-
