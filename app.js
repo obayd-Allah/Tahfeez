@@ -12,7 +12,7 @@ const state = {
    رقم النسخة المؤقت
 ========================================================= */
 
-const CODE_VERSION = "CODE 32";
+const CODE_VERSION = "CODE 33";
 
 
 /* =========================================================
@@ -665,11 +665,6 @@ reciterSelect.addEventListener(
         const id =
             reciterSelect.value;
 
-        /*
-            إصلاح CODE 31:
-            قيمة select تكون نصًا دائمًا،
-            بينما id في reciters.json قد يكون رقمًا.
-        */
         state.selectedReciter =
             state.reciters.find(
                 reciter =>
@@ -1146,10 +1141,17 @@ function getCurrentAyah() {
 }
 
 
+/* =========================================================
+   عرض الآية الحالية
+
+   التعديل:
+   - الرقم يظهر مرة واحدة فقط (لأنه موجود أصلاً في نص الآية).
+   - إضافة أول كلمة من الآية التالية ثم ثلاث نقاط.
+========================================================= */
+
 function renderCurrentAyah() {
 
-    const ayah =
-        getCurrentAyah();
+    const ayah = getCurrentAyah();
 
     if (!ayah) {
 
@@ -1159,8 +1161,66 @@ function renderCurrentAyah() {
         return;
     }
 
-    currentAyahText.innerHTML =
-        `${ayah.text} <span class="ayah-number">۝${ayah.number}</span>`;
+    /*
+        نص الآية الحالية كما هو من ملف JSON
+        (يحتوي رقم الآية ۝ بنهاية النص).
+    */
+    let displayText = ayah.text;
+
+    /*
+        جلب أول كلمة من الآية التالية إن وُجدت.
+    */
+    if (state.session) {
+
+        const surah =
+            state.quran.find(
+                item =>
+                    item.number ===
+                    state.session.surah.number
+            );
+
+        if (
+            surah &&
+            Array.isArray(surah.ayahs)
+        ) {
+
+            const nextAyah =
+                surah.ayahs.find(
+                    item =>
+                        item.number ===
+                        ayah.number + 1
+                );
+
+            if (
+                nextAyah &&
+                typeof nextAyah.text === "string"
+            ) {
+
+                const trimmed =
+                    nextAyah.text.trim();
+
+                if (trimmed) {
+
+                    /*
+                        استخراج أول كلمة مع تجاهل
+                        علامات التشكيل والمسافات.
+                    */
+                    const firstWord =
+                        trimmed
+                            .split(/\s+/)[0];
+
+                    if (firstWord) {
+
+                        displayText +=
+                            ` ${firstWord}...`;
+                    }
+                }
+            }
+        }
+    }
+
+    currentAyahText.textContent =
+        displayText;
 }
 
 
@@ -3152,11 +3212,6 @@ function startCurrentSegmentFirefoxTeacher(
                 currentAudio.currentTime
             );
 
-        /*
-            في Mi/Firefox-like engines لا نثق في حدث
-            seeked وحده إذا لم يصل currentTime للمكان المطلوب.
-        */
-
         if (
             !Number.isFinite(actualPosition) ||
             Math.abs(
@@ -3573,8 +3628,6 @@ function startCurrentSegmentOtherBrowsers(
 
     /* =====================================================
        MI BROWSER - وضع المعلم
-       نستخدم نظامًا خاصًا لأن Mi Browser قد يبدأ ملف
-       الطفل من الثانية 0 قبل اكتمال seek.
     ===================================================== */
 
     if (
@@ -4452,11 +4505,6 @@ function startCurrentSegmentMiBrowserTeacher(
         }
 
 
-        /*
-            لا نسمح بالانتقال إلا إذا كان currentTime
-            وصل فعلًا إلى نهاية الجزء الحالي.
-        */
-
         const now =
             Number(
                 currentAudio.currentTime
@@ -4478,10 +4526,6 @@ function startCurrentSegmentMiBrowserTeacher(
             return;
         }
 
-
-        /*
-            حماية من إنهاء الجزء فورًا بعد onplaying.
-        */
 
         if (segmentStartedAt > 0) {
 
@@ -4712,25 +4756,6 @@ function startCurrentSegmentMiBrowserTeacher(
         );
 
 
-        /*
-            =================================================
-            أهم جزء في إصلاح Mi Browser:
-
-            لا نقول للمتصفح:
-                currentTime = start
-                ثم play مباشرة.
-
-            بل:
-                1. نوقف التشغيل.
-                2. نطلب seek.
-                3. ننتظر seeked.
-                4. نتأكد أن currentTime أصبح قريبًا
-                   من start.
-                5. بعدها فقط نشغل.
-            =================================================
-        */
-
-
         const currentPosition =
             Number(
                 currentAudio.currentTime
@@ -4790,12 +4815,6 @@ function startCurrentSegmentMiBrowserTeacher(
                 0
             );
 
-
-            /*
-                بعض إصدارات Mi Browser قد لا ترسل seeked
-                في كل مرة؛ لذلك نتحقق مرة أخرى قليلًا
-                بعد ذلك.
-            */
 
             setTimeout(
                 () => {
@@ -5085,11 +5104,6 @@ function startCurrentSegmentMiBrowserTeacher(
             }
 
 
-            /*
-                لا نعتبر seek ناجحًا إلا إذا وصلنا
-                فعلًا إلى نقطة البداية المطلوبة.
-            */
-
             if (
                 Math.abs(
                     position -
@@ -5150,11 +5164,6 @@ function startCurrentSegmentMiBrowserTeacher(
             }
 
 
-            /*
-                لا نعتمد على duration هنا.
-                نحن نستخدم preparedEnd الخاصة بالجزء.
-            */
-
             if (
                 now >=
                 preparedEnd - 0.02
@@ -5184,11 +5193,6 @@ function startCurrentSegmentMiBrowserTeacher(
                     currentAudio.currentTime
                 );
 
-
-            /*
-                إذا انتهى الملف كاملًا قبل نقطة الوقف،
-                لا نقفز للجزء التالي بشكل خاطئ.
-            */
 
             if (
                 Number.isFinite(now) &&
@@ -5291,10 +5295,6 @@ function startCurrentSegmentMiBrowserTeacher(
         };
 
 
-    /*
-        إذا كانت metadata جاهزة بالفعل.
-    */
-
     if (
         Number.isFinite(
             Number(
@@ -5310,12 +5310,6 @@ function startCurrentSegmentMiBrowserTeacher(
 
     }
 
-
-    /*
-        عند الضغط الأول على التشغيل:
-        prepareSegment ستقوم بالتشغيل بعد التأكد
-        من الموضع الصحيح.
-    */
 
     if (
         userInitiated &&
@@ -5828,11 +5822,6 @@ function restoreSettings() {
             reciterSelect.value =
                 settings.reciter;
 
-            /*
-                إصلاح CODE 31:
-                localStorage يخزن القيمة كنص،
-                بينما id في reciters.json قد يكون رقمًا.
-            */
             state.selectedReciter =
                 state.reciters.find(
                     reciter =>
