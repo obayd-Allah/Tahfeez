@@ -1,1775 +1,2675 @@
+/* =====================================================
+   ففروا إلى الله
+   Candy Game UI — التصميم الكرتوني اللامع
+   يحافظ على أسماء أصناف CSS المستخدمة في اللعبة
+===================================================== */
 
-/* =========================================================
-   TAHFEEZ — HAPPY COLOR ARCADE
-   عالم الألعاب المشرق 🌈
-   CSS كامل — يحافظ على أسماء الأصناف الأصلية
-========================================================= */
-
-/* =========================================================
-   Quran Font
-========================================================= */
-
-@font-face {
-    font-family: "Scheherazade New";
-    src: url("./fonts/ScheherazadeNew-Regular.woff2") format("woff2");
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-}
-
-/* =========================================================
-   Color Palette
-========================================================= */
+/* =====================================================
+   1. الألوان الأساسية
+===================================================== */
 
 :root {
     color-scheme: light;
 
-    --bg: #fff8ed;
-    --surface: #ffffff;
-    --surface-2: #f0f8ff;
-    --surface-3: #e5f4ff;
+    --bg: #210832;
+    --bg-deep: #150321;
+    --bg-purple: #39095d;
 
-    --text: #34265f;
-    --muted: #766d91;
+    --purple: #8515c6;
+    --purple-light: #bd4cff;
+    --purple-dark: #510080;
 
-    --primary: #ffca3a;
-    --primary-dark: #e99a13;
+    --pink: #ff329c;
+    --pink-light: #ff82c9;
+    --pink-dark: #d90e77;
 
-    --pink: #ff5ca8;
-    --pink-dark: #e63886;
+    --blue: #168aff;
+    --blue-light: #65dfff;
+    --blue-dark: #0758c9;
 
-    --blue: #46c9ff;
-    --blue-dark: #159ce0;
+    --green: #41df55;
+    --green-light: #8aff79;
+    --green-dark: #159e35;
 
-    --purple: #a579ff;
-    --purple-dark: #8050e0;
+    --gold: #ffd947;
+    --gold-light: #fff1a0;
+    --gold-dark: #bd7700;
 
-    --mint: #4de2b0;
-    --mint-dark: #20b989;
+    --orange: #ff8a22;
+    --orange-dark: #d84a00;
 
-    --orange: #ff955e;
-    --border: #e9e2f6;
-    --danger: #f05478;
+    --text: #44205d;
+    --text-light: #ffffff;
+    --muted: #87658f;
 
-    --radius-small: 17px;
-    --radius-medium: 25px;
-    --radius-large: 34px;
+    --panel: #fff7fc;
+    --panel-pink: #ffe8f5;
+
+    --border-light: rgba(255, 255, 255, 0.8);
+
+    --radius-small: 14px;
+    --radius-medium: 22px;
+    --radius-large: 32px;
 
     --shadow:
-        0 8px 0 rgba(87, 64, 132, 0.10),
-        0 16px 35px rgba(87, 64, 132, 0.10);
+        0 8px 0 rgba(47, 5, 74, 0.2),
+        0 15px 30px rgba(16, 0, 30, 0.24);
 
-    --shadow-soft:
-        0 5px 0 rgba(87, 64, 132, 0.08),
-        0 10px 25px rgba(87, 64, 132, 0.09);
+    --pink-shadow:
+        0 6px 0 #c91470,
+        0 12px 22px rgba(255, 44, 151, 0.28);
+
+    --purple-shadow:
+        0 6px 0 #490077,
+        0 12px 22px rgba(100, 0, 150, 0.3);
+
+    --blue-shadow:
+        0 6px 0 #0753ac,
+        0 12px 22px rgba(0, 100, 255, 0.25);
+
+    --green-shadow:
+        0 6px 0 #138d2d,
+        0 12px 22px rgba(40, 190, 60, 0.24);
 }
 
-/* =========================================================
-   Reset
-========================================================= */
+
+/* =====================================================
+   2. إعادة الضبط
+===================================================== */
 
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 html {
     min-height: 100%;
-    background: var(--bg);
     scroll-behavior: smooth;
+
+    background: var(--bg-deep);
+
+    touch-action: manipulation;
+    overscroll-behavior: none;
 }
 
 body {
+    min-height: 100vh;
+    direction: rtl;
+
     position: relative;
     isolation: isolate;
 
-    min-height: 100vh;
     overflow-x: hidden;
-
-    background:
-        radial-gradient(
-            circle at 8% 8%,
-            rgba(255, 207, 90, 0.36),
-            transparent 24%
-        ),
-        radial-gradient(
-            circle at 94% 13%,
-            rgba(255, 119, 183, 0.22),
-            transparent 25%
-        ),
-        radial-gradient(
-            circle at 6% 55%,
-            rgba(83, 214, 255, 0.22),
-            transparent 25%
-        ),
-        radial-gradient(
-            circle at 92% 76%,
-            rgba(92, 236, 185, 0.23),
-            transparent 27%
-        ),
-        linear-gradient(
-            180deg,
-            #fffaf0 0%,
-            #f3f9ff 48%,
-            #fff4fa 100%
-        );
 
     color: var(--text);
 
     font-family:
+        "Cairo",
         "Noto Sans Arabic",
-        "Noto Sans",
+        Tahoma,
         Arial,
         sans-serif;
+
+    background:
+        radial-gradient(
+            ellipse at 50% 0%,
+            rgba(199, 65, 255, 0.42),
+            transparent 42%
+        ),
+        radial-gradient(
+            circle at 0% 40%,
+            rgba(255, 44, 160, 0.15),
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at 100% 70%,
+            rgba(49, 124, 255, 0.17),
+            transparent 28%
+        ),
+        linear-gradient(
+            165deg,
+            #170321 0%,
+            #351047 35%,
+            #270633 70%,
+            #180322 100%
+        );
 
     -webkit-font-smoothing: antialiased;
 }
 
-/* زخارف مرحة في الخلفية */
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+input,
+textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+button {
+    border: 0;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+    transition: 0.25s ease;
+}
+
+img {
+    -webkit-user-drag: none;
+    user-drag: none;
+}
+
+:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 4px;
+}
+
+
+/* =====================================================
+   3. زخارف الخلفية
+===================================================== */
 
 body::before {
     content: "";
+
     position: fixed;
     inset: 0;
-
     z-index: -2;
+
     pointer-events: none;
 
     background-image:
         radial-gradient(
             circle,
-            rgba(255, 92, 168, 0.42) 0 4px,
-            transparent 5px
+            rgba(255, 255, 255, 0.95) 0 1.5px,
+            transparent 2.5px
         ),
         radial-gradient(
             circle,
-            rgba(70, 201, 255, 0.48) 0 4px,
-            transparent 5px
+            rgba(255, 218, 80, 0.9) 0 2px,
+            transparent 3px
         ),
         radial-gradient(
             circle,
-            rgba(255, 202, 58, 0.6) 0 5px,
-            transparent 6px
+            rgba(255, 102, 202, 0.9) 0 2px,
+            transparent 3px
         ),
         radial-gradient(
             circle,
-            rgba(77, 226, 176, 0.48) 0 4px,
-            transparent 5px
+            rgba(97, 215, 255, 0.9) 0 2px,
+            transparent 3px
         );
 
     background-size:
-        130px 150px,
-        170px 180px,
-        210px 190px,
-        240px 220px;
+        110px 125px,
+        173px 181px,
+        223px 197px,
+        267px 241px;
 
     background-position:
-        0 0,
-        40px 60px,
-        90px 20px,
-        20px 100px;
+        10px 15px,
+        80px 60px,
+        30px 120px,
+        180px 45px;
 
-    animation: confetti-drift 24s linear infinite;
+    opacity: 0.65;
 }
 
 body::after {
-    content: "";
+    content: "✦       ✧         ✦";
+
     position: fixed;
-
-    width: 240px;
-    height: 240px;
-
-    top: -120px;
-    right: -90px;
-
+    inset: 0;
     z-index: -1;
-    pointer-events: none;
-
-    border-radius: 50%;
-
-    background: rgba(255, 180, 217, 0.24);
-
-    filter: blur(30px);
-
-    animation: cloud-float 8s ease-in-out infinite alternate;
-}
-
-@keyframes confetti-drift {
-    from {
-        background-position:
-            0 0,
-            40px 60px,
-            90px 20px,
-            20px 100px;
-    }
-
-    to {
-        background-position:
-            130px 150px,
-            -130px 240px,
-            300px -170px,
-            -220px 320px;
-    }
-}
-
-@keyframes cloud-float {
-    from {
-        transform: translate(-15px, 0) scale(1);
-    }
-
-    to {
-        transform: translate(10px, 35px) scale(1.15);
-    }
-}
-
-/* =========================================================
-   General
-========================================================= */
-
-button,
-input,
-select {
-    font: inherit;
-}
-
-button {
-    border: 0;
-}
-
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
-    outline: 3px solid var(--blue-dark);
-    outline-offset: 4px;
-}
-
-.hidden {
-    display: none !important;
-}
-
-::selection {
-    background: #ffadd3;
-    color: #34265f;
-}
-
-button,
-input,
-select {
-    -webkit-tap-highlight-color: transparent;
-}
-
-/* =========================================================
-   App
-========================================================= */
-
-.app {
-    width: 100%;
-    min-height: 100vh;
-}
-
-.screen {
-    width: 100%;
-    min-height: 100vh;
-}
-
-/* =========================================================
-   Setup Screen
-========================================================= */
-
-.setup-screen {
-    width: min(100% - 30px, 650px);
-
-    margin-inline: auto;
-    padding: 32px 0 55px;
-
-    animation: entrance-bounce 0.7s cubic-bezier(.2, .8, .25, 1) both;
-}
-
-@keyframes entrance-bounce {
-    0% {
-        opacity: 0;
-        transform: translateY(25px) scale(.96);
-    }
-
-    70% {
-        opacity: 1;
-        transform: translateY(-3px) scale(1.01);
-    }
-
-    100% {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-/* =========================================================
-   Page Header
-========================================================= */
-
-.page-header {
-    position: relative;
-    isolation: isolate;
-
-    margin-bottom: 26px;
-    padding: 31px 20px 29px;
 
     overflow: hidden;
+    pointer-events: none;
 
+    color: rgba(255, 224, 103, 0.23);
+
+    font-size: 28px;
+    line-height: 5.5;
+
+    letter-spacing: 30px;
     text-align: center;
-
-    border: 3px solid #ffffff;
-    border-radius: 32px;
 
     background:
         radial-gradient(
-            circle at 12% 15%,
-            rgba(255, 255, 255, 0.75),
+            ellipse at 50% 100%,
+            rgba(151, 28, 218, 0.15),
+            transparent 60%
+        );
+}
+
+
+/* =====================================================
+   4. الحاوية الرئيسية
+===================================================== */
+
+.container {
+    width: 100%;
+    max-width: 1180px;
+
+    margin-inline: auto;
+
+    padding: 24px 18px 48px;
+
+    position: relative;
+    z-index: 1;
+}
+
+
+/* =====================================================
+   5. الواجهة الرئيسية والعنوان
+===================================================== */
+
+.hero {
+    min-height: 320px;
+
+    position: relative;
+    isolation: isolate;
+
+    overflow: hidden;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 34px 20px;
+
+    text-align: center;
+
+    background:
+        radial-gradient(
+            circle at 18% 15%,
+            rgba(255, 255, 255, 0.22),
+            transparent 26%
+        ),
+        radial-gradient(
+            circle at 83% 75%,
+            rgba(255, 210, 77, 0.17),
             transparent 25%
         ),
         linear-gradient(
-            135deg,
-            #ffadd4 0%,
-            #ffc5b0 42%,
-            #ffe58a 100%
+            145deg,
+            #4d087b 0%,
+            #970fbd 36%,
+            #e526a1 72%,
+            #8e0cc0 100%
         );
 
+    border: 3px solid rgba(255, 255, 255, 0.26);
+
+    border-bottom: 7px solid #5c087e;
+
+    border-bottom-left-radius: 38px;
+    border-bottom-right-radius: 38px;
+
     box-shadow:
-        0 8px 0 #e9a6c4,
-        0 15px 30px rgba(223, 112, 165, 0.16),
-        inset 0 2px 0 rgba(255, 255, 255, 0.85);
+        inset 0 3px 0 rgba(255, 255, 255, 0.42),
+        inset 0 -12px 18px rgba(51, 0, 87, 0.2),
+        0 14px 32px rgba(12, 0, 28, 0.28);
 }
 
-.page-header::before {
-    content: "✦";
-    position: absolute;
+.hero::before {
+    content: "";
 
-    top: 13px;
-    right: 19px;
+    position: absolute;
+    inset: -20%;
 
     z-index: -1;
 
-    color: #ffffff;
-    font-size: 34px;
+    pointer-events: none;
 
-    text-shadow: 0 2px 0 rgba(234, 112, 169, .2);
+    background:
+        repeating-linear-gradient(
+            125deg,
+            transparent 0,
+            transparent 48px,
+            rgba(255, 255, 255, 0.045) 49px,
+            rgba(255, 255, 255, 0.045) 53px,
+            transparent 54px,
+            transparent 95px
+        );
 
-    animation: sparkle 2s ease-in-out infinite;
+    animation: cloudFloat 28s ease-in-out infinite;
 }
 
-.page-header::after {
-    content: "✧";
+.hero::after {
+    content: "";
+
     position: absolute;
+    inset: 0;
 
-    bottom: 8px;
-    left: 20px;
+    pointer-events: none;
 
-    z-index: -1;
+    background:
+        linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.2),
+            transparent 24%,
+            transparent 77%,
+            rgba(35, 0, 58, 0.13)
+        );
 
-    color: #ffffff;
-    font-size: 40px;
-
-    animation: sparkle 2.6s ease-in-out infinite .5s;
+    border-radius: inherit;
 }
 
-.eyebrow {
-    display: inline-block;
+.overlay {
+    position: relative;
+    z-index: 2;
 
-    margin-bottom: 12px;
-    padding: 8px 16px;
+    width: 100%;
+}
 
-    border: 2px solid rgba(255, 255, 255, .9);
-    border-radius: 999px;
+.logo {
+    display: block;
 
-    background: rgba(255, 255, 255, .62);
+    width: min(90%, 290px);
+    height: auto;
 
-    color: #a43f88;
+    max-height: 290px;
 
-    font-size: .85rem;
-    font-weight: 900;
+    object-fit: contain;
+
+    margin: 15px auto 22px;
+
+    padding: 7px;
+
+    border-radius: 28%;
+
+    background:
+        linear-gradient(
+            145deg,
+            #ffffff,
+            #ffe4f6 55%,
+            #ed9fff
+        );
+
+    border: 4px solid #ffd74d;
 
     box-shadow:
-        0 4px 0 rgba(186, 83, 146, .10),
-        inset 0 1px 0 #ffffff;
+        0 7px 0 #a821ba,
+        0 0 0 5px rgba(255, 255, 255, 0.4),
+        0 12px 24px rgba(15, 0, 30, 0.28);
+
+    transition:
+        transform 0.3s ease,
+        filter 0.3s ease;
 }
 
-.page-header h1 {
+.logo:hover {
+    transform: rotate(-3deg) scale(1.035);
+
+    filter: brightness(1.05);
+}
+
+.hero-title {
+    display: block;
+
+    width: min(94%, 650px);
+    max-height: 330px;
+
+    object-fit: contain;
+
+    margin: 14px auto;
+
+    filter:
+        drop-shadow(0 5px 0 rgba(44, 0, 66, 0.6))
+        drop-shadow(0 12px 15px rgba(0, 0, 0, 0.24));
+
+    animation: titleFloat 3.2s ease-in-out infinite;
+}
+
+.hero h1 {
+    width: fit-content;
+    max-width: 100%;
+
+    margin: 12px auto;
+
+    padding: 10px 26px;
+
     color: #ffffff;
 
-    font-size: clamp(2.15rem, 9vw, 3.5rem);
-    line-height: 1.3;
+    font-size: clamp(28px, 5vw, 48px);
     font-weight: 1000;
+    line-height: 1.5;
 
-    -webkit-text-stroke: 1px rgba(255, 255, 255, .55);
+    border: 3px solid #ffd75d;
+    border-radius: 26px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ec72ff 0%,
+            #b425e8 48%,
+            #7910bd 100%
+        );
 
     text-shadow:
-        0 3px 0 #e65c9b,
-        0 6px 0 #ca498a,
-        0 9px 0 rgba(155, 62, 121, .13),
-        0 12px 22px rgba(176, 71, 130, .15);
+        0 2px 0 #7a168e,
+        0 4px 0 rgba(50, 0, 76, 0.48),
+        0 6px 10px rgba(30, 0, 45, 0.35);
 
-    animation: title-bob 3s ease-in-out infinite;
+    box-shadow:
+        inset 0 4px 0 rgba(255, 255, 255, 0.45),
+        inset 0 -5px 0 rgba(50, 0, 100, 0.22),
+        0 6px 0 #5a098b,
+        0 12px 24px rgba(30, 0, 47, 0.22);
+}
+
+.game-title {
+    display: block;
+
+    margin: 8px auto;
+
+    color: #ffffff;
+
+    font-size: clamp(28px, 6vw, 56px);
+    font-weight: 1000;
+    line-height: 1.6;
+
+    text-align: center;
+
+    text-shadow:
+        0 4px 0 rgba(55, 0, 82, 0.8),
+        0 7px 12px rgba(30, 0, 50, 0.25);
+}
+
+.game-title span {
+    display: inline-block;
+
+    margin-inline: 3px;
+
+    -webkit-text-stroke: 1px rgba(255, 255, 255, 0.65);
+
+    filter:
+        drop-shadow(0 4px 0 rgba(37, 0, 57, 0.4));
+}
+
+.pink {
+    color: #ff4e9e;
+
+    text-shadow:
+        0 3px 0 #9e1458,
+        0 5px 0 rgba(75, 0, 42, 0.2),
+        0 7px 12px rgba(0, 0, 0, 0.18);
+}
+
+.green {
+    color: #71ef67;
+
+    text-shadow:
+        0 3px 0 #148a31,
+        0 5px 0 rgba(0, 60, 20, 0.2),
+        0 7px 12px rgba(0, 0, 0, 0.18);
+}
+
+.blue {
+    color: #68d9ff;
+
+    text-shadow:
+        0 3px 0 #0759c9,
+        0 5px 0 rgba(0, 28, 100, 0.2),
+        0 7px 12px rgba(0, 0, 0, 0.18);
 }
 
 .subtitle {
-    margin-top: 13px;
+    margin-top: 12px;
 
-    color: #7d416e;
+    color: #ffffff;
 
-    font-size: .96rem;
-    font-weight: 700;
-    line-height: 1.9;
+    font-size: clamp(16px, 3vw, 22px);
+    font-weight: 800;
+    line-height: 1.8;
+
+    text-align: center;
+
+    text-shadow:
+        0 2px 3px rgba(50, 0, 70, 0.6);
+
+    animation: glow 2.8s ease-in-out infinite;
 }
 
-@keyframes sparkle {
-    0%,
-    100% {
-        opacity: .7;
-        transform: scale(.85) rotate(0deg);
+
+/* =====================================================
+   6. الحركات الأساسية
+===================================================== */
+
+@keyframes cloudFloat {
+    0% {
+        transform: translateX(-12px);
     }
 
     50% {
-        opacity: 1;
-        transform: scale(1.2) rotate(20deg);
+        transform: translateX(12px);
+    }
+
+    100% {
+        transform: translateX(-12px);
     }
 }
 
-@keyframes title-bob {
+@keyframes titleFloat {
     0%,
     100% {
         transform: translateY(0);
     }
 
     50% {
-        transform: translateY(-3px);
+        transform: translateY(-6px);
     }
 }
 
-/* =========================================================
-   Setup Form — White Candy Card
-========================================================= */
+@keyframes glow {
+    0%,
+    100% {
+        filter: brightness(1);
 
-.setup-form {
-    position: relative;
+        text-shadow:
+            0 2px 3px rgba(50, 0, 70, 0.6);
+    }
 
-    display: flex;
-    flex-direction: column;
-    gap: 19px;
+    50% {
+        filter: brightness(1.13);
 
-    padding: 23px;
-
-    border: 2px solid #ffffff;
-    border-radius: 30px;
-
-    background: rgba(255, 255, 255, .91);
-
-    box-shadow:
-        0 8px 0 #e6def6,
-        0 17px 35px rgba(100, 76, 155, .10),
-        inset 0 1px 0 #ffffff;
-
-    backdrop-filter: blur(10px);
+        text-shadow:
+            0 0 8px rgba(255, 255, 255, 0.55),
+            0 2px 5px rgba(50, 0, 70, 0.6);
+    }
 }
 
-.setup-form::before {
+
+/* =====================================================
+   7. البحث
+===================================================== */
+
+.search-box {
+    width: 100%;
+    max-width: 700px;
+
+    margin: 28px auto 22px;
+
+    padding: 7px;
+
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 23px;
+
+    background:
+        linear-gradient(
+            140deg,
+            #ff8ed3,
+            #c642f0 55%,
+            #7c21cb
+        );
+
+    box-shadow:
+        0 6px 0 #54077d,
+        0 12px 22px rgba(15, 0, 30, 0.2);
+}
+
+.search-box input {
+    width: 100%;
+    min-height: 54px;
+
+    padding: 14px 18px;
+
+    border: 2px solid #f5c5ff;
+    border-radius: 16px;
+
+    outline: none;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff,
+            #fff4fc
+        );
+
+    color: #4c176c;
+
+    font-size: 17px;
+    font-weight: 700;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease;
+}
+
+.search-box input::placeholder {
+    color: #ad83b5;
+    opacity: 1;
+}
+
+.search-box input:focus {
+    border-color: #ff56ab;
+
+    background: #ffffff;
+
+    box-shadow:
+        inset 0 2px 5px rgba(100, 0, 120, 0.06),
+        0 0 0 4px rgba(255, 76, 177, 0.2);
+}
+
+
+/* =====================================================
+   8. أزرار الفلترة
+===================================================== */
+
+.filters {
+    display: flex;
+
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+
+    gap: 12px;
+
+    margin: 22px auto 30px;
+}
+
+.filter-btn {
+    position: relative;
+    overflow: hidden;
+
+    flex: 1 1 130px;
+
+    min-width: 110px;
+    min-height: 49px;
+
+    padding: 12px 20px;
+
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    border-radius: 17px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #f4c0ff 0%,
+            #cf73f3 45%,
+            #9c28d5 100%
+        );
+
+    color: #ffffff;
+
+    font-size: 16px;
+    font-weight: 900;
+
+    text-shadow: 0 2px 3px rgba(70, 0, 100, 0.55);
+
+    box-shadow:
+        0 5px 0 #64118d,
+        0 9px 15px rgba(15, 0, 30, 0.18),
+        inset 0 3px 0 rgba(255, 255, 255, 0.5);
+
+    transition:
+        transform 0.18s ease,
+        filter 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.filter-btn::before {
     content: "";
 
     position: absolute;
-    top: 0;
-    left: 12%;
+    top: 3px;
     right: 12%;
 
-    height: 5px;
+    width: 76%;
+    height: 35%;
 
-    border-radius: 0 0 10px 10px;
+    border-radius: 999px;
 
-    background: linear-gradient(
-        90deg,
-        var(--pink),
-        var(--orange),
-        var(--primary),
-        var(--mint),
-        var(--blue),
-        var(--purple)
-    );
+    pointer-events: none;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.45),
+            rgba(255, 255, 255, 0)
+        );
 }
 
-.field {
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
+.filter-btn:hover {
+    filter: brightness(1.1);
 
-    min-width: 0;
+    transform: translateY(-2px);
 }
 
-.field label {
-    color: #514078;
-
-    font-size: .94rem;
-    font-weight: 900;
-}
-
-/* =========================================================
-   Inputs
-========================================================= */
-
-select,
-input[type="number"] {
-    width: 100%;
-    min-width: 0;
-    min-height: 54px;
-
-    padding: 0 15px;
-
-    border: 2px solid #e4dcfa;
-    border-radius: 17px;
-
-    background: linear-gradient(
-        180deg,
-        #ffffff,
-        #f7f5ff
-    );
-
-    color: #403267;
-
-    font-size: .95rem;
-    font-weight: 750;
+.filter-btn:active {
+    transform: translateY(4px);
 
     box-shadow:
-        0 4px 0 #e5ddf7,
-        inset 0 1px 0 #ffffff;
+        0 1px 0 #64118d,
+        inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.filter-btn.active {
+    background:
+        linear-gradient(
+            180deg,
+            #ffaddd 0%,
+            #ff4eaa 40%,
+            #e40c83 100%
+        );
+
+    border-color: #fff5fd;
+
+    box-shadow:
+        0 5px 0 #a40757,
+        0 10px 22px rgba(255, 40, 155, 0.35),
+        inset 0 3px 0 rgba(255, 255, 255, 0.56);
+
+    transform: translateY(-2px);
+}
+
+
+/* =====================================================
+   9. الإحصائيات
+===================================================== */
+
+.statistics {
+    display: grid;
+
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    gap: 16px;
+
+    margin: 25px auto 32px;
+}
+
+.stat-card {
+    min-width: 0;
+
+    position: relative;
+    isolation: isolate;
+
+    overflow: hidden;
+
+    padding: 20px 14px;
+
+    text-align: center;
+
+    border: 3px solid #ffffff;
+    border-radius: 25px;
+
+    background:
+        linear-gradient(
+            155deg,
+            #ffffff 0%,
+            #fff5fc 48%,
+            #f4ddff 100%
+        );
+
+    box-shadow:
+        0 6px 0 #a83bc8,
+        0 12px 22px rgba(14, 0, 28, 0.22),
+        inset 0 2px 0 rgba(255, 255, 255, 0.95);
 
     transition:
-        border-color .2s ease,
-        box-shadow .2s ease,
-        transform .2s ease,
-        background .2s ease;
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
 }
 
-select {
-    cursor: pointer;
-    color-scheme: light;
+.stat-card::before {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    z-index: -1;
+
+    pointer-events: none;
+
+    background:
+        radial-gradient(
+            circle at 90% 8%,
+            rgba(255, 218, 91, 0.42),
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at 10% 90%,
+            rgba(255, 117, 200, 0.18),
+            transparent 36%
+        );
 }
 
-select option {
-    background: #ffffff;
-    color: #403267;
-}
-
-select:not(:disabled):hover,
-input[type="number"]:not(:disabled):hover {
-    border-color: #b9a0ff;
+.stat-card:hover {
+    transform: translateY(-4px);
 
     box-shadow:
-        0 4px 0 #ded2ff,
-        0 0 0 3px rgba(165, 121, 255, .09);
+        0 9px 0 #a83bc8,
+        0 16px 25px rgba(14, 0, 28, 0.23),
+        inset 0 2px 0 rgba(255, 255, 255, 0.95);
 }
 
-select:not(:disabled):focus,
-input[type="number"]:not(:disabled):focus {
-    border-color: var(--purple);
+.stat-icon {
+    display: block;
 
-    background: #ffffff;
+    margin-bottom: 8px;
 
-    box-shadow:
-        0 0 0 4px rgba(165, 121, 255, .14),
-        0 4px 0 #ded2ff;
+    color: #f4a900;
+
+    font-size: 36px;
+    line-height: 1.3;
+
+    filter:
+        drop-shadow(0 3px 0 rgba(110, 45, 0, 0.2));
 }
 
-select:disabled,
-input:disabled {
-    opacity: .5;
-    cursor: not-allowed;
+.stat-card h3 {
+    margin-bottom: 7px;
+
+    color: #7921aa;
+
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.6;
 }
 
-/* =========================================================
-   Ayah Range
-========================================================= */
+.stat-card p {
+    color: #e21b92;
 
-.ayah-range {
+    font-size: clamp(22px, 4vw, 31px);
+    font-weight: 1000;
+    line-height: 1.4;
+
+    overflow-wrap: anywhere;
+
+    text-shadow:
+        0 2px 0 rgba(226, 27, 146, 0.1);
+}
+
+
+/* =====================================================
+   10. بطاقات الطلاب
+===================================================== */
+
+.cards {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 13px;
+
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    align-items: stretch;
+
+    gap: 20px;
+
+    margin: 24px auto;
 }
 
-/* =========================================================
-   Labels + Output
-========================================================= */
+.student-card {
+    min-width: 0;
 
-.label-row {
+    position: relative;
+    isolation: isolate;
+
+    overflow: hidden;
+
+    padding: 19px 16px 20px;
+
+    border: 3px solid #ffffff;
+    border-radius: 25px;
+
+    color: var(--text);
+
+    background:
+        linear-gradient(
+            160deg,
+            #ffffff 0%,
+            #fff9fd 50%,
+            #f7e8ff 100%
+        );
+
+    box-shadow:
+        0 6px 0 #bc55d3,
+        0 12px 22px rgba(15, 0, 30, 0.23),
+        inset 0 2px 0 rgba(255, 255, 255, 0.95);
+
+    transition:
+        transform 0.22s ease,
+        box-shadow 0.22s ease,
+        filter 0.22s ease;
+}
+
+.student-card::before {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    z-index: -1;
+
+    pointer-events: none;
+
+    background:
+        radial-gradient(
+            circle at 95% 7%,
+            rgba(255, 219, 99, 0.3),
+            transparent 25%
+        ),
+        radial-gradient(
+            circle at 0% 100%,
+            rgba(255, 89, 185, 0.12),
+            transparent 36%
+        );
+}
+
+.student-card::after {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: -130%;
+
+    width: 65%;
+    height: 100%;
+
+    z-index: -1;
+
+    pointer-events: none;
+
+    background:
+        linear-gradient(
+            100deg,
+            transparent,
+            rgba(255, 255, 255, 0.28),
+            transparent
+        );
+
+    transform: skewX(-20deg);
+
+    transition: left 0.6s ease;
+}
+
+.student-card:hover {
+    transform: translateY(-5px);
+
+    box-shadow:
+        0 10px 0 #bc55d3,
+        0 18px 28px rgba(15, 0, 30, 0.25),
+        inset 0 2px 0 rgba(255, 255, 255, 0.95);
+}
+
+.student-card:hover::after {
+    left: 140%;
+}
+
+.student-name {
+    position: relative;
+
+    margin-bottom: 16px;
+    padding: 11px 9px;
+
+    border: 2px solid #f7c8ff;
+    border-radius: 15px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff,
+            #ffeafb
+        );
+
+    color: #6f238f;
+
+    font-size: clamp(16px, 2vw, 21px);
+    font-weight: 1000;
+    line-height: 1.8;
+
+    text-align: center;
+
+    overflow-wrap: anywhere;
+
+    box-shadow:
+        inset 0 2px 0 #ffffff,
+        0 3px 0 rgba(168, 52, 194, 0.12);
+}
+
+.student-info {
     display: flex;
+
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+
+    gap: 9px;
+
+    margin-top: 10px;
+    padding: 10px 12px;
+
+    border: 1px solid #f0d8fb;
+    border-radius: 14px;
+
+    background:
+        linear-gradient(
+            120deg,
+            #ffffff,
+            #fff0fa
+        );
+
+    color: #76468b;
+
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.7;
 }
 
-.label-row output {
+.student-info > span:first-child {
+    min-width: 0;
+}
+
+.points {
     display: inline-flex;
+
+    flex: 0 0 auto;
+
+    min-width: 64px;
+    min-height: 37px;
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 4px 12px;
+
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    border-radius: 12px;
+
+    color: #ffffff;
+
+    font-size: 19px;
+    font-weight: 1000;
+    line-height: 1.3;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ff85cb 0%,
+            #ef2494 55%,
+            #d10a76 100%
+        );
+
+    text-shadow: 0 2px 2px rgba(83, 0, 44, 0.3);
+
+    box-shadow:
+        0 4px 0 #a20d5c,
+        inset 0 2px 0 rgba(255, 255, 255, 0.42);
+}
+
+.rank {
+    display: inline-flex;
+
     align-items: center;
     justify-content: center;
 
     min-width: 38px;
-    min-height: 32px;
+    min-height: 38px;
 
-    padding: 4px 10px;
-
-    border: 2px solid #ffe59b;
-    border-radius: 12px;
-
-    background: #fff5c9;
-
-    color: #9a6400;
-
-    font-weight: 1000;
-
-    box-shadow: 0 3px 0 #f7dfa0;
-}
-
-/* =========================================================
-   Range
-========================================================= */
-
-.range {
-    width: 100%;
-    height: 10px;
-
-    border-radius: 999px;
-
-    accent-color: var(--pink);
-
-    cursor: pointer;
-}
-
-.range-labels {
-    display: flex;
-    justify-content: space-between;
-
-    color: #8c81a7;
-
-    font-size: .76rem;
-}
-
-/* =========================================================
-   Teacher Mode
-========================================================= */
-
-.teacher-option {
-    min-height: 76px;
-
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 15px;
-
-    padding: 16px 17px;
-
-    border: 2px solid #e9defd;
-    border-radius: 22px;
-
-    background: linear-gradient(
-        120deg,
-        #fff0f8,
-        #f2f2ff 60%,
-        #eafaff
-    );
-
-    box-shadow:
-        0 4px 0 #e7ddf7,
-        inset 0 1px 0 #ffffff;
-
-    transition:
-        transform .2s ease,
-        border-color .2s ease,
-        box-shadow .2s ease;
-}
-
-.teacher-option:hover {
-    transform: translateY(-2px);
-    border-color: #eeb4d6;
-
-    box-shadow:
-        0 6px 0 #e7ddf7,
-        0 9px 20px rgba(165, 121, 255, .08);
-}
-
-.teacher-option strong {
-    display: block;
-    margin-bottom: 4px;
-
-    color: #4d3b78;
-    font-weight: 900;
-}
-
-.teacher-option span:not(.switch-slider) {
-    display: block;
-
-    color: #83769e;
-
-    font-size: .78rem;
-    line-height: 1.7;
-}
-
-.teacher-option.is-disabled {
-    opacity: .55;
-}
-
-/* =========================================================
-   Switch
-========================================================= */
-
-.switch {
-    position: relative;
-
-    flex: 0 0 auto;
-
-    width: 54px;
-    height: 31px;
-
-    cursor: pointer;
-}
-
-.switch input {
-    position: absolute;
-
-    width: 1px;
-    height: 1px;
-
-    opacity: 0;
-}
-
-.switch-slider {
-    position: absolute;
-    inset: 0;
-
-    border: 1px solid #e0d8f3;
-    border-radius: 999px;
-
-    background: #dcd5ee;
-
-    transition:
-        background .25s ease,
-        box-shadow .25s ease;
-}
-
-.switch-slider::before {
-    content: "";
-
-    position: absolute;
-
-    width: 23px;
-    height: 23px;
-
-    top: 3px;
-    right: 3px;
-
-    border-radius: 50%;
-
-    background: #ffffff;
-
-    box-shadow: 0 2px 5px rgba(70, 48, 111, .18);
-
-    transition:
-        transform .25s cubic-bezier(.2, .8, .2, 1),
-        background .25s ease;
-}
-
-.switch input:checked + .switch-slider {
-    background: linear-gradient(135deg, #71f2c6, #25c99b);
-
-    box-shadow: 0 0 15px rgba(77, 226, 176, .25);
-}
-
-.switch input:checked + .switch-slider::before {
-    transform: translateX(-23px);
-    background: #ffffff;
-}
-
-.switch input:focus-visible + .switch-slider {
-    outline: 3px solid var(--blue-dark);
-    outline-offset: 3px;
-}
-
-/* =========================================================
-   Availability Message
-========================================================= */
-
-.availability-message {
-    padding: 14px 16px;
-
-    border: 2px solid #ffc5d5;
-    border-radius: 18px;
-
-    background: linear-gradient(
-        135deg,
-        #fff0f5,
-        #fff7fa
-    );
-
-    color: #ad315c;
-
-    font-size: .88rem;
-    line-height: 1.8;
-
-    box-shadow: 0 4px 0 #ffe0e9;
-}
-
-/* =========================================================
-   Primary Button — Candy 3D
-========================================================= */
-
-.primary-button {
-    position: relative;
-    isolation: isolate;
-
-    width: 100%;
-    min-height: 62px;
-
-    margin-top: 7px;
-    padding: 14px 20px;
-
-    overflow: hidden;
+    padding: 5px 9px;
 
     border: 2px solid #ffffff;
-    border-radius: 21px;
-
-    background: linear-gradient(
-        180deg,
-        #ff83c0 0%,
-        #ff5ca8 48%,
-        #ed398c 100%
-    );
+    border-radius: 12px;
 
     color: #ffffff;
 
-    font-size: 1.05rem;
+    font-size: 17px;
     font-weight: 1000;
 
-    text-shadow: 0 2px 0 rgba(171, 26, 103, .35);
+    background:
+        linear-gradient(
+            180deg,
+            #bd6bff,
+            #7815bf
+        );
 
     box-shadow:
-        0 7px 0 #c72b78,
-        0 10px 0 rgba(111, 65, 150, .10),
-        0 14px 25px rgba(255, 92, 168, .2),
-        inset 0 3px 0 rgba(255, 255, 255, .5);
-
-    cursor: pointer;
-
-    transition:
-        transform .16s ease,
-        box-shadow .16s ease,
-        filter .16s ease;
+        0 4px 0 #4d087c,
+        inset 0 2px 0 rgba(255, 255, 255, 0.4);
 }
 
-.primary-button::before {
+
+/* =====================================================
+   11. بطاقة الطالبات
+===================================================== */
+
+.girl-card {
+    border-color: #ffffff;
+
+    background:
+        linear-gradient(
+            155deg,
+            #ffffff 0%,
+            #fff0fa 48%,
+            #ffd9ee 100%
+        );
+
+    box-shadow:
+        0 6px 0 #e83e9a,
+        0 12px 22px rgba(80, 0, 50, 0.2),
+        inset 0 2px 0 rgba(255, 255, 255, 0.95);
+}
+
+.girl-card::before {
+    background:
+        radial-gradient(
+            circle at 95% 7%,
+            rgba(255, 202, 76, 0.35),
+            transparent 24%
+        ),
+        radial-gradient(
+            circle at 0% 100%,
+            rgba(255, 69, 170, 0.22),
+            transparent 35%
+        );
+}
+
+.girl-card .student-name {
+    border-color: #ffb8df;
+
+    color: #bd176e;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff,
+            #ffe0f1
+        );
+}
+
+.girl-card .points {
+    background:
+        linear-gradient(
+            180deg,
+            #ff9bd4,
+            #fa419f 55%,
+            #d8167b
+        );
+
+    box-shadow:
+        0 4px 0 #ac0e5f,
+        inset 0 2px 0 rgba(255, 255, 255, 0.45);
+}
+
+.girl-card .rank {
+    background:
+        linear-gradient(
+            180deg,
+            #ffb2e0,
+            #e83a9b
+        );
+
+    box-shadow:
+        0 4px 0 #a91b68,
+        inset 0 2px 0 rgba(255, 255, 255, 0.4);
+}
+
+
+/* =====================================================
+   12. المراكز الثلاثة الأولى
+===================================================== */
+
+.gold {
+    border-color: #fff8c3;
+
+    background:
+        linear-gradient(
+            150deg,
+            #fffef1 0%,
+            #fff1a9 45%,
+            #ffdc62 100%
+        );
+
+    box-shadow:
+        0 7px 0 #ba7b08,
+        0 14px 25px rgba(255, 194, 21, 0.23),
+        inset 0 3px 0 #ffffff;
+}
+
+.gold::before {
+    background:
+        radial-gradient(
+            circle at 90% 5%,
+            rgba(255, 255, 255, 0.8),
+            transparent 27%
+        ),
+        linear-gradient(
+            130deg,
+            transparent 45%,
+            rgba(255, 255, 255, 0.18)
+        );
+}
+
+.gold .student-name {
+    border-color: #ffe28b;
+
+    color: #875100;
+
+    background:
+        linear-gradient(
+            180deg,
+            #fffef7,
+            #ffeb9d
+        );
+}
+
+.gold .points {
+    background:
+        linear-gradient(
+            180deg,
+            #ffeb82,
+            #edac05 60%,
+            #cb7b00
+        );
+
+    box-shadow:
+        0 4px 0 #965200,
+        inset 0 2px 0 rgba(255, 255, 255, 0.5);
+}
+
+.silver {
+    border-color: #ffffff;
+
+    background:
+        linear-gradient(
+            150deg,
+            #ffffff 0%,
+            #f2f2ff 48%,
+            #d9ddf5 100%
+        );
+
+    box-shadow:
+        0 7px 0 #7478a5,
+        0 14px 24px rgba(100, 100, 180, 0.18),
+        inset 0 3px 0 #ffffff;
+}
+
+.silver::before {
+    background:
+        radial-gradient(
+            circle at 90% 5%,
+            rgba(255, 255, 255, 0.95),
+            transparent 25%
+        ),
+        linear-gradient(
+            130deg,
+            transparent 45%,
+            rgba(255, 255, 255, 0.2)
+        );
+}
+
+.silver .student-name {
+    color: #414a80;
+
+    border-color: #c9cafa;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff,
+            #ebebff
+        );
+}
+
+.silver .points {
+    background:
+        linear-gradient(
+            180deg,
+            #c9d6ff,
+            #7888cf 55%,
+            #4c58a3
+        );
+
+    box-shadow:
+        0 4px 0 #354075,
+        inset 0 2px 0 rgba(255, 255, 255, 0.5);
+}
+
+.bronze {
+    border-color: #ffe1c9;
+
+    background:
+        linear-gradient(
+            150deg,
+            #fff8ef 0%,
+            #ffdec0 48%,
+            #f3b17d 100%
+        );
+
+    box-shadow:
+        0 7px 0 #99451b,
+        0 14px 24px rgba(190, 87, 26, 0.18),
+        inset 0 3px 0 #ffffff;
+}
+
+.bronze::before {
+    background:
+        radial-gradient(
+            circle at 90% 5%,
+            rgba(255, 255, 255, 0.8),
+            transparent 25%
+        );
+}
+
+.bronze .student-name {
+    color: #80401e;
+
+    border-color: #f7c49f;
+
+    background:
+        linear-gradient(
+            180deg,
+            #fffaf5,
+            #ffe1c8
+        );
+}
+
+.bronze .points {
+    background:
+        linear-gradient(
+            180deg,
+            #f7bd88,
+            #ca753d 55%,
+            #a84a20
+        );
+
+    box-shadow:
+        0 4px 0 #783317,
+        inset 0 2px 0 rgba(255, 255, 255, 0.45);
+}
+
+/* الحفاظ على وضوح الأرقام */
+
+.student-card .points,
+.girl-card .points,
+.gold .points,
+.silver .points,
+.bronze .points {
+    color: #ffffff;
+}
+
+
+/* =====================================================
+   13. التحميل
+===================================================== */
+
+.loading {
+    padding: 65px 18px;
+
+    color: #ffffff;
+
+    font-size: clamp(20px, 4vw, 28px);
+    font-weight: 1000;
+
+    text-align: center;
+
+    text-shadow:
+        0 3px 0 #630b92,
+        0 6px 12px rgba(0, 0, 0, 0.3);
+
+    animation: loadingJump 1.1s ease-in-out infinite;
+}
+
+@keyframes loadingJump {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+
+/* =====================================================
+   14. زر المكافآت
+===================================================== */
+
+.reward-btn {
+    display: block;
+
+    width: 100%;
+
+    margin: 22px 0;
+    padding: 16px 20px;
+
+    position: relative;
+    overflow: hidden;
+
+    border: 3px solid #fff0ff;
+    border-radius: 22px;
+
+    color: #ffffff;
+
+    font-size: clamp(17px, 3vw, 22px);
+    font-weight: 1000;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffb5e0 0%,
+            #ff4dad 42%,
+            #e41588 100%
+        );
+
+    text-shadow:
+        0 2px 2px rgba(110, 0, 57, 0.35);
+
+    box-shadow:
+        0 7px 0 #a80c61,
+        0 13px 24px rgba(255, 34, 145, 0.28),
+        inset 0 3px 0 rgba(255, 255, 255, 0.5);
+
+    transition:
+        transform 0.18s ease,
+        filter 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.reward-btn::before {
     content: "";
 
     position: absolute;
-    z-index: -1;
+    top: 4px;
+    left: 10%;
 
-    top: 0;
-    bottom: 0;
-    left: -120%;
+    width: 80%;
+    height: 30%;
 
-    width: 65%;
+    border-radius: 999px;
 
-    transform: skewX(-25deg);
+    pointer-events: none;
 
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, .55),
-        transparent
-    );
-
-    animation: candy-shine 4s ease-in-out infinite;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.45),
+            transparent
+        );
 }
 
-.primary-button::after {
-    content: "✦";
+.reward-btn:hover {
+    filter: brightness(1.08);
 
-    position: absolute;
-    top: 7px;
-    right: 13px;
+    transform: translateY(-3px);
+}
 
-    color: rgba(255, 255, 255, .75);
-    font-size: 14px;
+.reward-btn:active {
+    transform: translateY(5px);
+
+    box-shadow:
+        0 2px 0 #a80c61,
+        0 6px 12px rgba(255, 34, 145, 0.18);
+}
+
+
+/* =====================================================
+   15. زر المكافآت العائم
+===================================================== */
+
+.floating-reward-btn {
+    position: fixed;
+
+    bottom: 22px;
+    left: 50%;
+
+    z-index: 9999;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 10px;
+
+    width: auto;
+    min-width: 64px;
+    min-height: 58px;
+
+    padding: 12px 20px;
+
+    border: 3px solid #ffffff;
+    border-radius: 999px;
+
+    color: #ffffff;
+
+    font-size: 18px;
+    font-weight: 1000;
+
+    background:
+        linear-gradient(
+            180deg,
+            #a8ff8a 0%,
+            #48e45d 43%,
+            #14a62f 100%
+        );
+
+    box-shadow:
+        0 6px 0 #087c23,
+        0 12px 24px rgba(0, 0, 0, 0.28),
+        inset 0 3px 0 rgba(255, 255, 255, 0.55);
+
+    opacity: 0;
+    pointer-events: none;
+
+    transform: translate(-50%, 80px);
+
+    transition:
+        transform 0.35s ease,
+        opacity 0.35s ease,
+        filter 0.2s ease;
+}
+
+.floating-reward-btn.show {
+    opacity: 1;
+    pointer-events: auto;
+
+    transform: translate(-50%, 0);
+}
+
+.floating-reward-btn:hover {
+    filter: brightness(1.08);
+}
+
+.floating-reward-btn:active {
+    transform: translate(-50%, 3px) scale(0.96);
+}
+
+.floating-reward-btn img {
+    display: block;
+
+    width: 28px;
+    height: 28px;
+
+    object-fit: contain;
 
     pointer-events: none;
 }
 
-@keyframes candy-shine {
-    0%,
-    65% {
-        left: -120%;
-    }
 
-    100% {
-        left: 160%;
-    }
-}
+/* =====================================================
+   16. النوافذ المنبثقة
+===================================================== */
 
-.primary-button:not(:disabled):hover {
-    filter: brightness(1.06) saturate(1.08);
+.modal {
+    display: none;
 
-    transform: translateY(-3px);
+    position: fixed;
+    inset: 0;
 
-    box-shadow:
-        0 10px 0 #c72b78,
-        0 13px 0 rgba(111, 65, 150, .08),
-        0 18px 30px rgba(255, 92, 168, .24),
-        inset 0 3px 0 rgba(255, 255, 255, .6);
-}
+    z-index: 99999;
 
-.primary-button:not(:disabled):active {
-    transform: translateY(5px);
-
-    box-shadow:
-        0 2px 0 #c72b78,
-        0 4px 0 rgba(111, 65, 150, .08),
-        inset 0 2px 0 rgba(255, 255, 255, .3);
-}
-
-.primary-button:disabled {
-    opacity: .45;
-    filter: grayscale(.35);
-
-    box-shadow: 0 3px 0 #c72b78;
-
-    cursor: not-allowed;
-}
-
-/* =========================================================
-   Memorization Screen
-========================================================= */
-
-.memorization-screen {
-    width: min(100% - 26px, 960px);
-
-    margin-inline: auto;
-
-    display: flex;
-    flex-direction: column;
-
-    padding: 28px 0 45px;
-
-    animation: entrance-bounce .55s ease both;
-}
-
-/* =========================================================
-   Memorization Header
-========================================================= */
-
-.memorization-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 15px;
-
-    padding: 16px 19px;
-
-    border: 2px solid #ffffff;
-    border-radius: 25px;
-
-    background: linear-gradient(
-        115deg,
-        #dff8ff,
-        #f5eaff 52%,
-        #ffe7f3
-    );
-
-    box-shadow:
-        0 6px 0 #dfd8f3,
-        0 12px 25px rgba(87, 64, 132, .08),
-        inset 0 1px 0 #ffffff;
-}
-
-.memorization-header h2 {
-    color: #584181;
-
-    font-size: clamp(1.35rem, 5vw, 2.1rem);
-    font-weight: 1000;
-
-    text-shadow: 0 2px 0 rgba(255, 255, 255, .8);
-}
-
-/* =========================================================
-   Icon Button
-========================================================= */
-
-.icon-button {
-    flex: 0 0 auto;
-
-    width: 49px;
-    height: 49px;
-
-    display: grid;
-    place-items: center;
-
-    border: 2px solid #ffffff;
-    border-radius: 17px;
-
-    background: linear-gradient(
-        145deg,
-        #ff9cc9,
-        #ff5ca8
-    );
-
-    color: #ffffff;
-
-    font-size: 1.25rem;
-
-    box-shadow:
-        0 5px 0 #d93e8c,
-        0 8px 14px rgba(255, 92, 168, .14),
-        inset 0 2px 0 rgba(255, 255, 255, .55);
-
-    cursor: pointer;
-
-    transition:
-        transform .16s ease,
-        filter .16s ease,
-        box-shadow .16s ease;
-}
-
-.icon-button:hover {
-    filter: brightness(1.06);
-    transform: translateY(-2px);
-}
-
-.icon-button:active {
-    transform: translateY(3px);
-
-    box-shadow:
-        0 2px 0 #d93e8c,
-        inset 0 1px 0 rgba(255, 255, 255, .3);
-}
-
-/* =========================================================
-   Session Info
-========================================================= */
-
-.session-info {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-
-    gap: 10px;
-
-    margin-top: 24px;
-}
-
-.session-info span {
-    display: inline-flex;
     align-items: center;
     justify-content: center;
 
-    min-height: 37px;
+    overflow-y: auto;
 
-    padding: 7px 13px;
-
-    border: 2px solid #e2d7ff;
-    border-radius: 999px;
-
-    background: #ffffff;
-
-    color: #655184;
-
-    font-size: .78rem;
-    font-weight: 900;
-
-    box-shadow: 0 3px 0 #e5ddf6;
-}
-
-.session-info span:nth-child(3n + 1) {
-    border-color: #ffe3a1;
-    background: #fff8d9;
-    color: #946000;
-
-    box-shadow: 0 3px 0 #f2dfaa;
-}
-
-.session-info span:nth-child(3n + 2) {
-    border-color: #b8f2dc;
-    background: #eafff6;
-    color: #19795e;
-
-    box-shadow: 0 3px 0 #c9efdf;
-}
-
-.session-info span:nth-child(3n) {
-    border-color: #d9c5ff;
-    background: #f5eeff;
-    color: #7144bd;
-
-    box-shadow: 0 3px 0 #e0d2f7;
-}
-
-/* =========================================================
-   Quran Verse Stage
-========================================================= */
-
-.ayah-container {
-    position: relative;
-    isolation: isolate;
-
-    min-height: 310px;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    margin-top: 27px;
-    padding: 34px 22px;
-
-    overflow: hidden;
-
-    border: 3px solid #ffffff;
-    border-radius: 32px;
+    padding: 20px;
 
     background:
         radial-gradient(
-            circle at 50% 0%,
-            rgba(255, 220, 125, .45),
-            transparent 48%
+            circle at 50% 30%,
+            rgba(126, 23, 166, 0.44),
+            rgba(15, 0, 30, 0.82)
+        );
+
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-box {
+    position: relative;
+
+    width: min(100%, 420px);
+    max-height: calc(100vh - 40px);
+
+    overflow-y: auto;
+
+    padding: 27px 23px;
+
+    border: 5px solid #ffffff;
+    border-radius: 30px;
+
+    color: #6a267d;
+
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(255, 255, 255, 0.8),
+            transparent 33%
         ),
         linear-gradient(
-            145deg,
-            #fffdf4 0%,
-            #fff6fd 50%,
-            #edfaff 100%
+            160deg,
+            #fffafd 0%,
+            #ffe6f4 52%,
+            #f3dcff 100%
         );
 
     box-shadow:
-        0 8px 0 #dfd5f1,
-        0 16px 30px rgba(87, 64, 132, .10),
-        inset 0 1px 0 #ffffff;
+        0 8px 0 #c53ca8,
+        0 22px 55px rgba(0, 0, 0, 0.42),
+        inset 0 3px 0 #ffffff;
+
+    animation: popup 0.32s ease both;
 }
 
-.ayah-container::before {
-    content: "✦";
+@keyframes popup {
+    from {
+        opacity: 0;
 
-    position: absolute;
-    top: 13px;
-    right: 18px;
-    z-index: -1;
+        transform:
+            translateY(30px)
+            scale(0.9);
+    }
 
-    color: #f3b52d;
-    font-size: 29px;
+    to {
+        opacity: 1;
 
-    animation: sparkle 2.3s ease-in-out infinite;
+        transform:
+            translateY(0)
+            scale(1);
+    }
 }
 
-.ayah-container::after {
-    content: "✧";
+.modal-box input,
+.modal-box select {
+    display: block;
 
-    position: absolute;
-    bottom: 12px;
-    left: 18px;
-    z-index: -1;
+    width: 100%;
+    min-height: 48px;
 
-    color: #46bde9;
-    font-size: 33px;
+    margin: 12px 0;
+    padding: 10px 13px;
 
-    animation: sparkle 2.8s ease-in-out infinite .4s;
+    border: 2px solid #e3b2f1;
+    border-radius: 13px;
+
+    outline: none;
+
+    color: #562066;
+
+    font-size: 16px;
+    font-weight: 700;
+
+    background: #ffffff;
+
+    box-shadow:
+        inset 0 2px 5px rgba(90, 0, 120, 0.06);
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
 }
 
-.ayah-text {
-    position: relative;
+.modal-box input:focus,
+.modal-box select:focus {
+    border-color: #ef47a4;
 
-    max-width: 780px;
-
-    color: #493568;
-
-    font-family: "Scheherazade New", serif;
-
-    font-size: clamp(1.8rem, 7.5vw, 3.15rem);
-
-    line-height: 2.25;
-
-    text-align: center;
-    direction: rtl;
-
-    overflow-wrap: anywhere;
-
-    text-shadow: 0 1px 0 #ffffff;
+    box-shadow:
+        0 0 0 4px rgba(239, 71, 164, 0.15);
 }
 
-/* =========================================================
-   Player Controls
-========================================================= */
+.modal-box button {
+    display: block;
 
-.player-controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
+    width: 100%;
 
-    gap: 13px;
+    min-height: 45px;
 
-    margin-top: 28px;
-}
+    margin-top: 10px;
+    padding: 11px 15px;
 
-.control-button {
-    position: relative;
-
-    width: 55px;
-    height: 55px;
-
-    display: grid;
-    place-items: center;
-
-    border: 2px solid #ffffff;
-    border-radius: 18px;
-
-    background: linear-gradient(
-        145deg,
-        #7ae4ff,
-        #38b8f3
-    );
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
 
     color: #ffffff;
 
-    font-size: 1.25rem;
-
-    box-shadow:
-        0 6px 0 #208bca,
-        0 9px 15px rgba(56, 184, 243, .13),
-        inset 0 2px 0 rgba(255, 255, 255, .6);
-
-    cursor: pointer;
-
-    transition:
-        transform .16s ease,
-        filter .16s ease,
-        box-shadow .16s ease;
-}
-
-.control-button:hover {
-    filter: brightness(1.06);
-    transform: translateY(-3px);
-
-    box-shadow:
-        0 9px 0 #208bca,
-        0 12px 20px rgba(56, 184, 243, .18),
-        inset 0 2px 0 rgba(255, 255, 255, .65);
-}
-
-.control-button:active {
-    transform: translateY(4px);
-
-    box-shadow:
-        0 2px 0 #208bca,
-        inset 0 1px 0 rgba(255, 255, 255, .35);
-}
-
-.play-button {
-    width: 66px;
-    height: 66px;
-
-    border: 2px solid #ffffff;
-    border-radius: 22px;
-
-    background: linear-gradient(
-        145deg,
-        #ffe879 0%,
-        #ffca3a 58%,
-        #ffac37 100%
-    );
-
-    color: #79501a;
-
-    font-size: 1.5rem;
-
-    box-shadow:
-        0 7px 0 #dc9218,
-        0 11px 22px rgba(255, 202, 58, .22),
-        inset 0 3px 0 rgba(255, 255, 255, .8);
-
-    animation: play-glow 3s ease-in-out infinite;
-}
-
-@keyframes play-glow {
-    0%,
-    100% {
-        box-shadow:
-            0 7px 0 #dc9218,
-            0 11px 22px rgba(255, 202, 58, .16),
-            inset 0 3px 0 rgba(255, 255, 255, .8);
-    }
-
-    50% {
-        box-shadow:
-            0 7px 0 #dc9218,
-            0 12px 28px rgba(255, 202, 58, .34),
-            inset 0 3px 0 rgba(255, 255, 255, .8);
-    }
-}
-
-.play-button:hover {
-    filter: brightness(1.06);
-    transform: translateY(-3px);
-}
-
-.play-button:active {
-    transform: translateY(4px);
-
-    box-shadow:
-        0 2px 0 #dc9218,
-        inset 0 2px 0 rgba(255, 255, 255, .4);
-}
-
-.settings-control {
-    margin-inline-start: 5px;
-
-    background: linear-gradient(
-        145deg,
-        #c7a6ff,
-        #9b72f4
-    );
-
-    box-shadow:
-        0 6px 0 #7750c8,
-        0 9px 15px rgba(155, 114, 244, .13),
-        inset 0 2px 0 rgba(255, 255, 255, .6);
-}
-
-.settings-control:hover {
-    box-shadow:
-        0 9px 0 #7750c8,
-        0 12px 20px rgba(155, 114, 244, .18),
-        inset 0 2px 0 rgba(255, 255, 255, .65);
-}
-
-.settings-control:active {
-    box-shadow:
-        0 2px 0 #7750c8,
-        inset 0 1px 0 rgba(255, 255, 255, .35);
-}
-
-/* =========================================================
-   Completion
-========================================================= */
-
-.completion-message {
-    position: relative;
-
-    margin-top: 28px;
-    padding: 20px 17px;
-
-    border: 2px solid #ffffff;
-    border-radius: 24px;
-
-    background: linear-gradient(
-        120deg,
-        #fff4bb,
-        #ffe4f2 52%,
-        #e5fff5
-    );
-
-    color: #82528e;
-
-    font-size: 1.25rem;
-    font-weight: 1000;
-    line-height: 1.9;
-
-    text-align: center;
-
-    box-shadow:
-        0 6px 0 #e8d6f3,
-        0 12px 25px rgba(87, 64, 132, .08);
-
-    animation: victory-pop .55s cubic-bezier(.2, .8, .2, 1) both;
-}
-
-.completion-message::before {
-    content: "★";
-
-    display: block;
-    margin-bottom: 5px;
-
-    color: #f1b72b;
-    font-size: 2rem;
-
-    text-shadow: 0 2px 0 #ffffff;
-}
-
-@keyframes victory-pop {
-    0% {
-        opacity: 0;
-        transform: scale(.78) translateY(16px);
-    }
-
-    65% {
-        opacity: 1;
-        transform: scale(1.04) translateY(-3px);
-    }
-
-    100% {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-    }
-}
-
-/* =========================================================
-   Ayah Number
-========================================================= */
-
-.ayah-number {
-    color: #b37a18;
-
-    font-family: "Scheherazade New", serif;
-
-    font-size: .72em;
-
-    white-space: nowrap;
-
-    text-shadow: 0 1px 0 #ffffff;
-}
-
-/* =========================================================
-   Download Section
-========================================================= */
-
-.download-section {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    gap: 15px;
-
-    margin-top: 23px;
-    padding: 18px;
-
-    border: 2px solid #ffffff;
-    border-radius: 24px;
-
-    background: linear-gradient(
-        120deg,
-        #e5fff5,
-        #e9f8ff 55%,
-        #f5eaff
-    );
-
-    box-shadow:
-        0 6px 0 #dcd9f1,
-        0 10px 22px rgba(87, 64, 132, .08);
-}
-
-.download-info {
-    min-width: 0;
-
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.download-info strong {
-    color: #4b3b77;
-
-    font-size: .94rem;
+    font-size: 16px;
     font-weight: 900;
-}
 
-.download-info span {
-    color: #7b7196;
-
-    font-size: .78rem;
-    line-height: 1.8;
-}
-
-.secondary-button {
-    flex: 0 0 auto;
-
-    min-height: 47px;
-
-    padding: 0 17px;
-
-    border: 2px solid #ffffff;
-    border-radius: 15px;
-
-    background: linear-gradient(
-        145deg,
-        #7af2c9,
-        #40d9aa
-    );
-
-    color: #145b4b;
-
-    font-weight: 1000;
+    background:
+        linear-gradient(
+            180deg,
+            #ff8ece,
+            #ec2698 60%,
+            #cf0a76
+        );
 
     box-shadow:
-        0 5px 0 #24ad83,
-        0 8px 14px rgba(64, 217, 170, .12),
-        inset 0 2px 0 rgba(255, 255, 255, .7);
-
-    cursor: pointer;
+        0 4px 0 #a00b5c,
+        inset 0 2px 0 rgba(255, 255, 255, 0.4);
 
     transition:
-        transform .16s ease,
-        filter .16s ease,
-        box-shadow .16s ease;
+        transform 0.18s ease,
+        filter 0.18s ease;
 }
 
-.secondary-button:hover {
-    filter: brightness(1.05);
-    transform: translateY(-2px);
+.modal-box button:hover {
+    filter: brightness(1.08);
+
+    transform: translateY(-1px);
 }
 
-.secondary-button:active {
+.modal-box button:active {
     transform: translateY(3px);
 
     box-shadow:
-        0 2px 0 #24ad83,
-        inset 0 1px 0 rgba(255, 255, 255, .4);
+        0 1px 0 #a00b5c;
 }
 
-.secondary-button:disabled {
-    opacity: .45;
-    filter: grayscale(.35);
-    cursor: not-allowed;
 
-    box-shadow: 0 2px 0 #24ad83;
+/* =====================================================
+   17. أزرار إرسال المكافآت وإغلاق النافذة
+===================================================== */
+
+#sendReward {
+    color: #ffffff;
+
+    background:
+        linear-gradient(
+            180deg,
+            #9cff83,
+            #3fdf52 50%,
+            #169d34
+        );
+
+    box-shadow:
+        0 5px 0 #087b23,
+        inset 0 2px 0 rgba(255, 255, 255, 0.5);
 }
 
-/* =========================================================
-   Desktop Hover Effects
-========================================================= */
+#sendReward:active {
+    transform: translateY(4px);
 
-@media (hover: hover) {
-    .setup-form .field {
-        transition: transform .2s ease;
+    box-shadow:
+        0 1px 0 #087b23;
+}
+
+#closeReward {
+    color: #672584;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff,
+            #eadbf3
+        );
+
+    box-shadow:
+        0 4px 0 #b4a0c2,
+        inset 0 2px 0 #ffffff;
+}
+
+
+/* =====================================================
+   18. نجاح إرسال المكافأة
+===================================================== */
+
+.modal-box.success {
+    animation: rewardSuccess 0.8s ease;
+}
+
+@keyframes rewardSuccess {
+    0% {
+        transform: scale(0.88);
     }
 
-    .setup-form .field:focus-within {
-        transform: translateY(-1px);
+    38% {
+        transform: scale(1.06);
+    }
+
+    62% {
+        transform: scale(0.98);
+    }
+
+    100% {
+        transform: scale(1);
     }
 }
 
-/* =========================================================
-   Tablet
-========================================================= */
+.reward-total {
+    margin-top: 18px;
 
-@media (min-width: 700px) {
-    .setup-screen {
-        padding-top: 43px;
+    color: #159e43;
+
+    font-size: clamp(23px, 5vw, 30px);
+    font-weight: 1000;
+
+    text-align: center;
+
+    text-shadow:
+        0 2px 0 rgba(21, 158, 67, 0.1);
+}
+
+
+/* =====================================================
+   19. نافذة الواتساب
+===================================================== */
+
+.whatsapp-box {
+    width: 100%;
+    max-width: 620px;
+
+    margin: 35px auto 22px;
+    padding: 25px 20px;
+
+    text-align: center;
+
+    border: 4px solid #ffffff;
+    border-radius: 27px;
+
+    background:
+        linear-gradient(
+            150deg,
+            #ffffff,
+            #e7fff0
+        );
+
+    box-shadow:
+        0 7px 0 #24985c,
+        0 14px 25px rgba(15, 0, 30, 0.2);
+}
+
+.whatsapp-box h3 {
+    margin-bottom: 10px;
+
+    color: #127d52;
+
+    font-size: clamp(20px, 4vw, 26px);
+    font-weight: 1000;
+    line-height: 1.7;
+}
+
+.whatsapp-box p {
+    margin-bottom: 20px;
+
+    color: #426f5b;
+
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.9;
+}
+
+.whatsapp-btn {
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 9px;
+
+    max-width: 100%;
+
+    padding: 14px 27px;
+
+    border: 3px solid #ffffff;
+    border-radius: 17px;
+
+    color: #ffffff;
+
+    font-size: 17px;
+    font-weight: 1000;
+
+    background:
+        linear-gradient(
+            180deg,
+            #67f78b,
+            #21c96a 55%,
+            #119c50
+        );
+
+    box-shadow:
+        0 5px 0 #08783b,
+        inset 0 2px 0 rgba(255, 255, 255, 0.4);
+
+    transition:
+        transform 0.2s ease,
+        filter 0.2s ease;
+}
+
+.whatsapp-btn:hover {
+    filter: brightness(1.08);
+
+    transform: translateY(-2px);
+}
+
+
+/* =====================================================
+   20. بطاقة الصلاة على النبي ﷺ
+===================================================== */
+
+.salawat-card {
+    width: 100%;
+    max-width: 430px;
+
+    margin: 16px auto 25px;
+    padding: 16px 18px;
+
+    border: 3px solid #ffffff;
+    border-radius: 23px;
+
+    color: #784613;
+
+    background:
+        linear-gradient(
+            145deg,
+            #fffef0,
+            #ffedab 58%,
+            #ffda76
+        );
+
+    box-shadow:
+        0 6px 0 #c6911c,
+        0 12px 21px rgba(15, 0, 30, 0.18),
+        inset 0 2px 0 #ffffff;
+
+    text-align: center;
+
+    font-size: clamp(16px, 3vw, 19px);
+    font-weight: 900;
+    line-height: 2;
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.salawat-card:hover {
+    transform: translateY(-3px);
+
+    box-shadow:
+        0 9px 0 #c6911c,
+        0 15px 25px rgba(15, 0, 30, 0.2),
+        inset 0 2px 0 #ffffff;
+}
+
+
+/* =====================================================
+   21. الجواهر المتحركة
+===================================================== */
+
+.flying-gem {
+    position: fixed;
+
+    z-index: 999999;
+
+    pointer-events: none;
+
+    font-size: 36px;
+
+    filter:
+        drop-shadow(0 4px 5px rgba(0, 0, 0, 0.23));
+
+    animation: flyGem 0.85s ease-out forwards;
+}
+
+@keyframes flyGem {
+    0% {
+        opacity: 1;
+
+        transform:
+            translate(0, 0)
+            scale(0.5)
+            rotate(0);
     }
 
-    .page-header {
-        padding: 36px 25px 33px;
-    }
+    100% {
+        opacity: 0;
 
-    .setup-form {
-        padding: 29px;
-        gap: 22px;
-    }
-
-    .memorization-screen {
-        padding-top: 38px;
-    }
-
-    .ayah-container {
-        min-height: 340px;
-        padding: 42px 32px;
+        transform:
+            translate(var(--x), var(--y))
+            scale(1.35)
+            rotate(360deg);
     }
 }
 
-/* =========================================================
-   Mobile
-========================================================= */
+
+/* =====================================================
+   22. الجوهرة العائمة القابلة للنقر
+===================================================== */
+
+.floating-reward {
+    position: fixed;
+
+    z-index: 9999999;
+
+    font-size: 42px;
+
+    pointer-events: auto;
+
+    user-select: none;
+
+    cursor: pointer;
+
+    transform: translate(-50%, -50%);
+
+    filter:
+        drop-shadow(0 4px 5px rgba(0, 0, 0, 0.25));
+
+    transition:
+        transform 0.15s ease,
+        filter 0.15s ease;
+}
+
+.floating-reward.tap {
+    transform:
+        translate(-50%, -50%)
+        scale(1.25);
+
+    filter:
+        drop-shadow(0 0 12px rgba(255, 223, 72, 0.9));
+}
+
+.reward-spark {
+    position: fixed;
+
+    width: 8px;
+    height: 8px;
+
+    z-index: 10000;
+
+    border-radius: 50%;
+
+    pointer-events: none;
+
+    box-shadow:
+        0 0 8px currentColor,
+        0 0 14px currentColor;
+
+    animation: rewardSpark 0.5s ease-out forwards;
+}
+
+@keyframes rewardSpark {
+    from {
+        opacity: 1;
+
+        transform:
+            translate(0, 0)
+            scale(1);
+    }
+
+    to {
+        opacity: 0;
+
+        transform:
+            translate(var(--dx), var(--dy))
+            scale(0.15);
+    }
+}
+
+canvas.confetti-canvas {
+    z-index: 1000000 !important;
+}
+
+
+/* =====================================================
+   23. إخفاء عناصر الواجهة عند الحاجة
+===================================================== */
+
+.hide-ui {
+    opacity: 0;
+
+    transform: translateY(-10px);
+
+    pointer-events: none;
+
+    transition:
+        opacity 0.25s ease,
+        transform 0.25s ease;
+}
+
+
+/* =====================================================
+   24. مربعات رمز التحقق
+===================================================== */
+
+.code-boxes {
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    flex-wrap: nowrap;
+
+    gap: 10px;
+
+    direction: ltr;
+
+    margin: 18px 0;
+}
+
+.code-digit {
+    flex: 0 1 58px;
+
+    width: 58px;
+    min-width: 0;
+    height: 68px;
+
+    padding: 0;
+
+    border: 3px solid #e9c7f3;
+    border-radius: 15px;
+
+    outline: none;
+
+    text-align: center;
+
+    font-family:
+        "Cairo",
+        Tahoma,
+        Arial,
+        sans-serif;
+
+    font-size: 32px;
+    font-weight: 1000;
+    line-height: 1;
+
+    color: #5b1979;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff,
+            #fff3fd
+        );
+
+    box-shadow:
+        0 4px 0 #bc83d0,
+        inset 0 2px 0 #ffffff;
+
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease;
+
+    -webkit-text-fill-color: #5b1979;
+    caret-color: #e91e91;
+}
+
+.code-digit:focus {
+    border-color: #ef3ba2;
+
+    background: #fff7fd;
+
+    transform: scale(1.06);
+
+    box-shadow:
+        0 4px 0 #b50b78,
+        0 0 0 4px rgba(239, 59, 162, 0.17),
+        inset 0 2px 0 #ffffff;
+
+    font-weight: 1000;
+}
+
+.code-digit.filled {
+    border-color: #d65ce5;
+
+    transform: scale(1.04);
+}
+
+.code-digit.complete {
+    border-color: #39cd70;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff,
+            #e0ffea
+        );
+
+    box-shadow:
+        0 4px 0 #128d42,
+        0 0 12px rgba(57, 205, 112, 0.25);
+
+    animation: successPop 0.45s ease;
+}
+
+.code-boxes.shake {
+    animation: shake 0.35s ease;
+}
+
+.code-boxes.success .code-digit {
+    border-color: #21bb67;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff,
+            #d9ffe7
+        );
+
+    box-shadow:
+        0 4px 0 #128d42,
+        0 0 16px rgba(22, 179, 100, 0.3);
+
+    animation: successPop 0.45s ease;
+}
+
+@keyframes shake {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    20% {
+        transform: translateX(-6px);
+    }
+
+    40% {
+        transform: translateX(6px);
+    }
+
+    60% {
+        transform: translateX(-6px);
+    }
+
+    80% {
+        transform: translateX(6px);
+    }
+}
+
+@keyframes successPop {
+    0% {
+        transform: scale(0.9);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+
+/* =====================================================
+   25. التذييل
+===================================================== */
+
+footer {
+    margin: 35px 0 12px;
+    padding: 22px 18px;
+
+    border: 3px solid rgba(255, 255, 255, 0.6);
+    border-radius: 24px;
+
+    color: #ffffff;
+
+    background:
+        linear-gradient(
+            145deg,
+            #9f35e5,
+            #5d11a1 60%,
+            #38065f
+        );
+
+    box-shadow:
+        0 6px 0 #27003e,
+        0 12px 22px rgba(0, 0, 0, 0.22),
+        inset 0 2px 0 rgba(255, 255, 255, 0.25);
+
+    text-align: center;
+
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.9;
+}
+
+
+/* =====================================================
+   26. الاستجابة للأجهزة اللوحية
+===================================================== */
+
+@media (max-width: 900px) {
+    .container {
+        padding-inline: 16px;
+    }
+
+    .cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+
+        gap: 16px;
+    }
+
+    .statistics {
+        gap: 12px;
+    }
+
+    .stat-card {
+        padding: 18px 12px;
+    }
+
+    .student-card {
+        padding: 17px 13px;
+    }
+}
+
+
+/* =====================================================
+   27. الاستجابة للهواتف
+===================================================== */
 
 @media (max-width: 600px) {
-    .setup-screen {
-        width: min(100% - 24px, 650px);
-        padding-top: 23px;
+    .container {
+        padding: 16px 12px 35px;
     }
 
-    .page-header {
-        margin-bottom: 23px;
-        padding: 26px 15px;
-        border-radius: 27px;
+    .hero {
+        min-height: 230px;
+
+        padding: 26px 13px;
+
+        border-bottom-left-radius: 28px;
+        border-bottom-right-radius: 28px;
     }
 
-    .setup-form {
-        padding: 19px 15px 23px;
-        gap: 18px;
-        border-radius: 26px;
+    .logo {
+        width: min(80%, 220px);
+
+        margin: 12px auto 16px;
     }
 
-    .memorization-screen {
-        width: min(100% - 20px, 960px);
-        padding-top: 20px;
+    .hero-title {
+        width: 98%;
+        max-height: 260px;
     }
 
-    .ayah-container {
-        min-height: 270px;
-        margin-top: 21px;
-        padding: 26px 14px;
-        border-radius: 26px;
+    .hero h1 {
+        padding: 9px 16px;
+
+        font-size: clamp(25px, 7vw, 36px);
+
+        border-radius: 20px;
     }
 
-    .player-controls {
-        gap: 11px;
-        margin-top: 25px;
-    }
-}
-
-@media (max-width: 420px) {
-    .setup-screen {
-        width: min(100% - 20px, 650px);
-        padding-top: 17px;
-    }
-
-    .page-header {
-        padding: 22px 12px;
-        border-radius: 24px;
-    }
-
-    .page-header h1 {
-        font-size: clamp(2rem, 10vw, 2.8rem);
+    .game-title {
+        font-size: clamp(27px, 8vw, 43px);
     }
 
     .subtitle {
-        font-size: .88rem;
+        font-size: 16px;
     }
 
-    .setup-form {
-        padding: 16px 12px 21px;
-        gap: 17px;
-    }
+    .search-box {
+        margin-top: 21px;
 
-    .field label {
-        font-size: .88rem;
-    }
-
-    select,
-    input[type="number"] {
-        min-height: 51px;
-        padding-inline: 11px;
-        font-size: .88rem;
-    }
-
-    .ayah-range {
-        gap: 9px;
-    }
-
-    .primary-button {
-        min-height: 57px;
-        border-radius: 18px;
-        font-size: .98rem;
-    }
-
-    .memorization-header {
-        padding: 13px;
-        gap: 10px;
-        border-radius: 21px;
-    }
-
-    .memorization-header h2 {
-        font-size: 1.25rem;
-    }
-
-    .icon-button {
-        width: 44px;
-        height: 44px;
-        border-radius: 15px;
-    }
-
-    .session-info {
-        gap: 7px;
-        margin-top: 19px;
-    }
-
-    .session-info span {
-        padding: 6px 10px;
-        font-size: .73rem;
-    }
-
-    .ayah-container {
-        min-height: 245px;
-        padding: 24px 12px;
-        border-radius: 23px;
-    }
-
-    .ayah-text {
-        font-size: clamp(1.65rem, 7.4vw, 2.4rem);
-        line-height: 2.15;
-    }
-
-    .player-controls {
-        gap: 9px;
-    }
-
-    .control-button {
-        width: 47px;
-        height: 47px;
-        border-radius: 15px;
-        font-size: 1.1rem;
-    }
-
-    .play-button {
-        width: 57px;
-        height: 57px;
         border-radius: 19px;
-        font-size: 1.35rem;
     }
 
-    .settings-control {
-        margin-inline-start: 0;
+    .search-box input {
+        min-height: 49px;
+
+        padding: 12px 14px;
+
+        font-size: 16px;
     }
 
-    .completion-message {
-        padding: 16px 12px;
-        font-size: 1.1rem;
+    .filters {
+        display: grid;
+
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+
+        gap: 10px;
+
+        margin-block: 20px 25px;
     }
 
-    .download-section {
-        align-items: stretch;
-        flex-direction: column;
-        padding: 16px;
-    }
-
-    .secondary-button {
+    .filter-btn {
         width: 100%;
-    }
-}
+        min-width: 0;
+        min-height: 46px;
 
-@media (max-width: 350px) {
-    .ayah-range {
-        grid-template-columns: minmax(0, 1fr);
+        padding: 10px 8px;
+
+        font-size: 14px;
+
+        border-radius: 15px;
     }
 
-    .player-controls {
+    .statistics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+
+        gap: 8px;
+
+        margin-block: 20px 27px;
+    }
+
+    .stat-card {
+        padding: 13px 7px;
+
+        border-width: 2px;
+        border-radius: 18px;
+    }
+
+    .stat-icon {
+        font-size: 27px;
+    }
+
+    .stat-card h3 {
+        font-size: 12px;
+    }
+
+    .stat-card p {
+        font-size: clamp(17px, 4.5vw, 24px);
+    }
+
+    .cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+
+        gap: 12px;
+    }
+
+    .student-card {
+        padding: 12px 9px 14px;
+
+        border-width: 2px;
+        border-radius: 19px;
+    }
+
+    .student-name {
+        margin-bottom: 12px;
+        padding: 8px 6px;
+
+        border-radius: 12px;
+
+        font-size: 15px;
+        line-height: 1.75;
+    }
+
+    .student-info {
+        gap: 5px;
+
+        margin-top: 8px;
+        padding: 8px 7px;
+
+        border-radius: 11px;
+
+        font-size: 11px;
+    }
+
+    .points {
+        min-width: 47px;
+        min-height: 32px;
+
+        padding: 4px 7px;
+
+        border-radius: 10px;
+
+        font-size: 15px;
+    }
+
+    .rank {
+        min-width: 31px;
+        min-height: 31px;
+
+        font-size: 14px;
+    }
+
+    .reward-btn {
+        padding: 14px;
+
+        border-radius: 18px;
+
+        font-size: 18px;
+    }
+
+    .modal {
+        padding: 14px;
+    }
+
+    .modal-box {
+        padding: 22px 17px;
+
+        border-width: 4px;
+        border-radius: 25px;
+    }
+
+    .whatsapp-box {
+        margin-block: 28px 18px;
+        padding: 20px 14px;
+
+        border-radius: 22px;
+    }
+
+    footer {
+        margin-top: 28px;
+        padding: 18px 12px;
+
+        font-size: 14px;
+    }
+
+    .floating-reward-btn {
+        bottom: 15px;
+
+        min-height: 53px;
+
+        padding: 10px 17px;
+
+        font-size: 16px;
+    }
+
+    .floating-reward-btn img {
+        width: 25px;
+        height: 25px;
+    }
+
+    .code-boxes {
         gap: 7px;
     }
 
-    .control-button {
-        width: 43px;
-        height: 43px;
-    }
+    .code-digit {
+        flex-basis: 51px;
 
-    .play-button {
-        width: 51px;
-        height: 51px;
-    }
+        height: 59px;
 
-    .session-info span {
-        font-size: .68rem;
-        padding-inline: 8px;
+        font-size: 27px;
     }
 }
 
-/* =========================================================
-   Reduced Motion — Accessibility
-========================================================= */
+
+/* =====================================================
+   28. الهواتف الصغيرة جدًا
+===================================================== */
+
+@media (max-width: 360px) {
+    .container {
+        padding-inline: 9px;
+    }
+
+    .cards {
+        gap: 9px;
+    }
+
+    .student-card {
+        padding: 10px 7px;
+    }
+
+    .student-name {
+        font-size: 13px;
+    }
+
+    .student-info {
+        padding: 7px 5px;
+
+        font-size: 10px;
+    }
+
+    .points {
+        min-width: 41px;
+
+        padding-inline: 5px;
+
+        font-size: 13px;
+    }
+
+    .statistics {
+        gap: 6px;
+    }
+
+    .stat-card {
+        padding-inline: 4px;
+    }
+
+    .stat-card h3 {
+        font-size: 10px;
+    }
+
+    .stat-card p {
+        font-size: 16px;
+    }
+
+    .code-boxes {
+        gap: 5px;
+    }
+
+    .code-digit {
+        flex-basis: 44px;
+
+        height: 53px;
+
+        font-size: 24px;
+    }
+}
+
+
+/* =====================================================
+   29. دعم تقليل الحركة
+===================================================== */
 
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
     *::after {
         scroll-behavior: auto !important;
-        animation-duration: .01ms !important;
+
+        animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
-        transition-duration: .01ms !important;
+
+        transition-duration: 0.01ms !important;
     }
 }
