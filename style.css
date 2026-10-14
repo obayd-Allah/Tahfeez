@@ -1,13 +1,10 @@
-/* =========================================
-   Tahfeez
-   Base Styles
-========================================= */
+/* =========================================================
+   Tahfeez — Adventure UI
+   تصميم مستوحى من ألعاب المغامرات الهادئة
+   يحافظ على أسماء الأصناف الحالية حتى لا ينكسر JavaScript
+========================================================= */
 
-/* =========================================
-   Quran Font — Scheherazade New
-========================================= */
-
-
+/* Quran font */
 @font-face {
     font-family: "Scheherazade New";
     src: url("./fonts/ScheherazadeNew-Regular.woff2") format("woff2");
@@ -17,54 +14,80 @@
 }
 
 :root {
-    --bg: #0d1512;
-    --surface: #14201b;
-    --surface-2: #1a2922;
-    --surface-3: #20332a;
+    color-scheme: dark;
 
-    --text: #f4f1e8;
-    --muted: #aeb9b2;
+    --bg: #081410;
+    --bg-2: #0d2119;
+    --surface: #10251c;
+    --surface-2: #173429;
+    --surface-3: #214635;
+    --surface-glass: rgba(18, 43, 32, 0.86);
 
-    --primary: #d9b96e;
-    --primary-dark: #b9974f;
+    --text: #fff9e9;
+    --muted: #b9cbbd;
 
-    --border: rgba(255, 255, 255, 0.09);
-    --danger: #d97979;
+    --primary: #ffd36e;
+    --primary-light: #fff0ad;
+    --primary-dark: #c18a2d;
+    --mint: #6fe0b4;
+    --cyan: #83e7e0;
+    --danger: #ff8585;
 
-    --radius-small: 12px;
-    --radius-medium: 18px;
-    --radius-large: 26px;
+    --border: rgba(255, 244, 205, 0.14);
+    --border-gold: rgba(255, 211, 110, 0.42);
 
-    --shadow:
-        0 18px 50px rgba(0, 0, 0, 0.25);
+    --radius-small: 14px;
+    --radius-medium: 21px;
+    --radius-large: 30px;
+
+    --shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.23);
+    --shadow-card: 0 18px 38px rgba(0, 0, 0, 0.30);
+    --shadow-gold: 0 7px 0 #865c20, 0 12px 28px rgba(255, 188, 64, 0.18);
+
+    --ease-out: cubic-bezier(.2, .8, .2, 1);
 }
 
-
-/* =========================================
-   Reset
-========================================= */
-
-* {
+/* Reset */
+*,
+*::before,
+*::after {
     box-sizing: border-box;
-    margin: 0;
-    padding: 0;
 }
 
 html {
     min-height: 100%;
     background: var(--bg);
+    scroll-behavior: smooth;
 }
 
 body {
+    position: relative;
     min-height: 100vh;
+    margin: 0;
+    overflow-x: hidden;
 
     background:
         radial-gradient(
-            circle at top,
-            rgba(217, 185, 110, 0.07),
-            transparent 34%
+            ellipse at 12% 7%,
+            rgba(36, 143, 104, .20),
+            transparent 31rem
         ),
-        var(--bg);
+        radial-gradient(
+            ellipse at 92% 27%,
+            rgba(31, 111, 102, .15),
+            transparent 29rem
+        ),
+        radial-gradient(
+            ellipse at 52% 100%,
+            rgba(202, 145, 47, .09),
+            transparent 34rem
+        ),
+        linear-gradient(
+            160deg,
+            #0b1c15 0%,
+            #081410 54%,
+            #0a1b15 100%
+        );
 
     color: var(--text);
 
@@ -75,12 +98,70 @@ body {
         sans-serif;
 
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
+/* Ambient stars and colored light — decorative only */
+body::before {
+    content: "";
 
-/* =========================================
-   General
-========================================= */
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+
+    pointer-events: none;
+    opacity: .46;
+
+    background-image:
+        radial-gradient(
+            circle,
+            rgba(255, 226, 148, .8) 0 1px,
+            transparent 1.8px
+        ),
+        radial-gradient(
+            circle,
+            rgba(111, 224, 180, .6) 0 1px,
+            transparent 1.8px
+        ),
+        radial-gradient(
+            circle,
+            rgba(255, 255, 255, .45) 0 1px,
+            transparent 1.8px
+        );
+
+    background-size:
+        97px 113px,
+        149px 171px,
+        211px 193px;
+
+    background-position:
+        12px 9px,
+        46px 57px,
+        91px 30px;
+
+    animation: star-drift 32s linear infinite;
+}
+
+body::after {
+    content: "";
+
+    position: fixed;
+    z-index: 0;
+    pointer-events: none;
+
+    width: 26rem;
+    height: 26rem;
+
+    right: -16rem;
+    top: 28%;
+
+    border-radius: 50%;
+
+    background: rgba(52, 190, 135, .08);
+    filter: blur(18px);
+
+    animation: aura-float 9s ease-in-out infinite alternate;
+}
 
 button,
 input,
@@ -95,47 +176,106 @@ button {
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 3px;
+    outline: 3px solid var(--primary-light);
+    outline-offset: 4px;
 }
 
 .hidden {
     display: none !important;
 }
 
+/* App shell */
+.app,
+.screen {
+    position: relative;
+    z-index: 1;
 
-/* =========================================
-   App
-========================================= */
+    width: 100%;
+    min-height: 100vh;
+}
 
 .app {
-    width: 100%;
-    min-height: 100vh;
+    isolation: isolate;
 }
 
-.screen {
-    width: 100%;
-    min-height: 100vh;
-}
-
-
-/* =========================================
-   Setup Screen
-========================================= */
-
+/* Setup screen */
 .setup-screen {
-    width: min(100% - 32px, 620px);
+    position: relative;
+
+    width: min(100% - 32px, 650px);
 
     margin-inline: auto;
+    padding: 42px 0 68px;
 
-    padding:
-        42px
-        0
-        60px;
+    animation: screen-arrive .65s var(--ease-out) both;
+}
+
+.setup-screen::before {
+    content: "";
+
+    position: absolute;
+    z-index: -1;
+
+    top: 82px;
+    left: 50%;
+
+    width: min(112%, 740px);
+    height: 340px;
+
+    transform: translateX(-50%);
+
+    border-radius: 48%;
+
+    background:
+        radial-gradient(
+            ellipse,
+            rgba(30, 110, 77, .18),
+            transparent 68%
+        );
+
+    pointer-events: none;
 }
 
 .page-header {
-    margin-bottom: 32px;
+    position: relative;
+
+    margin-bottom: 30px;
+
+    text-align: center;
+
+    animation: header-arrive .8s var(--ease-out) both;
+}
+
+.page-header::before {
+    content: "✦  رحلة الحفظ  ✦";
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 31px;
+    margin-bottom: 14px;
+    padding: 5px 15px;
+
+    border: 1px solid rgba(255, 211, 110, .25);
+    border-radius: 999px;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255, 211, 110, .13),
+            rgba(255, 211, 110, .04)
+        );
+
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.08),
+        0 6px 22px rgba(0,0,0,.12);
+
+    color: var(--primary-light);
+
+    font-size: .79rem;
+    font-weight: 800;
+    letter-spacing: .04em;
 }
 
 .eyebrow {
@@ -143,125 +283,251 @@ select:focus-visible {
 
     color: var(--primary);
 
-    font-size: 0.82rem;
-    font-weight: 600;
+    font-size: .88rem;
+    font-weight: 700;
+
+    text-shadow: 0 0 18px rgba(255, 211, 110, .18);
 }
 
 .page-header h1 {
-    font-size: clamp(2rem, 8vw, 3rem);
-    line-height: 1.15;
+    position: relative;
+    display: inline-block;
+
+    font-size: clamp(2.15rem, 8vw, 3.35rem);
+    font-weight: 900;
+    line-height: 1.2;
+    letter-spacing: -.035em;
+
+    color: #fff8df;
+
+    text-shadow:
+        0 3px 0 rgba(121, 81, 24, .65),
+        0 7px 25px rgba(255, 201, 83, .13);
+}
+
+.page-header h1::after {
+    content: "";
+
+    display: block;
+
+    width: 62%;
+    height: 4px;
+
+    margin: 10px auto 0;
+
+    border-radius: 99px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            var(--primary),
+            var(--mint),
+            transparent
+        );
+
+    opacity: .8;
 }
 
 .subtitle {
-    margin-top: 10px;
+    max-width: 37rem;
+
+    margin: 13px auto 0;
 
     color: var(--muted);
 
-    font-size: 0.95rem;
+    font-size: .97rem;
+    line-height: 1.9;
 }
 
-
-/* =========================================
-   Setup Form
-========================================= */
-
+/* Setup form becomes a quest panel */
 .setup-form {
+    position: relative;
+
     display: flex;
     flex-direction: column;
+    gap: 17px;
 
-    gap: 18px;
+    padding: clamp(17px, 4vw, 27px);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-large);
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.045),
+            transparent 35%
+        ),
+        linear-gradient(
+            155deg,
+            rgba(20, 52, 39, .94),
+            rgba(10, 29, 21, .96)
+        );
+
+    box-shadow:
+        var(--shadow-card),
+        inset 0 1px 0 rgba(255,255,255,.055);
+
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.setup-form::before,
+.setup-form::after {
+    content: "✦";
+
+    position: absolute;
+
+    color: rgba(255, 211, 110, .6);
+
+    font-size: 1rem;
+
+    pointer-events: none;
+
+    animation: sparkle 3.5s ease-in-out infinite;
+}
+
+.setup-form::before {
+    top: 14px;
+    left: 17px;
+}
+
+.setup-form::after {
+    right: 17px;
+    bottom: 14px;
+
+    animation-delay: 1.3s;
 }
 
 .field {
     display: flex;
     flex-direction: column;
-
     gap: 9px;
+
+    min-width: 0;
 }
 
 .field label {
-    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
 
-    font-size: 0.9rem;
-    font-weight: 600;
+    color: #f5eedb;
+
+    font-size: .92rem;
+    font-weight: 800;
 }
 
+.field label::before {
+    content: "";
 
-/* =========================================
-   Inputs
-========================================= */
+    flex: 0 0 auto;
 
+    width: 7px;
+    height: 7px;
+
+    border-radius: 2px 5px 2px 5px;
+
+    transform: rotate(45deg);
+
+    background: var(--mint);
+
+    box-shadow: 0 0 12px rgba(111, 224, 180, .28);
+}
+
+/* Inputs */
 select,
 input[type="number"] {
     width: 100%;
-    min-height: 52px;
+    min-height: 54px;
 
-    padding:
-        0
-        15px;
+    padding: 0 15px;
 
-    border: 1px solid var(--border);
-    border-radius: var(--radius-small);
+    border: 1px solid rgba(192, 224, 202, .16);
+    border-radius: 15px;
 
-    background: var(--surface);
+    background-color: rgba(5, 20, 14, .70);
     color: var(--text);
 
+    box-shadow:
+        inset 0 2px 7px rgba(0,0,0,.2),
+        0 1px 0 rgba(255,255,255,.025);
+
     transition:
-        border-color 160ms ease,
-        background 160ms ease;
+        border-color .2s ease,
+        box-shadow .2s ease,
+        background .2s ease,
+        transform .2s ease;
 }
 
 select {
-    appearance: auto;
+    cursor: pointer;
+    color-scheme: dark;
+}
+
+select option {
+    background: #10251c;
+    color: var(--text);
+}
+
+select:hover:not(:disabled),
+input[type="number"]:hover:not(:disabled) {
+    border-color: rgba(255, 211, 110, .43);
+    background-color: rgba(8, 28, 19, .92);
+}
+
+select:focus,
+input[type="number"]:focus {
+    border-color: var(--primary);
+
+    box-shadow:
+        0 0 0 3px rgba(255, 211, 110, .11),
+        inset 0 2px 7px rgba(0,0,0,.15);
 }
 
 select:disabled,
 input:disabled {
-    opacity: 0.45;
+    opacity: .46;
     cursor: not-allowed;
 }
 
-select:not(:disabled):focus,
-input:not(:disabled):focus {
-    border-color: var(--primary);
-}
-
-
-/* =========================================
-   Ayah Range
-========================================= */
-
+/* Ayah range */
 .ayah-range {
     display: grid;
 
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(0, 1fr);
 
     gap: 12px;
 }
 
-
-/* =========================================
-   Labels + Output
-========================================= */
-
+/* Labels and output */
 .label-row {
     display: flex;
-
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
 }
 
 .label-row output {
-    color: var(--primary);
+    min-width: 34px;
 
-    font-weight: 700;
+    padding: 3px 10px;
+
+    border: 1px solid rgba(255, 211, 110, .22);
+    border-radius: 999px;
+
+    background: rgba(255, 211, 110, .09);
+
+    color: var(--primary-light);
+
+    font-weight: 900;
+    text-align: center;
 }
 
-
-/* =========================================
-   Range
-========================================= */
-
+/* Range slider */
 .range {
     width: 100%;
 
@@ -270,43 +536,83 @@ input:not(:disabled):focus {
     cursor: pointer;
 }
 
+.range::-webkit-slider-runnable-track {
+    height: 7px;
+
+    border-radius: 999px;
+
+    background:
+        linear-gradient(
+            90deg,
+            #317e5b,
+            #7de0b6 58%,
+            #ffd36e
+        );
+}
+
+.range::-webkit-slider-thumb {
+    margin-top: -5px;
+
+    border: 3px solid #fff6d9;
+
+    box-shadow: 0 2px 9px rgba(0,0,0,.38);
+}
+
 .range-labels {
     display: flex;
-
     justify-content: space-between;
 
     color: var(--muted);
 
-    font-size: 0.76rem;
+    font-size: .76rem;
 }
 
-
-/* =========================================
-   Teacher Mode
-========================================= */
-
+/* Teacher mode card */
 .teacher-option {
-    min-height: 70px;
+    position: relative;
 
     display: flex;
-
     align-items: center;
     justify-content: space-between;
-
     gap: 15px;
 
-    padding: 15px 17px;
+    min-height: 76px;
 
-    border: 1px solid var(--border);
+    padding: 16px 17px;
+
+    overflow: hidden;
+
+    border: 1px solid rgba(111, 224, 180, .18);
     border-radius: var(--radius-medium);
 
-    background: var(--surface);
+    background:
+        linear-gradient(
+            115deg,
+            rgba(111,224,180,.075),
+            transparent 58%
+        ),
+        rgba(5, 20, 14, .48);
+
+    transition:
+        border-color .22s ease,
+        transform .22s ease,
+        background .22s ease;
+}
+
+.teacher-option:hover {
+    transform: translateY(-2px);
+
+    border-color: rgba(111, 224, 180, .42);
+
+    background-color: rgba(13, 43, 29, .76);
 }
 
 .teacher-option strong {
     display: block;
 
-    margin-bottom: 4px;
+    margin-bottom: 5px;
+
+    color: #fff6df;
 }
 
 .teacher-option span:not(.switch-slider) {
@@ -314,32 +620,31 @@ input:not(:disabled):focus {
 
     color: var(--muted);
 
-    font-size: 0.78rem;
+    font-size: .78rem;
+    line-height: 1.6;
 }
 
 .teacher-option.is-disabled {
-    opacity: 0.65;
+    opacity: .62;
 }
 
-
-/* =========================================
-   Switch
-========================================= */
-
+/* Switch */
 .switch {
     position: relative;
 
     flex: 0 0 auto;
 
-    width: 50px;
-    height: 29px;
+    width: 52px;
+    height: 30px;
 
     cursor: pointer;
 }
 
 .switch input {
-    width: 0;
-    height: 0;
+    position: absolute;
+
+    width: 1px;
+    height: 1px;
 
     opacity: 0;
 }
@@ -348,12 +653,16 @@ input:not(:disabled):focus {
     position: absolute;
     inset: 0;
 
+    border: 1px solid rgba(255,255,255,.08);
     border-radius: 999px;
 
-    background: var(--surface-3);
+    background: #263b30;
+
+    box-shadow: inset 0 2px 5px rgba(0,0,0,.28);
 
     transition:
-        background 180ms ease;
+        background .22s ease,
+        box-shadow .22s ease;
 }
 
 .switch-slider::before {
@@ -361,333 +670,730 @@ input:not(:disabled):focus {
 
     position: absolute;
 
-    width: 21px;
-    height: 21px;
+    top: 3px;
+    right: 3px;
 
-    top: 4px;
-    right: 4px;
+    width: 22px;
+    height: 22px;
 
     border-radius: 50%;
 
-    background: var(--muted);
+    background: #b9cbbd;
+
+    box-shadow: 0 2px 5px rgba(0,0,0,.26);
 
     transition:
-        transform 180ms ease,
-        background 180ms ease;
+        transform .22s var(--ease-out),
+        background .22s ease;
 }
 
 .switch input:checked + .switch-slider {
-    background: var(--primary-dark);
+    background: linear-gradient(135deg, #207b57, #43bd85);
+
+    box-shadow:
+        0 0 0 3px rgba(67,189,133,.11),
+        inset 0 1px 2px rgba(255,255,255,.15);
 }
 
 .switch input:checked + .switch-slider::before {
-    transform: translateX(-21px);
+    transform: translateX(-22px);
 
-    background: var(--text);
+    background: #fff8df;
 }
 
+.switch input:focus-visible + .switch-slider {
+    outline: 3px solid var(--primary-light);
+    outline-offset: 4px;
+}
 
-/* =========================================
-   Availability Message
-========================================= */
-
+/* Availability message */
 .availability-message {
     padding: 14px 16px;
 
-    border: 1px solid rgba(217, 121, 121, 0.25);
+    border: 1px solid rgba(255, 133, 133, .30);
     border-radius: var(--radius-small);
 
-    background: rgba(217, 121, 121, 0.08);
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255,133,133,.10),
+            rgba(255,133,133,.035)
+        );
 
-    color: #f0c5c5;
+    color: #ffd3d3;
 
-    font-size: 0.88rem;
+    font-size: .88rem;
+    line-height: 1.8;
 
-    line-height: 1.7;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
 }
 
-
-/* =========================================
-   Primary Button
-========================================= */
-
+/* Main quest button — raised, glossy, game-like */
 .primary-button {
+    position: relative;
+    isolation: isolate;
+
     width: 100%;
-    min-height: 56px;
+    min-height: 60px;
 
     margin-top: 5px;
+    padding: 13px 52px;
 
-    border-radius: var(--radius-medium);
+    overflow: hidden;
 
-    background: var(--primary);
-    color: #17130a;
+    border: 1px solid rgba(255, 247, 206, .66);
+    border-radius: 18px;
 
-    font-weight: 800;
+    background:
+        linear-gradient(
+            180deg,
+            #ffe9a0 0%,
+            #ffd36e 40%,
+            #eab34b 100%
+        );
+
+    color: #2b1d08;
+
+    font-weight: 900;
+    font-size: 1.02rem;
 
     cursor: pointer;
 
+    box-shadow:
+        var(--shadow-gold),
+        inset 0 2px 0 rgba(255,255,255,.72),
+        inset 0 -3px 0 rgba(143,91,20,.18);
+
+    text-shadow: 0 1px 0 rgba(255,255,255,.25);
+
     transition:
-        transform 150ms ease,
-        background 150ms ease,
-        opacity 150ms ease;
+        transform .18s var(--ease-out),
+        filter .18s ease,
+        box-shadow .18s ease;
+}
+
+.primary-button::before {
+    content: "";
+
+    position: absolute;
+    z-index: -1;
+
+    top: -65%;
+    left: -35%;
+
+    width: 28%;
+    height: 230%;
+
+    transform: rotate(24deg);
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(255,255,255,.54),
+            transparent
+        );
+
+    transition: left .6s ease;
+}
+
+.primary-button::after {
+    content: "✦";
+
+    position: absolute;
+
+    top: 50%;
+    right: 19px;
+
+    transform: translateY(-50%);
+
+    color: rgba(113, 73, 18, .82);
+
+    font-size: 1.25rem;
+
+    text-shadow: 0 1px 0 rgba(255,255,255,.35);
 }
 
 .primary-button:not(:disabled):hover {
-    background: #e3c47b;
+    filter: brightness(1.06) saturate(1.08);
+
+    transform: translateY(-3px);
+
+    box-shadow:
+        0 10px 0 #865c20,
+        0 17px 32px rgba(255,188,64,.22),
+        inset 0 2px 0 rgba(255,255,255,.78);
+}
+
+.primary-button:not(:disabled):hover::before {
+    left: 125%;
 }
 
 .primary-button:not(:disabled):active {
-    transform: scale(0.98);
+    transform: translateY(4px) scale(.99);
+
+    box-shadow:
+        0 2px 0 #865c20,
+        0 5px 13px rgba(0,0,0,.22),
+        inset 0 2px 0 rgba(255,255,255,.42);
 }
 
 .primary-button:disabled {
-    opacity: 0.35;
+    filter: grayscale(.55);
+    opacity: .43;
+
     cursor: not-allowed;
+
+    box-shadow:
+        0 4px 0 #4a4d38,
+        inset 0 1px 0 rgba(255,255,255,.24);
 }
 
-
-/* =========================================
-   Memorization Screen
-========================================= */
-
+/* Memorization screen */
 .memorization-screen {
-    width: min(100% - 24px, 900px);
+    width: min(100% - 28px, 940px);
 
     margin-inline: auto;
 
     display: flex;
     flex-direction: column;
 
-    padding:
-        28px
-        0
-        40px;
+    padding: 28px 0 44px;
+
+    animation: screen-arrive .55s var(--ease-out) both;
 }
 
-
-/* =========================================
-   Memorization Header
-========================================= */
-
+/* Memorization header */
 .memorization-header {
-    display: flex;
+    position: relative;
 
+    display: flex;
     align-items: center;
     justify-content: space-between;
-
     gap: 16px;
+
+    padding: 0 0 18px;
+
+    border-bottom: 1px solid rgba(255, 211, 110, .18);
 }
 
 .memorization-header h2 {
-    font-size: clamp(1.35rem, 5vw, 2rem);
+    margin: 0;
+
+    font-size: clamp(1.35rem, 5vw, 2.05rem);
+    font-weight: 900;
+    line-height: 1.4;
+
+    color: #fff5d7;
+
+    text-shadow: 0 3px 16px rgba(255,211,110,.08);
 }
 
-
-/* =========================================
-   Icon Button
-========================================= */
-
+/* Round icon button */
 .icon-button {
+    position: relative;
+
+    flex: 0 0 auto;
+
     width: 48px;
     height: 48px;
 
     display: grid;
     place-items: center;
 
-    border: 1px solid var(--border);
-    border-radius: 50%;
+    border: 1px solid rgba(255, 238, 190, .18);
+    border-radius: 16px;
 
-    background: var(--surface);
+    background: linear-gradient(145deg, #1b3c2d, #10251b);
+
     color: var(--text);
 
     font-size: 1.2rem;
 
     cursor: pointer;
 
-    transition:
-        transform 150ms ease,
-        background 150ms ease;
-}
+    box-shadow:
+        0 5px 0 #08150e,
+        0 9px 17px rgba(0,0,0,.2),
+        inset 0 1px 0 rgba(255,255,255,.08);
 
-.icon-button:active {
-    transform: scale(0.94);
+    transition:
+        transform .17s var(--ease-out),
+        border-color .17s ease,
+        background .17s ease,
+        box-shadow .17s ease;
 }
 
 .icon-button:hover {
-    background: var(--surface-2);
+    transform: translateY(-2px);
+
+    border-color: var(--border-gold);
+
+    background: linear-gradient(145deg, #28543e, #173629);
 }
 
+.icon-button:active {
+    transform: translateY(3px);
 
-/* =========================================
-   Session Info
-========================================= */
+    box-shadow:
+        0 1px 0 #08150e,
+        inset 0 1px 0 rgba(255,255,255,.05);
+}
 
+/* Session badges */
 .session-info {
     display: flex;
-
-    justify-content: center;
-
-    gap: 10px;
-
-    margin-top: 30px;
-}
-
-.session-info span {
-    padding: 7px 12px;
-
-    border-radius: 999px;
-
-    background: var(--surface);
-
-    color: var(--muted);
-
-    font-size: 0.76rem;
-}
-
-
-/* =========================================
-   Ayah
-========================================= */
-
-.ayah-container {
-    min-height: 300px;
-
-    display: flex;
-
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
 
-    margin-top: 24px;
-    padding: 30px 18px;
+    gap: 9px;
 
-    border: 1px solid var(--border);
+    margin-top: 23px;
+}
+
+.session-info span {
+    position: relative;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+
+    padding: 8px 13px;
+
+    border: 1px solid rgba(255, 211, 110, .16);
+    border-radius: 999px;
+
+    background:
+        linear-gradient(
+            180deg,
+            rgba(255,211,110,.075),
+            rgba(255,211,110,.025)
+        );
+
+    color: #e9e3d1;
+
+    font-size: .78rem;
+
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+.session-info span::before {
+    content: "✦";
+
+    color: var(--primary);
+
+    font-size: .72rem;
+}
+
+/* Quran verse stage — restrained so the ayah remains the focus */
+.ayah-container {
+    position: relative;
+    isolation: isolate;
+
+    min-height: 300px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin-top: 25px;
+
+    padding:
+        clamp(32px, 6vw, 54px)
+        clamp(18px, 4vw, 38px);
+
+    overflow: hidden;
+
+    border: 1px solid rgba(255, 211, 110, .25);
     border-radius: var(--radius-large);
 
     background:
         radial-gradient(
-            circle at center,
-            rgba(217, 185, 110, 0.05),
-            transparent 65%
+            ellipse at center,
+            rgba(255,211,110,.085),
+            transparent 63%
         ),
-        var(--surface);
+        radial-gradient(
+            ellipse at 0% 0%,
+            rgba(111,224,180,.10),
+            transparent 45%
+        ),
+        linear-gradient(
+            145deg,
+            rgba(22, 51, 38, .98),
+            rgba(10, 27, 20, .98)
+        );
 
-    box-shadow: var(--shadow);
+    box-shadow:
+        0 21px 45px rgba(0,0,0,.30),
+        inset 0 1px 0 rgba(255,255,255,.065),
+        inset 0 -1px 0 rgba(255,211,110,.07);
+}
+
+.ayah-container::before {
+    content: "";
+
+    position: absolute;
+    z-index: -1;
+
+    inset: 9px;
+
+    border: 1px solid rgba(255, 211, 110, .105);
+    border-radius: calc(var(--radius-large) - 9px);
+
+    pointer-events: none;
+}
+
+.ayah-container::after {
+    content: "✧";
+
+    position: absolute;
+
+    top: 11px;
+    right: 18px;
+
+    color: rgba(255, 220, 137, .56);
+
+    font-size: 1.35rem;
+
+    text-shadow: 0 0 17px rgba(255,211,110,.22);
+
+    animation: sparkle 4s ease-in-out infinite;
+
+    pointer-events: none;
 }
 
 .ayah-text {
-    max-width: 760px;
+    position: relative;
 
-    color: var(--text);
+    max-width: 780px;
+    margin: 0;
 
-    /* الخط الجديد للنص القرآني */
+    color: #fff9e8;
+
     font-family: "Scheherazade New", serif;
 
-    font-size: clamp(1.65rem, 7vw, 3rem);
-
+    font-size: clamp(1.75rem, 6.5vw, 3.15rem);
+    font-weight: 400;
     line-height: 2.25;
 
     text-align: center;
-
     direction: rtl;
+
+    overflow-wrap: normal;
+    word-break: normal;
+
+    text-shadow: 0 2px 16px rgba(255, 239, 192, .07);
 }
 
+.ayah-number {
+    display: inline-block;
 
-/* =========================================
-   Player Controls
-========================================= */
+    margin-inline: .12em;
 
-/*
-    مهم:
-    أزرار التحكم والإعدادات في صف واحد.
-*/
+    color: var(--primary-light);
 
+    font-family: "Scheherazade New", serif;
+
+    font-size: .72em;
+
+    white-space: nowrap;
+
+    text-shadow: 0 0 13px rgba(255,211,110,.19);
+}
+
+/* Player controls */
 .player-controls {
     display: flex;
-
     align-items: center;
     justify-content: center;
+    flex-wrap: wrap;
 
-    gap: 10px;
+    gap: 12px;
 
-    margin-top: 22px;
+    margin-top: 26px;
 }
 
 .control-button {
-    width: 52px;
-    height: 52px;
+    position: relative;
+
+    flex: 0 0 auto;
+
+    width: 55px;
+    height: 55px;
 
     display: grid;
     place-items: center;
 
-    border: 1px solid var(--border);
-    border-radius: 16px;
+    border: 1px solid rgba(255, 239, 191, .15);
+    border-radius: 17px;
 
-    background: var(--surface);
-    color: var(--text);
+    background: linear-gradient(145deg, #1c3c2d 0%, #10251b 100%);
+
+    color: #f9f4e6;
 
     font-size: 1.2rem;
 
     cursor: pointer;
 
+    box-shadow:
+        0 5px 0 #07140d,
+        0 10px 18px rgba(0,0,0,.22),
+        inset 0 1px 0 rgba(255,255,255,.07);
+
     transition:
-        transform 150ms ease,
-        background 150ms ease,
-        border-color 150ms ease;
+        transform .17s var(--ease-out),
+        color .17s ease,
+        border-color .17s ease,
+        background .17s ease,
+        box-shadow .17s ease;
 }
 
 .control-button:hover {
-    background: var(--surface-2);
+    transform: translateY(-3px);
 
-    border-color:
-        rgba(217, 185, 110, 0.35);
+    border-color: rgba(255,211,110,.46);
+
+    background: linear-gradient(145deg, #28553e, #163426);
+
+    color: var(--primary-light);
 }
 
 .control-button:active {
-    transform: scale(0.93);
+    transform: translateY(3px) scale(.98);
+
+    box-shadow:
+        0 1px 0 #07140d,
+        inset 0 1px 0 rgba(255,255,255,.05);
 }
 
 .play-button {
-    width: 60px;
-    height: 60px;
+    width: 68px;
+    height: 68px;
 
-    border-radius: 18px;
+    border: 1px solid rgba(255, 248, 212, .72);
+    border-radius: 22px;
 
-    background: var(--primary);
-    color: #17130a;
+    background:
+        linear-gradient(
+            180deg,
+            #fff0a8 0%,
+            #ffd36e 44%,
+            #e9ad3c 100%
+        );
 
-    font-size: 1.3rem;
+    color: #2b1b05;
+
+    font-size: 1.48rem;
+
+    box-shadow:
+        0 7px 0 #875c20,
+        0 12px 24px rgba(255,188,64,.16),
+        inset 0 2px 0 rgba(255,255,255,.72);
 }
 
 .play-button:hover {
-    background: #e3c47b;
+    background:
+        linear-gradient(
+            180deg,
+            #fff5bd 0%,
+            #ffe08a 48%,
+            #f4bd53 100%
+        );
+
+    color: #201303;
+
+    box-shadow:
+        0 9px 0 #875c20,
+        0 17px 28px rgba(255,188,64,.24),
+        inset 0 2px 0 rgba(255,255,255,.8);
+}
+
+.play-button:active {
+    transform: translateY(4px) scale(.98);
+
+    box-shadow:
+        0 2px 0 #875c20,
+        0 5px 11px rgba(0,0,0,.2);
 }
 
 .settings-control {
-    margin-inline-start: 5px;
+    margin-inline-start: 4px;
 }
 
-
-/* =========================================
-   Completion
-========================================= */
-
+/* Completion moment */
 .completion-message {
-    margin-top: 28px;
+    position: relative;
 
-    color: var(--primary);
+    margin-top: 28px;
+    padding: 18px 20px;
+
+    border: 1px solid rgba(255, 211, 110, .30);
+    border-radius: var(--radius-medium);
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255,211,110,.13),
+            rgba(111,224,180,.07)
+        );
+
+    color: var(--primary-light);
 
     font-size: 1.25rem;
-    font-weight: 800;
+    font-weight: 900;
+    line-height: 1.8;
 
     text-align: center;
 
-    animation: completion-in 350ms ease both;
+    box-shadow:
+        0 12px 28px rgba(0,0,0,.17),
+        inset 0 1px 0 rgba(255,255,255,.07);
+
+    animation: completion-in .55s var(--ease-out) both;
+}
+
+.completion-message::before {
+    content: "✦  ✧  ✦";
+
+    display: block;
+
+    margin-bottom: 5px;
+
+    color: var(--primary);
+
+    font-size: .95rem;
+    letter-spacing: .35em;
+
+    animation: sparkle 2.8s ease-in-out infinite;
 }
 
 @keyframes completion-in {
     from {
         opacity: 0;
-        transform: translateY(8px);
+        transform: translateY(15px) scale(.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Download card */
+.download-section {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+
+    margin-top: 18px;
+    padding: 17px 18px;
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-medium);
+
+    background:
+        linear-gradient(
+            125deg,
+            rgba(111,224,180,.055),
+            transparent 55%
+        ),
+        rgba(16,37,28,.86);
+
+    box-shadow:
+        var(--shadow-soft),
+        inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+.download-info {
+    min-width: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.download-info strong {
+    color: #fff5dc;
+    font-size: .92rem;
+}
+
+.download-info span {
+    color: var(--muted);
+    font-size: .77rem;
+    line-height: 1.7;
+}
+
+.secondary-button {
+    position: relative;
+
+    flex: 0 0 auto;
+
+    min-height: 46px;
+
+    padding: 0 17px;
+
+    border: 1px solid rgba(255, 211, 110, .34);
+    border-radius: 14px;
+
+    background: linear-gradient(180deg, #234733, #173326);
+
+    color: var(--primary-light);
+
+    font-weight: 800;
+
+    cursor: pointer;
+
+    box-shadow:
+        0 4px 0 #0a1a11,
+        inset 0 1px 0 rgba(255,255,255,.07);
+
+    transition:
+        transform .17s var(--ease-out),
+        background .17s ease,
+        border-color .17s ease,
+        box-shadow .17s ease;
+}
+
+.secondary-button:hover {
+    transform: translateY(-2px);
+
+    border-color: rgba(255, 211, 110, .64);
+
+    background: linear-gradient(180deg, #2d5b40, #1a3a29);
+}
+
+.secondary-button:active {
+    transform: translateY(2px);
+
+    box-shadow: 0 1px 0 #0a1a11;
+}
+
+.secondary-button:disabled {
+    opacity: .42;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Tiny interaction details */
+button:not(:disabled) {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+button:disabled {
+    pointer-events: auto;
+}
+
+/* Motion */
+@keyframes screen-arrive {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
     }
 
     to {
@@ -696,165 +1402,258 @@ input:not(:disabled):focus {
     }
 }
 
+@keyframes header-arrive {
+    from {
+        opacity: 0;
+        transform: translateY(9px);
+    }
 
-/* =========================================
-   Small Phones
-========================================= */
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes sparkle {
+    0%,
+    100% {
+        opacity: .45;
+        filter: brightness(1);
+    }
+
+    50% {
+        opacity: 1;
+        filter: brightness(1.35);
+    }
+}
+
+@keyframes star-drift {
+    from {
+        background-position:
+            12px 9px,
+            46px 57px,
+            91px 30px;
+    }
+
+    to {
+        background-position:
+            109px 122px,
+            -103px 228px,
+            302px -163px;
+    }
+}
+
+@keyframes aura-float {
+    from {
+        transform: translate3d(0, -20px, 0) scale(.9);
+        opacity: .55;
+    }
+
+    to {
+        transform: translate3d(-28px, 30px, 0) scale(1.12);
+        opacity: 1;
+    }
+}
+
+/* Responsive layout */
+@media (max-width: 600px) {
+    .setup-screen {
+        width: min(100% - 22px, 650px);
+
+        padding-top: 27px;
+        padding-bottom: 42px;
+    }
+
+    .page-header {
+        margin-bottom: 22px;
+    }
+
+    .page-header::before {
+        margin-bottom: 10px;
+        font-size: .74rem;
+    }
+
+    .setup-form {
+        gap: 15px;
+        border-radius: 24px;
+    }
+
+    .memorization-screen {
+        width: min(100% - 20px, 940px);
+        padding-top: 18px;
+    }
+
+    .memorization-header {
+        gap: 10px;
+        padding-bottom: 14px;
+    }
+
+    .session-info {
+        gap: 7px;
+        margin-top: 18px;
+    }
+
+    .session-info span {
+        padding: 7px 10px;
+        font-size: .73rem;
+    }
+
+    .ayah-container {
+        min-height: 260px;
+
+        margin-top: 19px;
+        padding: 35px 15px;
+
+        border-radius: 24px;
+    }
+
+    .ayah-text {
+        font-size: clamp(1.7rem, 7.2vw, 2.5rem);
+        line-height: 2.18;
+    }
+
+    .player-controls {
+        gap: 9px;
+        margin-top: 23px;
+    }
+
+    .control-button {
+        width: 49px;
+        height: 49px;
+
+        border-radius: 15px;
+    }
+
+    .play-button {
+        width: 61px;
+        height: 61px;
+
+        border-radius: 20px;
+    }
+
+    .settings-control {
+        margin-inline-start: 0;
+    }
+}
 
 @media (max-width: 420px) {
-
     .setup-screen {
-        width: min(100% - 22px, 620px);
+        width: min(100% - 18px, 650px);
+        padding-top: 23px;
+    }
 
-        padding-top: 28px;
+    .page-header h1 {
+        font-size: clamp(2rem, 10vw, 2.65rem);
+    }
+
+    .subtitle {
+        font-size: .88rem;
+    }
+
+    .setup-form {
+        padding: 17px 13px;
     }
 
     .ayah-range {
         gap: 8px;
     }
 
-    .player-controls {
-        gap: 6px;
+    select,
+    input[type="number"] {
+        min-height: 50px;
+        padding-inline: 11px;
+        font-size: .91rem;
     }
 
-    .control-button {
-        width: 48px;
-        height: 48px;
+    .primary-button {
+        min-height: 56px;
+        padding-inline: 42px;
+        font-size: .96rem;
+    }
+
+    .primary-button::after {
+        right: 14px;
+    }
+
+    .memorization-header h2 {
+        font-size: 1.28rem;
+    }
+
+    .icon-button {
+        width: 44px;
+        height: 44px;
 
         border-radius: 14px;
     }
 
+    .player-controls {
+        gap: 7px;
+    }
+
+    .control-button {
+        width: 45px;
+        height: 47px;
+
+        border-radius: 13px;
+
+        font-size: 1.08rem;
+    }
+
     .play-button {
         width: 56px;
-        height: 56px;
+        height: 58px;
+
+        border-radius: 18px;
+
+        font-size: 1.3rem;
     }
-
-    .settings-control {
-        margin-inline-start: 2px;
-    }
-
-}
-
-
-/* =========================================
-   Reduced Motion
-========================================= */
-
-@media (prefers-reduced-motion: reduce) {
-
-    *,
-    *::before,
-    *::after {
-        scroll-behavior: auto !important;
-        animation-duration: 0.01ms !important;
-        transition-duration: 0.01ms !important;
-    }
-
-}
-
-
-/* =========================================
-   Ayah Number
-========================================= */
-
-.ayah-number {
-    color: var(--primary);
-
-    font-family:
-        "Scheherazade New",
-        serif;
-
-    font-size: 0.72em;
-
-    white-space: nowrap;
-}
-
-
-/* =========================================
-   Download
-========================================= */
-
-.download-section {
-    display: flex;
-
-    align-items: center;
-    justify-content: space-between;
-
-    gap: 14px;
-
-    padding: 15px 16px;
-
-    border: 1px solid var(--border);
-    border-radius: var(--radius-medium);
-
-    background: var(--surface);
-}
-
-.download-info {
-    min-width: 0;
-
-    display: flex;
-    flex-direction: column;
-
-    gap: 5px;
-}
-
-.download-info strong {
-    font-size: 0.9rem;
-}
-
-.download-info span {
-    color: var(--muted);
-
-    font-size: 0.75rem;
-
-    line-height: 1.5;
-}
-
-.secondary-button {
-    flex: 0 0 auto;
-
-    min-height: 44px;
-
-    padding:
-        0
-        16px;
-
-    border: 1px solid
-        rgba(217, 185, 110, 0.3);
-
-    border-radius: 12px;
-
-    background: var(--surface-2);
-
-    color: var(--primary);
-
-    font-weight: 700;
-
-    cursor: pointer;
-}
-
-.secondary-button:hover {
-    background: var(--surface-3);
-}
-
-.secondary-button:disabled {
-    opacity: 0.4;
-
-    cursor: not-allowed;
-}
-
-
-@media (max-width: 420px) {
 
     .download-section {
         align-items: stretch;
-
         flex-direction: column;
+
+        padding: 15px;
     }
 
     .secondary-button {
         width: 100%;
     }
+}
 
+@media (max-width: 350px) {
+    .session-info span {
+        font-size: .68rem;
+        padding: 6px 8px;
+    }
+
+    .player-controls {
+        gap: 5px;
+    }
+
+    .control-button {
+        width: 41px;
+        height: 44px;
+    }
+
+    .play-button {
+        width: 52px;
+        height: 54px;
+    }
+}
+
+/* Respect accessibility settings */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+
+    body::before,
+    body::after {
+        animation: none !important;
+    }
 }
