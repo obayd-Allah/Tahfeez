@@ -1,12 +1,12 @@
+
 /* =========================================
-   Tahfeez
+   Tahfeez — Light & Playful Theme
    Base Styles
 ========================================= */
 
 /* =========================================
    Quran Font — Scheherazade New
 ========================================= */
-
 
 @font-face {
     font-family: "Scheherazade New";
@@ -16,29 +16,40 @@
     font-display: swap;
 }
 
-:root {
-    --bg: #0d1512;
-    --surface: #14201b;
-    --surface-2: #1a2922;
-    --surface-3: #20332a;
-
-    --text: #f4f1e8;
-    --muted: #aeb9b2;
-
-    --primary: #d9b96e;
-    --primary-dark: #b9974f;
-
-    --border: rgba(255, 255, 255, 0.09);
-    --danger: #d97979;
-
-    --radius-small: 12px;
-    --radius-medium: 18px;
-    --radius-large: 26px;
-
-    --shadow:
-        0 18px 50px rgba(0, 0, 0, 0.25);
+@font-face {
+    font-family: "Scheherazade New";
+    src: url("./fonts/ScheherazadeNew-Bold.woff2") format("woff2");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
 }
 
+/* =========================================
+   Theme Variables — Light
+========================================= */
+
+:root {
+    --bg: #fffaf1;
+    --surface: #ffffff;
+    --surface-soft: #fff4d9;
+    --surface-mint: #e6f7ef;
+    --ink: #24445e;
+    --ink-soft: #6e8290;
+    --primary: #f6b94c;
+    --primary-dark: #e49b2f;
+    --coral: #f48b76;
+    --sky: #dff1ff;
+    --mint: #77cdb4;
+    --border: #e9dfcf;
+    --danger: #d86c6c;
+
+    --radius-small: 14px;
+    --radius-medium: 22px;
+    --radius-large: 32px;
+
+    --shadow: 0 18px 50px rgba(74, 91, 95, 0.12);
+    --shadow-soft: 0 8px 22px rgba(74, 91, 95, 0.09);
+}
 
 /* =========================================
    Reset
@@ -57,16 +68,24 @@ html {
 
 body {
     min-height: 100vh;
+    color: var(--ink);
 
     background:
         radial-gradient(
-            circle at top,
-            rgba(217, 185, 110, 0.07),
-            transparent 34%
+            circle at 8% 10%,
+            rgba(255, 214, 113, .32),
+            transparent 19rem
         ),
-        var(--bg);
-
-    color: var(--text);
+        radial-gradient(
+            circle at 96% 28%,
+            rgba(202, 235, 255, .50),
+            transparent 20rem
+        ),
+        linear-gradient(
+            180deg,
+            #fffdf8 0%,
+            var(--bg) 100%
+        );
 
     font-family:
         "Noto Sans Arabic",
@@ -77,6 +96,35 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+/* =========================================
+   Decorative Background
+========================================= */
+
+body::before,
+body::after {
+    position: fixed;
+    z-index: -1;
+    width: 150px;
+    height: 150px;
+    border-radius: 46% 54% 63% 37% / 43% 37% 63% 57%;
+    content: "";
+    opacity: .42;
+    pointer-events: none;
+}
+
+body::before {
+    top: 17%;
+    right: -62px;
+    background: #ffd8cc;
+    transform: rotate(22deg);
+}
+
+body::after {
+    bottom: 5%;
+    left: -76px;
+    background: #c9efdf;
+    transform: rotate(-26deg);
+}
 
 /* =========================================
    General
@@ -95,14 +143,13 @@ button {
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 3px solid rgba(244, 139, 118, .42);
     outline-offset: 3px;
 }
 
 .hidden {
     display: none !important;
 }
-
 
 /* =========================================
    App
@@ -118,48 +165,97 @@ select:focus-visible {
     min-height: 100vh;
 }
 
-
 /* =========================================
    Setup Screen
 ========================================= */
 
 .setup-screen {
-    width: min(100% - 32px, 620px);
-
+    width: min(100% - 32px, 700px);
     margin-inline: auto;
-
-    padding:
-        42px
-        0
-        60px;
+    padding: 34px 0 64px;
 }
 
+/* =========================================
+   Page Header
+========================================= */
+
 .page-header {
-    margin-bottom: 32px;
+    position: relative;
+    margin-bottom: 23px;
+    padding: 27px 28px 25px;
+    overflow: hidden;
+
+    border: 1px solid rgba(233, 223, 207, .82);
+    border-radius: var(--radius-large);
+
+    background: rgba(255, 255, 255, .78);
+    box-shadow: var(--shadow-soft);
+}
+
+.page-header::after {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    top: -38px;
+    left: 16px;
+
+    border-radius: 50%;
+    background: var(--sky);
+
+    content: "";
+    opacity: .75;
+}
+
+.page-header > * {
+    position: relative;
+    z-index: 1;
+}
+
+.brand-line {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 17px;
+}
+
+.brand-badge {
+    display: grid;
+    place-items: center;
+
+    width: 48px;
+    height: 48px;
+
+    border-radius: 17px;
+    background: var(--primary);
+    box-shadow: 0 7px 0 #e6a438;
+
+    font-size: 1.45rem;
+    transform: rotate(-5deg);
 }
 
 .eyebrow {
-    margin-bottom: 8px;
+    margin-bottom: 7px;
+    color: #e99d2f;
 
-    color: var(--primary);
-
-    font-size: 0.82rem;
-    font-weight: 600;
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .02em;
 }
 
 .page-header h1 {
-    font-size: clamp(2rem, 8vw, 3rem);
-    line-height: 1.15;
+    font-size: clamp(2.15rem, 8vw, 3.5rem);
+    line-height: 1.08;
+    letter-spacing: -.04em;
 }
 
 .subtitle {
+    max-width: 480px;
     margin-top: 10px;
 
-    color: var(--muted);
-
-    font-size: 0.95rem;
+    color: var(--ink-soft);
+    font-size: .98rem;
+    line-height: 1.8;
 }
-
 
 /* =========================================
    Setup Form
@@ -168,24 +264,38 @@ select:focus-visible {
 .setup-form {
     display: flex;
     flex-direction: column;
+    gap: 15px;
+    padding: 22px;
 
-    gap: 18px;
+    border: 1px solid rgba(233, 223, 207, .85);
+    border-radius: var(--radius-large);
+
+    background: rgba(255, 255, 255, .88);
+    box-shadow: var(--shadow);
+}
+
+.setup-form::before {
+    display: block;
+    padding-bottom: 2px;
+
+    color: var(--ink-soft);
+    content: "جهّز رحلتك الصغيرة في الحفظ";
+
+    font-size: .82rem;
+    font-weight: 800;
 }
 
 .field {
     display: flex;
     flex-direction: column;
-
-    gap: 9px;
+    gap: 8px;
 }
 
 .field label {
-    color: var(--text);
-
-    font-size: 0.9rem;
-    font-weight: 600;
+    color: var(--ink);
+    font-size: .86rem;
+    font-weight: 800;
 }
-
 
 /* =========================================
    Inputs
@@ -195,37 +305,39 @@ select,
 input[type="number"] {
     width: 100%;
     min-height: 52px;
-
-    padding:
-        0
-        15px;
+    padding: 0 15px;
 
     border: 1px solid var(--border);
     border-radius: var(--radius-small);
 
-    background: var(--surface);
-    color: var(--text);
+    background: #fffdf9;
+    color: var(--ink);
+
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8);
 
     transition:
         border-color 160ms ease,
-        background 160ms ease;
+        box-shadow 160ms ease,
+        transform 160ms ease;
 }
 
-select {
-    appearance: auto;
-}
-
-select:disabled,
-input:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
+select:hover,
+input[type="number"]:hover {
+    border-color: #d6c6ad;
 }
 
 select:not(:disabled):focus,
 input:not(:disabled):focus {
     border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(246, 185, 76, .15);
 }
 
+select:disabled,
+input:disabled {
+    opacity: .48;
+    cursor: not-allowed;
+    background: #f8f6f0;
+}
 
 /* =========================================
    Ayah Range
@@ -233,53 +345,40 @@ input:not(:disabled):focus {
 
 .ayah-range {
     display: grid;
-
     grid-template-columns: 1fr 1fr;
-
     gap: 12px;
 }
 
-
-/* =========================================
-   Labels + Output
-========================================= */
-
 .label-row {
     display: flex;
-
     align-items: center;
     justify-content: space-between;
 }
 
 .label-row output {
-    color: var(--primary);
+    padding: 4px 9px;
 
-    font-weight: 700;
+    border-radius: 999px;
+    background: var(--surface-soft);
+    color: #bd7e17;
+
+    font-size: .8rem;
+    font-weight: 900;
 }
-
-
-/* =========================================
-   Range
-========================================= */
 
 .range {
     width: 100%;
-
-    accent-color: var(--primary);
-
+    accent-color: var(--coral);
     cursor: pointer;
 }
 
 .range-labels {
     display: flex;
-
     justify-content: space-between;
 
-    color: var(--muted);
-
-    font-size: 0.76rem;
+    color: var(--ink-soft);
+    font-size: .74rem;
 }
-
 
 /* =========================================
    Teacher Mode
@@ -289,38 +388,34 @@ input:not(:disabled):focus {
     min-height: 70px;
 
     display: flex;
-
     align-items: center;
     justify-content: space-between;
-
     gap: 15px;
 
-    padding: 15px 17px;
+    padding: 14px 16px;
 
-    border: 1px solid var(--border);
+    border: 1px solid #cfeadd;
     border-radius: var(--radius-medium);
 
-    background: var(--surface);
+    background: var(--surface-mint);
 }
 
 .teacher-option strong {
     display: block;
-
     margin-bottom: 4px;
 }
 
 .teacher-option span:not(.switch-slider) {
     display: block;
 
-    color: var(--muted);
-
-    font-size: 0.78rem;
+    color: var(--ink-soft);
+    font-size: .77rem;
+    line-height: 1.55;
 }
 
 .teacher-option.is-disabled {
-    opacity: 0.65;
+    opacity: .65;
 }
-
 
 /* =========================================
    Switch
@@ -328,7 +423,6 @@ input:not(:disabled):focus {
 
 .switch {
     position: relative;
-
     flex: 0 0 auto;
 
     width: 50px;
@@ -340,7 +434,6 @@ input:not(:disabled):focus {
 .switch input {
     width: 0;
     height: 0;
-
     opacity: 0;
 }
 
@@ -349,27 +442,24 @@ input:not(:disabled):focus {
     inset: 0;
 
     border-radius: 999px;
+    background: #bfd5ce;
 
-    background: var(--surface-3);
-
-    transition:
-        background 180ms ease;
+    transition: background 180ms ease;
 }
 
 .switch-slider::before {
-    content: "";
-
     position: absolute;
+    top: 4px;
+    right: 4px;
 
     width: 21px;
     height: 21px;
 
-    top: 4px;
-    right: 4px;
-
     border-radius: 50%;
+    background: white;
 
-    background: var(--muted);
+    content: "";
+    box-shadow: 0 2px 5px rgba(0, 0, 0, .12);
 
     transition:
         transform 180ms ease,
@@ -377,35 +467,29 @@ input:not(:disabled):focus {
 }
 
 .switch input:checked + .switch-slider {
-    background: var(--primary-dark);
+    background: var(--mint);
 }
 
 .switch input:checked + .switch-slider::before {
     transform: translateX(-21px);
-
-    background: var(--text);
 }
-
 
 /* =========================================
    Availability Message
 ========================================= */
 
 .availability-message {
-    padding: 14px 16px;
+    padding: 13px 15px;
 
-    border: 1px solid rgba(217, 121, 121, 0.25);
+    border: 1px solid #f1c7bc;
     border-radius: var(--radius-small);
 
-    background: rgba(217, 121, 121, 0.08);
+    background: #fff0ec;
+    color: var(--danger);
 
-    color: #f0c5c5;
-
-    font-size: 0.88rem;
-
+    font-size: .86rem;
     line-height: 1.7;
 }
-
 
 /* =========================================
    Primary Button
@@ -413,38 +497,46 @@ input:not(:disabled):focus {
 
 .primary-button {
     width: 100%;
-    min-height: 56px;
-
+    min-height: 58px;
     margin-top: 5px;
 
-    border-radius: var(--radius-medium);
+    border-radius: 18px;
+    background: var(--coral);
+    color: white;
 
-    background: var(--primary);
-    color: #17130a;
-
-    font-weight: 800;
-
+    font-weight: 900;
     cursor: pointer;
+
+    box-shadow:
+        0 6px 0 #dc7564,
+        0 12px 22px rgba(244, 139, 118, .2);
 
     transition:
         transform 150ms ease,
         background 150ms ease,
-        opacity 150ms ease;
+        opacity 150ms ease,
+        box-shadow 150ms ease;
 }
 
 .primary-button:not(:disabled):hover {
-    background: #e3c47b;
+    background: #f17e68;
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 8px 0 #dc7564,
+        0 15px 26px rgba(244, 139, 118, .24);
 }
 
 .primary-button:not(:disabled):active {
-    transform: scale(0.98);
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #dc7564;
 }
 
 .primary-button:disabled {
-    opacity: 0.35;
+    opacity: .4;
     cursor: not-allowed;
+    box-shadow: none;
 }
-
 
 /* =========================================
    Memorization Screen
@@ -452,18 +544,13 @@ input:not(:disabled):focus {
 
 .memorization-screen {
     width: min(100% - 24px, 900px);
-
     margin-inline: auto;
 
     display: flex;
     flex-direction: column;
 
-    padding:
-        28px
-        0
-        40px;
+    padding: 28px 0 40px;
 }
-
 
 /* =========================================
    Memorization Header
@@ -471,17 +558,22 @@ input:not(:disabled):focus {
 
 .memorization-header {
     display: flex;
-
     align-items: center;
     justify-content: space-between;
-
     gap: 16px;
+
+    padding: 17px 20px;
+
+    border: 1px solid rgba(233, 223, 207, .9);
+    border-radius: var(--radius-medium);
+
+    background: rgba(255, 255, 255, .82);
+    box-shadow: var(--shadow-soft);
 }
 
 .memorization-header h2 {
     font-size: clamp(1.35rem, 5vw, 2rem);
 }
-
 
 /* =========================================
    Icon Button
@@ -495,13 +587,12 @@ input:not(:disabled):focus {
     place-items: center;
 
     border: 1px solid var(--border);
-    border-radius: 50%;
+    border-radius: 16px;
 
-    background: var(--surface);
-    color: var(--text);
+    background: var(--surface-soft);
+    color: var(--ink);
 
     font-size: 1.2rem;
-
     cursor: pointer;
 
     transition:
@@ -510,13 +601,12 @@ input:not(:disabled):focus {
 }
 
 .icon-button:active {
-    transform: scale(0.94);
+    transform: scale(.94);
 }
 
 .icon-button:hover {
-    background: var(--surface-2);
+    background: #ffe9af;
 }
-
 
 /* =========================================
    Session Info
@@ -524,89 +614,109 @@ input:not(:disabled):focus {
 
 .session-info {
     display: flex;
-
     justify-content: center;
-
+    flex-wrap: wrap;
     gap: 10px;
 
-    margin-top: 30px;
+    margin-top: 22px;
 }
 
 .session-info span {
-    padding: 7px 12px;
+    padding: 7px 13px;
 
     border-radius: 999px;
+    background: var(--surface-mint);
+    color: #4e8977;
 
-    background: var(--surface);
-
-    color: var(--muted);
-
-    font-size: 0.76rem;
+    font-size: .76rem;
+    font-weight: 800;
 }
 
-
 /* =========================================
-   Ayah
+   Ayah Container
 ========================================= */
 
 .ayah-container {
-    min-height: 300px;
+    position: relative;
+    min-height: 330px;
 
     display: flex;
-
     align-items: center;
     justify-content: center;
 
-    margin-top: 24px;
-    padding: 30px 18px;
+    margin-top: 19px;
+    padding: 38px 24px;
 
-    border: 1px solid var(--border);
+    border: 1px solid #ebdfca;
     border-radius: var(--radius-large);
 
     background:
         radial-gradient(
-            circle at center,
-            rgba(217, 185, 110, 0.05),
-            transparent 65%
-        ),
-        var(--surface);
+            circle at 50% 42%,
+            #fff9e9 0%,
+            #ffffff 62%
+        );
 
     box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.ayah-container::before,
+.ayah-container::after {
+    position: absolute;
+
+    color: var(--primary);
+    font-size: 2rem;
+
+    content: "✦";
+    opacity: .55;
+}
+
+.ayah-container::before {
+    top: 23px;
+    right: 28px;
+    transform: rotate(12deg);
+}
+
+.ayah-container::after {
+    bottom: 19px;
+    left: 28px;
+
+    color: var(--mint);
+    transform: rotate(-12deg);
 }
 
 .ayah-text {
+    position: relative;
+    z-index: 1;
+
     max-width: 760px;
 
-    color: var(--text);
+    color: var(--ink);
 
-    /* الخط الجديد للنص القرآني */
     font-family: "Scheherazade New", serif;
-
-    font-size: clamp(1.65rem, 7vw, 3rem);
-
-    line-height: 2.25;
+    font-size: clamp(1.8rem, 7vw, 3.25rem);
+    line-height: 2.15;
 
     text-align: center;
-
     direction: rtl;
 }
 
+.ayah-number {
+    color: #d89424;
+    font-family: "Scheherazade New", serif;
+    font-size: .72em;
+    white-space: nowrap;
+}
 
 /* =========================================
    Player Controls
 ========================================= */
 
-/*
-    مهم:
-    أزرار التحكم والإعدادات في صف واحد.
-*/
-
 .player-controls {
     display: flex;
-
     align-items: center;
     justify-content: center;
-
     gap: 10px;
 
     margin-top: 22px;
@@ -620,14 +730,15 @@ input:not(:disabled):focus {
     place-items: center;
 
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: 17px;
 
-    background: var(--surface);
-    color: var(--text);
+    background: white;
+    color: var(--ink);
 
     font-size: 1.2rem;
-
     cursor: pointer;
+
+    box-shadow: var(--shadow-soft);
 
     transition:
         transform 150ms ease,
@@ -636,48 +747,50 @@ input:not(:disabled):focus {
 }
 
 .control-button:hover {
-    background: var(--surface-2);
-
-    border-color:
-        rgba(217, 185, 110, 0.35);
+    background: var(--sky);
+    border-color: #b9dcf2;
+    transform: translateY(-2px);
 }
 
 .control-button:active {
-    transform: scale(0.93);
+    transform: translateY(2px) scale(.96);
 }
 
 .play-button {
-    width: 60px;
-    height: 60px;
+    width: 64px;
+    height: 64px;
 
-    border-radius: 18px;
+    border-radius: 21px;
 
-    background: var(--primary);
-    color: #17130a;
+    background: var(--coral);
+    color: white;
 
-    font-size: 1.3rem;
+    font-size: 1.35rem;
+
+    box-shadow:
+        0 6px 0 #dc7564,
+        0 12px 20px rgba(244, 139, 118, .2);
 }
 
 .play-button:hover {
-    background: #e3c47b;
+    background: #f17e68;
 }
 
 .settings-control {
     margin-inline-start: 5px;
+    background: var(--surface-soft);
 }
-
 
 /* =========================================
    Completion
 ========================================= */
 
 .completion-message {
-    margin-top: 28px;
+    margin-top: 25px;
 
-    color: var(--primary);
-
+    color: #d89424;
     font-size: 1.25rem;
-    font-weight: 800;
+    font-weight: 900;
 
     text-align: center;
 
@@ -687,99 +800,23 @@ input:not(:disabled):focus {
 @keyframes completion-in {
     from {
         opacity: 0;
-        transform: translateY(8px);
+        transform: translateY(8px) scale(.96);
     }
 
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
     }
 }
 
-
 /* =========================================
-   Small Phones
-========================================= */
-
-@media (max-width: 420px) {
-
-    .setup-screen {
-        width: min(100% - 22px, 620px);
-
-        padding-top: 28px;
-    }
-
-    .ayah-range {
-        gap: 8px;
-    }
-
-    .player-controls {
-        gap: 6px;
-    }
-
-    .control-button {
-        width: 48px;
-        height: 48px;
-
-        border-radius: 14px;
-    }
-
-    .play-button {
-        width: 56px;
-        height: 56px;
-    }
-
-    .settings-control {
-        margin-inline-start: 2px;
-    }
-
-}
-
-
-/* =========================================
-   Reduced Motion
-========================================= */
-
-@media (prefers-reduced-motion: reduce) {
-
-    *,
-    *::before,
-    *::after {
-        scroll-behavior: auto !important;
-        animation-duration: 0.01ms !important;
-        transition-duration: 0.01ms !important;
-    }
-
-}
-
-
-/* =========================================
-   Ayah Number
-========================================= */
-
-.ayah-number {
-    color: var(--primary);
-
-    font-family:
-        "Scheherazade New",
-        serif;
-
-    font-size: 0.72em;
-
-    white-space: nowrap;
-}
-
-
-/* =========================================
-   Download
+   Download Section
 ========================================= */
 
 .download-section {
     display: flex;
-
     align-items: center;
     justify-content: space-between;
-
     gap: 14px;
 
     padding: 15px 16px;
@@ -787,7 +824,7 @@ input:not(:disabled):focus {
     border: 1px solid var(--border);
     border-radius: var(--radius-medium);
 
-    background: var(--surface);
+    background: white;
 }
 
 .download-info {
@@ -795,66 +832,134 @@ input:not(:disabled):focus {
 
     display: flex;
     flex-direction: column;
-
     gap: 5px;
 }
 
 .download-info strong {
-    font-size: 0.9rem;
+    font-size: .9rem;
 }
 
 .download-info span {
-    color: var(--muted);
-
-    font-size: 0.75rem;
-
+    color: var(--ink-soft);
+    font-size: .75rem;
     line-height: 1.5;
 }
 
 .secondary-button {
     flex: 0 0 auto;
-
     min-height: 44px;
+    padding: 0 16px;
 
-    padding:
-        0
-        16px;
-
-    border: 1px solid
-        rgba(217, 185, 110, 0.3);
-
+    border: 1px solid #f0c971;
     border-radius: 12px;
 
-    background: var(--surface-2);
+    background: var(--surface-soft);
+    color: #bd7e17;
 
-    color: var(--primary);
-
-    font-weight: 700;
-
+    font-weight: 800;
     cursor: pointer;
 }
 
 .secondary-button:hover {
-    background: var(--surface-3);
+    background: #ffe9af;
 }
 
 .secondary-button:disabled {
-    opacity: 0.4;
-
+    opacity: .4;
     cursor: not-allowed;
 }
 
+/* =========================================
+   Responsive — Tablets and Phones
+========================================= */
+
+@media (max-width: 560px) {
+    .setup-screen {
+        width: min(100% - 22px, 700px);
+        padding-top: 22px;
+    }
+
+    .page-header {
+        padding: 22px 19px;
+    }
+
+    .setup-form {
+        padding: 17px;
+    }
+
+    .ayah-range {
+        gap: 8px;
+    }
+
+    .memorization-screen {
+        width: min(100% - 18px, 900px);
+        padding-top: 16px;
+    }
+
+    .ayah-container {
+        min-height: 300px;
+        padding-inline: 17px;
+    }
+
+    .player-controls {
+        gap: 6px;
+    }
+
+    .control-button {
+        width: 47px;
+        height: 47px;
+        border-radius: 15px;
+    }
+
+    .play-button {
+        width: 58px;
+        height: 58px;
+    }
+}
 
 @media (max-width: 420px) {
-
-    .download-section {
-        align-items: stretch;
-
-        flex-direction: column;
+    .brand-badge {
+        width: 43px;
+        height: 43px;
     }
 
-    .secondary-button {
-        width: 100%;
+    .page-header h1 {
+        font-size: 2.25rem;
     }
 
+    .player-controls {
+        gap: 4px;
+    }
+
+    .settings-control {
+        margin-inline-start: 1px;
+    }
 }
+
+@media (max-width: 360px) {
+    .control-button {
+        width: 43px;
+        height: 43px;
+        font-size: 1rem;
+    }
+
+    .play-button {
+        width: 54px;
+        height: 54px;
+    }
+}
+
+/* =========================================
+   Reduced Motion
+========================================= */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+    }
+}
+
