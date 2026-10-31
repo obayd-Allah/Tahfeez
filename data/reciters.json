@@ -59,10 +59,16 @@
     "audioBaseUrl": "https://osama-tasgeel.pages.dev",
     "teacherMode": true,
     "surahs": {
+      "1": {
+        "from": 1,
+        "to": 7
+      }, 
       "93": {
         "from": 1,
         "to": 11
       }
+      
+      
     }
   }
 ]
