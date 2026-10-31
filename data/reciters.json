@@ -44,9 +44,14 @@
   {
     "id": "mohamed-hamdy",
     "name": "الشيخ محمد حمدي",
-    "audioBaseUrl": "",
-    "teacherMode": false,
-    "surahs": {}
+    "audioBaseUrl": "https://Sheikh-Mohamed-Hamdy-tasgeel.pages.dev",
+    "teacherMode": true,
+    "surahs": {
+      "101":{
+        "from": 1,
+        "to": 11
+      }
+    }
   },
   {
     "id": "osama",
