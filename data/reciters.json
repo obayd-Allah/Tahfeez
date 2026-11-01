@@ -23,9 +23,13 @@
   {
     "id": "ziad",
     "name": "الشيخ زياد",
-    "audioBaseUrl": "",
-    "teacherMode": false,
-    "surahs": {}
+    "audioBaseUrl": "https://sheikh-ziad-tasgeel.pages.dev",
+    "teacherMode": true,
+    "surahs": {
+      "1": {
+        "from": 1,
+        "to": 7
+      }
   },
   {
     "id": "marwan",
