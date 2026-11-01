@@ -26,11 +26,14 @@
     "audioBaseUrl": "https://sheikh-ziad-tasgeel.pages.dev",
     "teacherMode": true,
     "surahs": {
+      
       "1": {
         "from": 1,
         "to": 7
       }
-  },
+      
+  }
+   }, 
   {
     "id": "marwan",
     "name": "الشيخ مروان",
@@ -51,10 +54,12 @@
     "audioBaseUrl": "https://Sheikh-Mohamed-Hamdy-tasgeel.pages.dev",
     "teacherMode": true,
     "surahs": {
+      
       "101":{
         "from": 1,
         "to": 11
       }
+      
     }
   },
   {
@@ -63,6 +68,7 @@
     "audioBaseUrl": "https://osama-tasgeel.pages.dev",
     "teacherMode": true,
     "surahs": {
+      
       "1": {
         "from": 1,
         "to": 7
